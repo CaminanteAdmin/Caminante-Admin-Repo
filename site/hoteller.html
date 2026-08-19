@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hoteller – Caminante Admin</title>
+<link rel="stylesheet" href="shared/style.css">
+<style>
+  .toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+    padding:14px 24px;
+    background:var(--surface-1);
+    border-bottom:1px solid var(--hairline);
+    position:sticky;
+    top:0;
+    z-index:5;
+  }
+  .toolbar input[type="search"]{
+    flex:1 1 200px;
+    min-width:160px;
+    padding:7px 10px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:13px;
+    background:var(--surface-1);
+    color:var(--ink-primary);
+  }
+  .toolbar select{
+    padding:7px 8px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:13px;
+    background:var(--surface-1);
+    color:var(--ink-primary);
+  }
+  .toolbar button.reset, .toolbar button.action{
+    padding:7px 12px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:13px;
+    background:var(--surface-1);
+    color:var(--ink-secondary);
+    cursor:pointer;
+  }
+  .toolbar button.action.primary{
+    background:var(--accent);
+    color:#fff;
+    border-color:var(--accent);
+  }
+  .toolbar button:hover{ background:var(--page); }
+  .toolbar button.action.primary:hover{ background:#123d75; }
+  .count-pill{
+    font-size:12.5px;
+    color:var(--ink-muted);
+    margin-left:auto;
+    padding-left:8px;
+  }
+  .main{
+    padding:16px 24px 32px;
+  }
+  .list-panel{
+    background:var(--surface-1);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:14px;
+    overflow-x:auto;
+  }
+  .list-panel h2{
+    font-size:13px;
+    font-weight:650;
+    margin:0 0 10px;
+    color:var(--ink-secondary);
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  thead th{
+    text-align:left;
+    font-weight:600;
+    color:var(--ink-secondary);
+    padding:8px 8px;
+    border-bottom:1px solid var(--hairline);
+    cursor:pointer;
+    white-space:nowrap;
+    user-select:none;
+  }
+  thead th:hover{ color:var(--ink-primary); }
+  thead th .arrow{ font-size:10px; color:var(--ink-muted); margin-left:3px; }
+  tbody td{ padding:8px 8px; border-bottom:1px solid var(--hairline); vertical-align:middle; }
+  tbody tr{ cursor:pointer; }
+  tbody tr:hover{ background:var(--page); }
+  tbody tr.selected{ background:#eaf1fb; }
+  .hotel-name{ font-weight:600; }
+  .hotel-sub{ font-size:11.5px; color:var(--ink-muted); }
+
+  .chip{
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:20px;
+    font-size:11.5px;
+    font-weight:600;
+    line-height:1.6;
+  }
+  select.status-select{
+    border:1px solid var(--hairline);
+    border-radius:6px;
+    font-size:11.5px;
+    padding:2px 6px;
+    font-weight:600;
+    cursor:pointer;
+  }
+
+  .overlay-bg{ position:fixed; inset:0; background:rgba(11,11,11,0.30); display:none; z-index:20; }
+  .overlay-bg.open{ display:block; }
+  .profile-panel{
+    position:fixed;
+    top:0; right:0; bottom:0;
+    width:min(520px, 100%);
+    background:var(--surface-1);
+    box-shadow:-8px 0 24px rgba(0,0,0,0.15);
+    transform:translateX(100%);
+    transition:transform 0.18s ease;
+    overflow-y:auto;
+    z-index:21;
+    padding:20px 22px 60px;
+  }
+  .profile-panel.open{ transform:translateX(0); }
+  .profile-close{
+    position:absolute; top:16px; right:18px;
+    border:none; background:none;
+    font-size:20px; cursor:pointer;
+    color:var(--ink-muted); line-height:1;
+  }
+  .profile-close:hover{ color:var(--ink-primary); }
+  .profile-header{ margin-bottom:6px; padding-right:30px; }
+  .profile-header h2{ margin:0 0 4px; font-size:20px; }
+  .profile-header .meta{ font-size:12.5px; color:var(--ink-muted); }
+  .profile-chips{ display:flex; gap:8px; margin-top:10px; align-items:center; }
+
+  .section{ margin-top:22px; padding-top:16px; border-top:1px solid var(--hairline); }
+  .section h3{
+    font-size:12.5px;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    color:var(--ink-secondary);
+    margin:0 0 10px;
+  }
+  .fact-grid{
+    display:grid;
+    grid-template-columns:110px 1fr;
+    row-gap:8px;
+    column-gap:10px;
+    font-size:13px;
+    align-items:center;
+  }
+  .fact-grid label{ color:var(--ink-muted); }
+  .fact-grid input, .fact-grid select{
+    border:1px solid var(--hairline);
+    border-radius:6px;
+    padding:5px 7px;
+    font-size:13px;
+    font-family:inherit;
+    color:var(--ink-primary);
+    width:100%;
+  }
+  .comment-item{
+    padding:10px 0;
+    border-bottom:1px solid var(--hairline);
+    font-size:13px;
+  }
+  .comment-meta{
+    font-size:11.5px;
+    color:var(--ink-muted);
+    margin-bottom:3px;
+    font-variant-numeric:tabular-nums;
+  }
+  .comment-text{ white-space:pre-wrap; line-height:1.5; }
+  .add-comment{ margin-top:12px; }
+  .add-comment textarea{
+    width:100%;
+    min-height:60px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    padding:8px 10px;
+    font-size:13px;
+    font-family:inherit;
+    resize:vertical;
+  }
+  .add-comment .row{ display:flex; justify-content:flex-end; margin-top:6px; }
+  .delete-hotel{
+    margin-top:24px;
+    font-size:12px;
+    color:#b04a4a;
+    background:none;
+    border:1px solid var(--hairline);
+    border-radius:7px;
+    padding:6px 10px;
+    cursor:pointer;
+  }
+  .delete-hotel:hover{ background:#fbeaea; border-color:#d03b3b; }
+  .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html"><span class="company">Caminante Admin</span><span class="tool-name">Hoteller</span></a>
+  <div class="user-area">
+    <span id="userName"></span>
+    <button class="logout-btn" id="logoutBtn">Logg ut</button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <input type="search" id="searchInput" placeholder="Søk på hotellnavn, by eller land…">
+  <select id="filterLand"><option value="">Alle land</option></select>
+  <select id="filterStatus"><option value="">Alle statuser</option></select>
+  <button class="reset" id="resetFilters">Nullstill filter</button>
+  <button class="action primary" id="newHotelBtn">+ Nytt hotell</button>
+  <button class="action" id="exportBtn">Eksporter (CSV)</button>
+  <span class="count-pill" id="countPill"></span>
+</div>
+
+<div id="loadMsg" class="load-msg">Laster hoteller…</div>
+
+<div class="main" id="mainArea" style="display:none;">
+  <div class="list-panel">
+    <h2>Hotelliste</h2>
+    <table>
+      <thead>
+        <tr>
+          <th data-key="navn">Hotell <span class="arrow"></span></th>
+          <th data-key="status">Status <span class="arrow"></span></th>
+          <th data-key="prisniva">Prisnivå <span class="arrow"></span></th>
+          <th data-key="kapasitet">Kapasitet <span class="arrow"></span></th>
+          <th data-key="kontaktperson">Kontaktperson <span class="arrow"></span></th>
+        </tr>
+      </thead>
+      <tbody id="listBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="overlay-bg" id="overlayBg"></div>
+<div class="profile-panel" id="profilePanel"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+/* ---------- Reference data ---------- */
+
+// Status og prisnivå er bevisst fritekst (ikke Postgres-enum) - nye verdier kan
+// legges til her uten SQL-migrering, samme designvalg som kalenderhendelser.
+const STATUSER = ["Research", "Erfaring", "Avtale"];
+const STATUS_COLORS = {
+  "Research": { bg:"#898781", fg:"#ffffff" },   // vurderes, ingen erfaring ennå
+  "Erfaring": { bg:"#2a78d6", fg:"#ffffff" },   // brukt, ingen fast avtale
+  "Avtale":   { bg:"#0ca30c", fg:"#ffffff" },   // fast avtale på plass
+};
+const PRISNIVAER = ["", "€", "€€", "€€€"];
+
+/* ---------- State (in-memory cache of DB rows for the current session) ---------- */
+
+let hotels = [];          // hoteller-rader + .kommentarer[] tilknyttet klientsidig
+let currentUserId = null;
+let state = { search:"", land:"", status:"", sortKey:"navn", sortDir:1, selectedId:null };
+
+/* ---------- Helpers ---------- */
+
+function escapeHtml(str){
+  return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+function statusChip(s){
+  const c = STATUS_COLORS[s] || {bg:"#898781", fg:"#ffffff"};
+  return `<span class="chip" style="background:${c.bg};color:${c.fg}">${escapeHtml(s)}</span>`;
+}
+
+/* ---------- Supabase data loading ---------- */
+
+async function loadAllData(){
+  const [{ data: hotellRows, error: e1 }, { data: kommentarerRows, error: e2 }, { data: profileRows, error: e3 }] =
+    await Promise.all([
+      window.sb.from("hoteller").select("*"),
+      window.sb.from("hotell_kommentarer").select("*").order("opprettet_dato", { ascending:false }),
+      window.sb.from("profiles").select("id, navn"),
+    ]);
+  if(e1 || e2 || e3){
+    document.getElementById("loadMsg").textContent = "Kunne ikke laste data fra databasen. Sjekk at sql/2026-07-27-hoteller.sql er kjørt i Supabase, og prøv igjen.";
+    console.error(e1, e2, e3);
+    return false;
+  }
+  const nameById = {};
+  (profileRows||[]).forEach(p=> nameById[p.id] = p.navn);
+
+  hotels = (hotellRows||[]).map(h => ({
+    ...h,
+    kommentarer: (kommentarerRows||[]).filter(c=>c.hotell_id===h.id).map(c=>({
+      ...c,
+      forfatter_navn: nameById[c.forfatter] || "Ukjent",
+    })),
+  }));
+  return true;
+}
+
+/* ---------- Filter dropdown population ---------- */
+
+function fillSelect(id, values, keepFirst){
+  const el = document.getElementById(id);
+  while(el.options.length > (keepFirst ? 1 : 0)) el.remove(el.options.length-1);
+  values.forEach(v=>{
+    if(v === "" ) return;
+    const o = document.createElement("option");
+    o.value = v; o.textContent = v;
+    el.appendChild(o);
+  });
+}
+function refreshLandFilter(){
+  const land = [...new Set(hotels.map(h=>h.land).filter(Boolean))].sort((a,b)=> a.localeCompare(b,"no"));
+  const current = state.land;
+  fillSelect("filterLand", land, true);
+  if(land.includes(current)) document.getElementById("filterLand").value = current;
+}
+fillSelect("filterStatus", STATUSER, true);
+
+/* ---------- Filtering / sorting ---------- */
+
+function filteredHotels(){
+  let list = hotels.filter(h=>{
+    if(state.search){
+      const q = state.search.toLowerCase();
+      if(!(h.navn||"").toLowerCase().includes(q) && !(h.by||"").toLowerCase().includes(q) && !(h.land||"").toLowerCase().includes(q)) return false;
+    }
+    if(state.land && h.land !== state.land) return false;
+    if(state.status && h.status !== state.status) return false;
+    return true;
+  });
+  const key = state.sortKey, dir = state.sortDir;
+  list.sort((a,b)=>{
+    let av = a[key], bv = b[key];
+    if(key==="status"){ av = STATUSER.indexOf(a.status); bv = STATUSER.indexOf(b.status); }
+    if(key==="prisniva"){ av = PRISNIVAER.indexOf(a.prisniva||""); bv = PRISNIVAER.indexOf(b.prisniva||""); }
+    if(typeof av === "string") av = av.toLowerCase();
+    if(typeof bv === "string") bv = bv.toLowerCase();
+    if(av == null) av = "";
+    if(bv == null) bv = "";
+    if(av < bv) return -1*dir;
+    if(av > bv) return 1*dir;
+    return 0;
+  });
+  return list;
+}
+
+/* ---------- Rendering: list ---------- */
+
+function renderList(){
+  const list = filteredHotels();
+  const body = document.getElementById("listBody");
+  body.innerHTML = "";
+  list.forEach(h=>{
+    const tr = document.createElement("tr");
+    if(h.id === state.selectedId) tr.classList.add("selected");
+    const sted = [h.by, h.land].filter(Boolean).join(", ");
+    tr.innerHTML = `
+      <td>
+        <div class="hotel-name">${escapeHtml(h.navn)}</div>
+        <div class="hotel-sub">${escapeHtml(sted)}</div>
+      </td>
+      <td></td>
+      <td>${escapeHtml(h.prisniva)}</td>
+      <td>${escapeHtml(h.kapasitet)}</td>
+      <td>${escapeHtml(h.kontaktperson)}</td>
+    `;
+    tr.addEventListener("click", (e)=>{ if(e.target.tagName!=="SELECT") openProfile(h.id); });
+    body.appendChild(tr);
+
+    const stCell = tr.children[1];
+    const stSel = document.createElement("select");
+    stSel.className = "status-select";
+    const curColor = STATUS_COLORS[h.status] || {bg:"#898781", fg:"#ffffff"};
+    stSel.style.background = curColor.bg;
+    stSel.style.color = curColor.fg;
+    stSel.style.borderColor = curColor.bg;
+    STATUSER.forEach(st=>{
+      const o = document.createElement("option"); o.value=st; o.textContent=st;
+      if(st===h.status) o.selected = true;
+      stSel.appendChild(o);
+    });
+    stSel.addEventListener("change", async ()=>{
+      await updateHotell(h.id, { status: stSel.value });
+    });
+    stCell.appendChild(stSel);
+  });
+  document.getElementById("countPill").textContent = `${list.length} av ${hotels.length} hoteller vises`;
+}
+
+/* ---------- Write helpers (Supabase) ---------- */
+
+async function updateHotell(id, patch){
+  const { error } = await window.sb.from("hoteller").update(patch).eq("id", id);
+  if(error){ alert("Kunne ikke lagre endringen: " + error.message); return; }
+  const h = hotels.find(x=>x.id===id);
+  Object.assign(h, patch);
+  refreshLandFilter();
+  renderList();
+  if(state.selectedId === id) renderProfile(id);
+}
+
+async function createHotell(){
+  const { data, error } = await window.sb.from("hoteller").insert({
+    navn: "Nytt hotell", by: "", land: "", status: "Research", prisniva: "", kapasitet: "",
+    kontaktperson: "", telefon: "", epost: "", nettside: "", opprettet_av: currentUserId,
+  }).select().single();
+  if(error){ alert("Kunne ikke opprette hotell: " + error.message); return; }
+  hotels.push({ ...data, kommentarer:[] });
+  refreshLandFilter();
+  renderList();
+  openProfile(data.id);
+}
+
+async function deleteHotell(id){
+  if(!confirm("Slette dette hotellet permanent, inkludert alle kommentarer?")) return;
+  const { error } = await window.sb.from("hoteller").delete().eq("id", id);
+  if(error){ alert("Kunne ikke slette: " + error.message); return; }
+  hotels = hotels.filter(h=>h.id!==id);
+  closeProfile();
+  refreshLandFilter();
+  renderList();
+}
+
+/* ---------- Profile panel ---------- */
+
+function openProfile(id){
+  state.selectedId = id;
+  renderList();
+  renderProfile(id);
+  document.getElementById("overlayBg").classList.add("open");
+  document.getElementById("profilePanel").classList.add("open");
+}
+function closeProfile(){
+  state.selectedId = null;
+  document.getElementById("overlayBg").classList.remove("open");
+  document.getElementById("profilePanel").classList.remove("open");
+  renderList();
+}
+document.getElementById("overlayBg").addEventListener("click", closeProfile);
+
+function renderProfile(id){
+  const h = hotels.find(x=>x.id===id);
+  const panel = document.getElementById("profilePanel");
+  const sted = [h.by, h.land].filter(Boolean).join(", ") || "Sted ikke satt";
+
+  panel.innerHTML = `
+    <button class="profile-close" id="closeBtn" title="Lukk">✕</button>
+    <div class="profile-header">
+      <h2>${escapeHtml(h.navn)}</h2>
+      <div class="meta">${escapeHtml(sted)}</div>
+      <div class="profile-chips">${statusChip(h.status)}</div>
+    </div>
+
+    <div class="section">
+      <h3>1. Fakta</h3>
+      <div class="fact-grid">
+        <label>Navn</label><input id="f-navn" value="${escapeHtml(h.navn)}">
+        <label>By</label><input id="f-by" value="${escapeHtml(h.by)}">
+        <label>Land</label><input id="f-land" value="${escapeHtml(h.land)}">
+        <label>Nettside</label><input id="f-nettside" value="${escapeHtml(h.nettside)}" placeholder="https://…">
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>2. Kontakt &amp; pris</h3>
+      <div class="fact-grid">
+        <label>Kontaktperson</label><input id="f-kontaktperson" value="${escapeHtml(h.kontaktperson)}">
+        <label>Telefon</label><input id="f-telefon" value="${escapeHtml(h.telefon)}">
+        <label>E-post</label><input id="f-epost" value="${escapeHtml(h.epost)}">
+        <label>Prisnivå</label>
+        <select id="f-prisniva">${PRISNIVAER.map(p=>`<option value="${p}" ${p===(h.prisniva||"")?"selected":""}>${p===""?"Ikke satt":p}</option>`).join("")}</select>
+        <label>Kapasitet</label><input id="f-kapasitet" value="${escapeHtml(h.kapasitet)}" placeholder="F.eks. 120 rom, sal opptil 250">
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>3. Kommentarer</h3>
+      <div id="commentsWrap"></div>
+      <div class="add-comment">
+        <textarea id="newCommentText" placeholder="Skriv en ny kommentar/erfaring – dato, klokkeslett og forfatter legges til automatisk…"></textarea>
+        <div class="row"><button class="small-btn" id="addCommentBtn">Legg til kommentar</button></div>
+      </div>
+    </div>
+
+    <button class="delete-hotel" id="deleteHotelBtn">Slett hotell</button>
+  `;
+
+  document.getElementById("closeBtn").addEventListener("click", closeProfile);
+  document.getElementById("deleteHotelBtn").addEventListener("click", ()=> deleteHotell(h.id));
+
+  const bind = (elId, field)=>{
+    document.getElementById(elId).addEventListener("change", async (e)=>{
+      await updateHotell(h.id, { [field]: e.target.value });
+    });
+  };
+  bind("f-navn","navn"); bind("f-by","by"); bind("f-land","land"); bind("f-nettside","nettside");
+  bind("f-kontaktperson","kontaktperson"); bind("f-telefon","telefon"); bind("f-epost","epost");
+  bind("f-prisniva","prisniva"); bind("f-kapasitet","kapasitet");
+
+  renderComments(h);
+  document.getElementById("addCommentBtn").addEventListener("click", async ()=>{
+    const tekst = document.getElementById("newCommentText").value.trim();
+    if(!tekst) return;
+    const { data, error } = await window.sb.from("hotell_kommentarer").insert({
+      hotell_id: h.id, tekst, forfatter: currentUserId,
+    }).select().single();
+    if(error){ alert("Kunne ikke lagre kommentar: " + error.message); return; }
+    const { data: profile } = await window.sb.from("profiles").select("navn").eq("id", currentUserId).single();
+    h.kommentarer.unshift({ ...data, forfatter_navn: (profile && profile.navn) || "" });
+    document.getElementById("newCommentText").value = "";
+    renderComments(h);
+  });
+}
+
+function renderComments(h){
+  const wrap = document.getElementById("commentsWrap");
+  wrap.innerHTML = "";
+  const sorted = [...h.kommentarer].sort((a,b)=> a.opprettet_dato < b.opprettet_dato ? 1 : -1);
+  if(sorted.length === 0){
+    const p = document.createElement("div");
+    p.className = "save-hint";
+    p.textContent = "Ingen kommentarer registrert ennå.";
+    wrap.appendChild(p);
+  }
+  sorted.forEach(c=>{
+    const row = document.createElement("div");
+    row.className = "comment-item";
+    const d = new Date(c.opprettet_dato);
+    const stamp = d.toLocaleDateString("nb-NO",{year:"numeric",month:"short",day:"numeric"}) + " kl. " + d.toLocaleTimeString("nb-NO",{hour:"2-digit",minute:"2-digit"});
+    row.innerHTML = `<div class="comment-meta">${stamp} · ${escapeHtml(c.forfatter_navn||"")}</div><div class="comment-text">${escapeHtml(c.tekst)}</div>`;
+    wrap.appendChild(row);
+  });
+}
+
+/* ---------- CSV-eksport ---------- */
+
+function exportCsv(){
+  const list = filteredHotels();
+  const headers = ["Navn","By","Land","Status","Prisnivå","Kapasitet","Kontaktperson","Telefon","E-post","Nettside"];
+  const rows = list.map(h => [h.navn, h.by, h.land, h.status, h.prisniva, h.kapasitet, h.kontaktperson, h.telefon, h.epost, h.nettside]);
+  const csv = [headers, ...rows]
+    .map(row => row.map(v => `"${String(v??"").replace(/"/g,'""')}"`).join(";"))
+    .join("\r\n");
+  const blob = new Blob(["﻿"+csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `caminante-hoteller-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- Wire up toolbar ---------- */
+
+document.getElementById("searchInput").addEventListener("input", (e)=>{ state.search = e.target.value; renderList(); });
+document.getElementById("filterLand").addEventListener("change", (e)=>{ state.land = e.target.value; renderList(); });
+document.getElementById("filterStatus").addEventListener("change", (e)=>{ state.status = e.target.value; renderList(); });
+document.getElementById("resetFilters").addEventListener("click", ()=>{
+  state.search=""; state.land=""; state.status="";
+  document.getElementById("searchInput").value = "";
+  ["filterLand","filterStatus"].forEach(id=> document.getElementById(id).value = "");
+  renderList();
+});
+document.getElementById("newHotelBtn").addEventListener("click", createHotell);
+document.getElementById("exportBtn").addEventListener("click", exportCsv);
+
+document.querySelectorAll("thead th[data-key]").forEach(th=>{
+  th.addEventListener("click", ()=>{
+    const key = th.dataset.key;
+    if(state.sortKey === key){ state.sortDir *= -1; } else { state.sortKey = key; state.sortDir = 1; }
+    document.querySelectorAll("thead .arrow").forEach(a=> a.textContent = "");
+    th.querySelector(".arrow").textContent = state.sortDir === 1 ? "▲" : "▼";
+    renderList();
+  });
+});
+
+/* ---------- Init ---------- */
+
+(async ()=>{
+  const session = await requireLogin();
+  if(!session) return;
+  currentUserId = session.user.id;
+
+  const ok = await loadAllData();
+  document.getElementById("loadMsg").style.display = "none";
+  if(!ok) return;
+  refreshLandFilter();
+  document.getElementById("mainArea").style.display = "block";
+  renderList();
+})();
+</script>
+</body>
+</html>

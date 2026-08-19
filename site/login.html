@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logg inn – Caminante Admin</title>
+<link rel="stylesheet" href="shared/style.css">
+<style>
+  body{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .login-card{
+    width:100%;
+    max-width:360px;
+    background:var(--surface-1);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:28px 26px;
+    margin:16px;
+  }
+  .login-card h1{
+    font-size:18px;
+    margin:0 0 4px;
+  }
+  .login-card .sub{
+    font-size:13px;
+    color:var(--ink-secondary);
+    margin-bottom:20px;
+  }
+  .field{ margin-bottom:14px; }
+  .field label{
+    display:block;
+    font-size:12.5px;
+    color:var(--ink-secondary);
+    margin-bottom:5px;
+  }
+  .field input{
+    width:100%;
+    padding:9px 10px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:14px;
+    font-family:inherit;
+  }
+  .login-btn{
+    width:100%;
+    padding:10px;
+    border:none;
+    border-radius:8px;
+    background:var(--accent);
+    color:#fff;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    margin-top:6px;
+  }
+  .login-btn:disabled{ opacity:0.6; cursor:default; }
+  .login-btn:hover:not(:disabled){ background:#123d75; }
+  .error-msg{
+    display:none;
+    background:#fbeaea;
+    border:1px solid #d03b3b;
+    color:#8a1f1f;
+    border-radius:8px;
+    padding:8px 10px;
+    font-size:12.5px;
+    margin-bottom:14px;
+  }
+  .error-msg.show{ display:block; }
+</style>
+</head>
+<body>
+
+<div class="login-card">
+  <h1>Caminante Admin</h1>
+  <div class="sub">Logg inn for å åpne Priskalkulator eller Kristne skoler.</div>
+  <div class="error-msg" id="errorMsg"></div>
+  <form id="loginForm">
+    <div class="field">
+      <label for="email">E-post</label>
+      <input type="email" id="email" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label for="password">Passord</label>
+      <input type="password" id="password" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="login-btn" id="loginBtn">Logg inn</button>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script>
+  // Allerede innlogget? Send rett videre.
+  (async ()=>{
+    const { data: { session } } = await window.sb.auth.getSession();
+    if(session) window.location.href = "index.html";
+  })();
+
+  const form = document.getElementById("loginForm");
+  const btn = document.getElementById("loginBtn");
+  const errorMsg = document.getElementById("errorMsg");
+
+  form.addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    errorMsg.classList.remove("show");
+    btn.disabled = true;
+    btn.textContent = "Logger inn…";
+
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    const { error } = await window.sb.auth.signInWithPassword({ email, password });
+
+    if(error){
+      errorMsg.textContent = "Feil e-post eller passord.";
+      errorMsg.classList.add("show");
+      btn.disabled = false;
+      btn.textContent = "Logg inn";
+      return;
+    }
+    window.location.href = "index.html";
+  });
+</script>
+</body>
+</html>

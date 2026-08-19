@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalender – Caminante Admin</title>
+<link rel="stylesheet" href="shared/style.css">
+<style>
+  .toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+    padding:14px 24px;
+    background:var(--surface-1);
+    border-bottom:1px solid var(--hairline);
+    position:sticky;
+    top:0;
+    z-index:5;
+  }
+  .toolbar select{
+    padding:7px 8px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:13px;
+    background:var(--surface-1);
+    color:var(--ink-primary);
+  }
+  .toolbar button.nav, .toolbar button.action{
+    padding:7px 12px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:13px;
+    background:var(--surface-1);
+    color:var(--ink-secondary);
+    cursor:pointer;
+  }
+  .toolbar button.action.primary{
+    background:var(--accent);
+    color:#fff;
+    border-color:var(--accent);
+  }
+  .toolbar button:hover{ background:var(--page); }
+  .toolbar button.action.primary:hover{ background:#123d75; }
+  .month-label{
+    font-size:15px;
+    font-weight:650;
+    min-width:150px;
+    text-align:center;
+  }
+  .toolbar .spacer{ flex:1 1 auto; }
+
+  .main{
+    padding:16px 24px 32px;
+  }
+  .cal-card{
+    background:var(--surface-1);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:14px;
+  }
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    margin-bottom:12px;
+    font-size:12px;
+    color:var(--ink-secondary);
+  }
+  .legend-item{ display:flex; align-items:center; gap:6px; }
+  .legend-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+
+  .cal-grid{
+    display:grid;
+    grid-template-columns:repeat(7, 1fr);
+    gap:1px;
+    background:var(--hairline);
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .cal-daylabel{
+    background:var(--page);
+    padding:7px 8px;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    color:var(--ink-muted);
+    text-align:center;
+    font-weight:650;
+  }
+  .cal-day{
+    background:var(--surface-1);
+    min-height:96px;
+    min-width:0;
+    padding:6px;
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+    cursor:pointer;
+    overflow:hidden; /* uten dette lar CSS Grid nowrap-tekst i chippene presse kolonnene ut av bredde */
+  }
+  .cal-day:hover{ background:var(--page); }
+  .cal-day.other-month{ background:var(--page); opacity:0.5; }
+  .cal-day.today{ box-shadow:inset 0 0 0 2px var(--accent); }
+  .cal-daynum{ font-size:12px; font-weight:650; color:var(--ink-secondary); }
+  .cal-day.today .cal-daynum{ color:var(--accent); }
+  .cal-lane{ display:flex; flex-direction:column; gap:2px; min-height:16px; }
+  .event-chip{
+    font-size:10.5px;
+    padding:2px 6px;
+    border-radius:5px;
+    font-weight:600;
+    line-height:1.35;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    border:1px solid transparent;
+    cursor:pointer;
+  }
+  /* Fritid: samme personfarge, men lysere (lavere opasitet) + stiplet kant, slik
+     at Jobb/Fritid ikke bare skiller seg på en subtil opasitetsforskjell. */
+  .event-chip.chip-fritid{
+    border:1.5px dashed rgba(11,11,11,0.35);
+  }
+  .event-chip:hover{ filter:brightness(0.94); }
+  .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
+  .legend-group{ display:flex; flex-direction:column; gap:6px; }
+  .legend-group-title{
+    font-size:11px;
+    font-weight:650;
+    color:var(--ink-muted);
+    text-transform:uppercase;
+    letter-spacing:0.02em;
+  }
+  .legend-dot.square{ border-radius:3px; }
+
+  .overlay-bg{ position:fixed; inset:0; background:rgba(11,11,11,0.30); display:none; z-index:20; }
+  .overlay-bg.open{ display:block; }
+  .event-panel{
+    position:fixed;
+    top:0; right:0; bottom:0;
+    width:min(420px, 100%);
+    background:var(--surface-1);
+    box-shadow:-8px 0 24px rgba(0,0,0,0.15);
+    transform:translateX(100%);
+    transition:transform 0.18s ease;
+    overflow-y:auto;
+    z-index:21;
+    padding:20px 22px 40px;
+  }
+  .event-panel.open{ transform:translateX(0); }
+  .panel-close{
+    position:absolute; top:16px; right:18px;
+    border:none; background:none;
+    font-size:20px; cursor:pointer;
+    color:var(--ink-muted); line-height:1;
+  }
+  .panel-close:hover{ color:var(--ink-primary); }
+  .panel-header{ margin-bottom:18px; padding-right:30px; }
+  .panel-header h2{ margin:0; font-size:18px; }
+  .form-grid{
+    display:grid;
+    grid-template-columns:100px 1fr;
+    row-gap:12px;
+    column-gap:10px;
+    font-size:13px;
+    align-items:start;
+  }
+  .form-grid label{ color:var(--ink-muted); padding-top:6px; }
+  .form-grid input, .form-grid select, .form-grid textarea{
+    border:1px solid var(--hairline);
+    border-radius:6px;
+    padding:6px 8px;
+    font-size:13px;
+    font-family:inherit;
+    color:var(--ink-primary);
+    width:100%;
+  }
+  .form-grid textarea{ resize:vertical; min-height:60px; }
+  .date-row{ display:flex; gap:8px; align-items:center; }
+  .date-row span{ font-size:12px; color:var(--ink-muted); }
+  .panel-actions{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:22px;
+    padding-top:16px;
+    border-top:1px solid var(--hairline);
+  }
+  .save-btn{
+    padding:8px 16px;
+    border:none;
+    border-radius:8px;
+    background:var(--accent);
+    color:#fff;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .save-btn:hover{ background:#123d75; }
+  .delete-btn{
+    font-size:12px;
+    color:#b04a4a;
+    background:none;
+    border:1px solid var(--hairline);
+    border-radius:7px;
+    padding:7px 11px;
+    cursor:pointer;
+  }
+  .delete-btn:hover{ background:#fbeaea; border-color:#d03b3b; }
+  .field-error{ font-size:11.5px; color:#b04a4a; margin-top:4px; display:none; }
+  .field-error.show{ display:block; }
+
+  @media (max-width: 700px){
+    .cal-day{ min-height:70px; }
+    .cal-daynum{ font-size:11px; }
+    .event-chip{ font-size:9.5px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html"><span class="company">Caminante Admin</span><span class="tool-name">Kalender</span></a>
+  <div class="user-area">
+    <span id="userName"></span>
+    <button class="logout-btn" id="logoutBtn">Logg ut</button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <button class="nav" id="prevBtn">‹</button>
+  <span class="month-label" id="monthLabel"></span>
+  <button class="nav" id="nextBtn">›</button>
+  <button class="action" id="todayBtn">I dag</button>
+  <select id="filterPerson"><option value="">Alle personer</option></select>
+  <select id="filterKategori"><option value="">Alle typer</option></select>
+  <span class="spacer"></span>
+  <button class="action primary" id="newEventBtn">+ Ny hendelse</button>
+</div>
+
+<div id="loadMsg" class="load-msg">Laster kalender…</div>
+
+<div class="main" id="mainArea" style="display:none;">
+  <div class="cal-card">
+    <div class="legend" id="legend"></div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+</div>
+
+<div class="overlay-bg" id="overlayBg"></div>
+<div class="event-panel" id="eventPanel"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+/* ---------- Reference data ---------- */
+
+// To universelle typer som gjelder begge personer. "Jobb" er standard for nye
+// hendelser; "Fritid" vises som en tydelig lysere (lavere opasitet) variant av
+// personens farge, pluss stiplet kant - se .chip-fritid i <style>.
+const KATEGORIER = ["Jobb", "Fritid"];
+// Personfarger: faste, IKKE lenger alfabetisk tildelt - Jan-Tore = blå, Vidar = gul.
+// "Gul" er en gyllen/amber-tone (#eda100), ikke ren sitrongul - ren gul gir for
+// dårlig lesbarhet med tekst oppå. En eventuell tredje person faller tilbake til
+// nøytral grå (DEFAULT_PERSON_COLOR) inntil noen legger dem til her.
+const PERSON_COLOR_BY_NAME = {
+  "Jan-Tore": { bg: "#2a78d6", fg: "#ffffff" },
+  "Vidar":    { bg: "#eda100", fg: "#0b0b0b" },
+};
+const DEFAULT_PERSON_COLOR = { bg: "#898781", fg: "#ffffff" };
+const FRITID_OPACITY = 0.30;
+function hexToRgba(hex, alpha){
+  const h = hex.replace("#","");
+  const r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+const MANEDER = ["Januar","Februar","Mars","April","Mai","Juni","Juli","August","September","Oktober","November","Desember"];
+const UKEDAGER = ["Man","Tir","Ons","Tor","Fre","Lør","Søn"];
+
+/* ---------- State ---------- */
+
+let hendelser = [];      // rader fra kalenderhendelser
+let profiles = [];        // [{id, navn}]
+let profileById = {};
+let personColorById = {};
+let currentUserId = null;
+const today = new Date();
+let state = {
+  year: today.getFullYear(),
+  month: today.getMonth(),   // 0-11
+  personFilter: "",
+  kategoriFilter: "",
+};
+
+/* ---------- Helpers ---------- */
+
+function pad2(n){ return String(n).padStart(2,"0"); }
+function fmtDateLocal(date){ return `${date.getFullYear()}-${pad2(date.getMonth()+1)}-${pad2(date.getDate())}`; }
+function escapeHtml(str){
+  return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+function personShortName(id){
+  const p = profileById[id];
+  if(!p) return "?";
+  return (p.navn||"").split(" ")[0] || p.navn || "?";
+}
+
+/* Slår opp hver persons faste farge fra PERSON_COLOR_BY_NAME (nøkkel = navn).
+   Lane-rekkefølgen i kalenderruta er fortsatt alfabetisk (se renderCalendar),
+   uavhengig av fargen - det er kun fargen som nå er navngitt/fast, ikke posisjonen. */
+function assignPersonColors(profileList){
+  personColorById = {};
+  profileList.forEach(p=>{
+    personColorById[p.id] = PERSON_COLOR_BY_NAME[p.navn] || DEFAULT_PERSON_COLOR;
+  });
+}
+
+/* ---------- Supabase data loading ---------- */
+
+async function loadAllData(){
+  const [{ data: hendelserRows, error: e1 }, { data: profileRows, error: e2 }] = await Promise.all([
+    window.sb.from("kalenderhendelser").select("*"),
+    window.sb.from("profiles").select("id, navn"),
+  ]);
+  if(e1 || e2){
+    document.getElementById("loadMsg").textContent = "Kunne ikke laste data fra databasen. Sjekk at sql/2026-07-26-kalender.sql er kjørt i Supabase, og prøv igjen.";
+    console.error(e1, e2);
+    return false;
+  }
+  hendelser = hendelserRows || [];
+  profiles = profileRows || [];
+  profileById = {};
+  profiles.forEach(p=> profileById[p.id] = p);
+  return true;
+}
+
+/* ---------- Filter dropdown population ---------- */
+
+function fillSelect(id, items, labelFn){
+  const el = document.getElementById(id);
+  items.forEach(item=>{
+    const o = document.createElement("option");
+    o.value = typeof item === "string" ? item : item.id;
+    o.textContent = labelFn ? labelFn(item) : item;
+    el.appendChild(o);
+  });
+}
+
+/* ---------- Legend ---------- */
+
+function renderLegend(){
+  const el = document.getElementById("legend");
+  const sortedProfiles = [...profiles].sort((a,b)=> (a.navn||"").localeCompare(b.navn||"", "no"));
+  const personItems = sortedProfiles.map(p=>{
+    const c = personColorById[p.id] || DEFAULT_PERSON_COLOR;
+    return `<span class="legend-item"><span class="legend-dot square" style="background:${c.bg}"></span>${escapeHtml(p.navn)}</span>`;
+  }).join("");
+  const typeItems = `
+    <span class="legend-item"><span class="legend-dot square" style="background:#52514e"></span>Jobb</span>
+    <span class="legend-item"><span class="legend-dot square" style="background:rgba(11,11,11,0.30); border:1.5px dashed rgba(11,11,11,0.45);"></span>Fritid</span>
+  `;
+  el.innerHTML = `
+    <div class="legend-group">
+      <span class="legend-group-title">Person</span>
+      <div class="legend" style="margin-bottom:0;">${personItems}</div>
+    </div>
+    <div class="legend-group">
+      <span class="legend-group-title">Type</span>
+      <div class="legend" style="margin-bottom:0;">${typeItems}</div>
+    </div>
+  `;
+}
+
+/* ---------- Filtering ---------- */
+
+function filteredHendelser(){
+  return hendelser.filter(h=>{
+    if(state.personFilter && h.person !== state.personFilter) return false;
+    if(state.kategoriFilter && h.kategori !== state.kategoriFilter) return false;
+    return true;
+  });
+}
+
+/* ---------- Month grid rendering ---------- */
+
+function renderMonthLabel(){
+  document.getElementById("monthLabel").textContent = `${MANEDER[state.month]} ${state.year}`;
+}
+
+function renderCalendar(){
+  renderMonthLabel();
+  const grid = document.getElementById("calGrid");
+  grid.innerHTML = "";
+  UKEDAGER.forEach(d=>{
+    const label = document.createElement("div");
+    label.className = "cal-daylabel";
+    label.textContent = d;
+    grid.appendChild(label);
+  });
+
+  const firstOfMonth = new Date(state.year, state.month, 1);
+  const jsDay = firstOfMonth.getDay();               // 0=søn..6=lør
+  const offset = (jsDay + 6) % 7;                    // 0=man..6=søn
+  const daysInMonth = new Date(state.year, state.month+1, 0).getDate();
+  const totalCells = Math.ceil((daysInMonth + offset) / 7) * 7;
+
+  const list = filteredHendelser();
+  const todayKey = fmtDateLocal(today);
+
+  for(let i=0;i<totalCells;i++){
+    const cellDate = new Date(state.year, state.month, 1 - offset + i);
+    const key = fmtDateLocal(cellDate);
+    const isOtherMonth = cellDate.getMonth() !== state.month;
+
+    const cell = document.createElement("div");
+    cell.className = "cal-day" + (isOtherMonth ? " other-month" : "") + (key===todayKey ? " today" : "");
+
+    const num = document.createElement("div");
+    num.className = "cal-daynum";
+    num.textContent = cellDate.getDate();
+    cell.appendChild(num);
+
+    // Grupperer dagens hendelser i faste "lane"-rader per person (alfabetisk),
+    // slik at Vidar og Jan-Tore alltid vises i samme rekkefølge - det gjør det
+    // umiddelbart synlig hvem som er hvor, ikke bare hva.
+    const dayEvents = list.filter(h => h.start_dato <= key && h.slutt_dato >= key);
+    const byPerson = {};
+    dayEvents.forEach(h=>{ (byPerson[h.person] = byPerson[h.person] || []).push(h); });
+    const personIds = Object.keys(byPerson).sort((a,b)=>{
+      const na = (profileById[a] && profileById[a].navn) || "";
+      const nb = (profileById[b] && profileById[b].navn) || "";
+      return na.localeCompare(nb, "no");
+    });
+    personIds.forEach(pid=>{
+      const lane = document.createElement("div");
+      lane.className = "cal-lane";
+      byPerson[pid].forEach(h=>{
+        const isFritid = h.kategori === "Fritid";
+        const chip = document.createElement("div");
+        chip.className = "event-chip" + (isFritid ? " chip-fritid" : "");
+        const person = personColorById[pid] || DEFAULT_PERSON_COLOR;
+        chip.style.background = isFritid ? hexToRgba(person.bg, FRITID_OPACITY) : person.bg;
+        chip.style.color = isFritid ? "#0b0b0b" : person.fg;
+        // Kun tittel vises på chippen (faller tilbake til personnavn hvis tittel mangler).
+        chip.textContent = h.tittel || personShortName(pid);
+        chip.title = `${(profileById[pid] && profileById[pid].navn) || "?"} · ${h.kategori}${h.tittel ? " – "+h.tittel : ""}`;
+        chip.addEventListener("click", (e)=>{ e.stopPropagation(); openEventPanel(h); });
+        lane.appendChild(chip);
+      });
+      cell.appendChild(lane);
+    });
+
+    cell.addEventListener("click", ()=> openEventPanel(null, key));
+    grid.appendChild(cell);
+  }
+}
+
+/* ---------- Write helpers (Supabase) ---------- */
+
+async function saveHendelse(draft, existingId){
+  if(draft.slutt_dato < draft.start_dato){
+    alert("Sluttdato kan ikke være før startdato.");
+    return false;
+  }
+  if(existingId){
+    const { error } = await window.sb.from("kalenderhendelser").update(draft).eq("id", existingId);
+    if(error){ alert("Kunne ikke lagre endringen: " + error.message); return false; }
+    const idx = hendelser.findIndex(h=>h.id===existingId);
+    if(idx>-1) Object.assign(hendelser[idx], draft);
+  } else {
+    const { data, error } = await window.sb.from("kalenderhendelser").insert({ ...draft, opprettet_av: currentUserId }).select().single();
+    if(error){ alert("Kunne ikke opprette hendelsen: " + error.message); return false; }
+    hendelser.push(data);
+  }
+  renderCalendar();
+  return true;
+}
+
+async function deleteHendelse(id){
+  if(!confirm("Slette denne hendelsen permanent?")) return;
+  const { error } = await window.sb.from("kalenderhendelser").delete().eq("id", id);
+  if(error){ alert("Kunne ikke slette: " + error.message); return; }
+  hendelser = hendelser.filter(h=>h.id!==id);
+  closeEventPanel();
+  renderCalendar();
+}
+
+/* ---------- Event panel (add / edit) ---------- */
+
+function openEventPanel(existing, defaultDate){
+  const panel = document.getElementById("eventPanel");
+  const isEdit = !!existing;
+  const person = existing ? existing.person : (currentUserId || (profiles[0] && profiles[0].id) || "");
+  const kategori = existing ? existing.kategori : KATEGORIER[0];
+  const startDato = existing ? existing.start_dato : (defaultDate || fmtDateLocal(today));
+  const sluttDato = existing ? existing.slutt_dato : (defaultDate || fmtDateLocal(today));
+  const tittel = existing ? (existing.tittel||"") : "";
+  const notat = existing ? (existing.notat||"") : "";
+
+  panel.innerHTML = `
+    <button class="panel-close" id="panelCloseBtn" title="Lukk">✕</button>
+    <div class="panel-header"><h2>${isEdit ? "Rediger hendelse" : "Ny hendelse"}</h2></div>
+    <div class="form-grid">
+      <label>Person</label>
+      <select id="f-person">${profiles.map(p=>`<option value="${p.id}" ${p.id===person?"selected":""}>${escapeHtml(p.navn)}</option>`).join("")}</select>
+
+      <label>Type</label>
+      <select id="f-kategori">${KATEGORIER.map(k=>`<option value="${k}" ${k===kategori?"selected":""}>${escapeHtml(k)}</option>`).join("")}</select>
+
+      <label>Fra – til</label>
+      <div>
+        <div class="date-row">
+          <input type="date" id="f-start" value="${startDato}">
+          <span>–</span>
+          <input type="date" id="f-slutt" value="${sluttDato}">
+        </div>
+        <div class="field-error" id="dateError">Sluttdato kan ikke være før startdato.</div>
+      </div>
+
+      <label>Tittel</label>
+      <input id="f-tittel" placeholder="F.eks. Malta" value="${escapeHtml(tittel)}">
+
+      <label>Notat</label>
+      <textarea id="f-notat" placeholder="Valgfritt notat…">${escapeHtml(notat)}</textarea>
+    </div>
+    <div class="panel-actions">
+      <button class="save-btn" id="saveBtn">Lagre</button>
+      ${isEdit ? `<button class="delete-btn" id="deleteBtn">Slett hendelse</button>` : `<span></span>`}
+    </div>
+  `;
+
+  document.getElementById("panelCloseBtn").addEventListener("click", closeEventPanel);
+  document.getElementById("saveBtn").addEventListener("click", async ()=>{
+    const draft = {
+      person: document.getElementById("f-person").value,
+      kategori: document.getElementById("f-kategori").value,
+      start_dato: document.getElementById("f-start").value,
+      slutt_dato: document.getElementById("f-slutt").value,
+      tittel: document.getElementById("f-tittel").value.trim() || null,
+      notat: document.getElementById("f-notat").value.trim() || null,
+    };
+    if(draft.slutt_dato < draft.start_dato){
+      document.getElementById("dateError").classList.add("show");
+      return;
+    }
+    const ok = await saveHendelse(draft, isEdit ? existing.id : null);
+    if(ok) closeEventPanel();
+  });
+  if(isEdit){
+    document.getElementById("deleteBtn").addEventListener("click", ()=> deleteHendelse(existing.id));
+  }
+
+  document.getElementById("overlayBg").classList.add("open");
+  panel.classList.add("open");
+}
+
+function closeEventPanel(){
+  document.getElementById("overlayBg").classList.remove("open");
+  document.getElementById("eventPanel").classList.remove("open");
+}
+document.getElementById("overlayBg").addEventListener("click", closeEventPanel);
+
+/* ---------- Wire up toolbar ---------- */
+
+document.getElementById("prevBtn").addEventListener("click", ()=>{
+  state.month--;
+  if(state.month<0){ state.month=11; state.year--; }
+  renderCalendar();
+});
+document.getElementById("nextBtn").addEventListener("click", ()=>{
+  state.month++;
+  if(state.month>11){ state.month=0; state.year++; }
+  renderCalendar();
+});
+document.getElementById("todayBtn").addEventListener("click", ()=>{
+  state.year = today.getFullYear();
+  state.month = today.getMonth();
+  renderCalendar();
+});
+document.getElementById("filterPerson").addEventListener("change", (e)=>{ state.personFilter = e.target.value; renderCalendar(); });
+document.getElementById("filterKategori").addEventListener("change", (e)=>{ state.kategoriFilter = e.target.value; renderCalendar(); });
+document.getElementById("newEventBtn").addEventListener("click", ()=> openEventPanel(null, fmtDateLocal(today)));
+
+/* ---------- Init ---------- */
+
+(async ()=>{
+  const session = await requireLogin();
+  if(!session) return;
+  currentUserId = session.user.id;
+
+  const ok = await loadAllData();
+  document.getElementById("loadMsg").style.display = "none";
+  if(!ok) return;
+
+  assignPersonColors(profiles);
+  fillSelect("filterPerson", profiles, p=>p.navn);
+  fillSelect("filterKategori", KATEGORIER);
+  renderLegend();
+
+  document.getElementById("mainArea").style.display = "block";
+  renderCalendar();
+})();
+</script>
+</body>
+</html>

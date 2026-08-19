@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caminante Admin</title>
+<link rel="stylesheet" href="shared/style.css">
+<style>
+  /* ---------- Toppnivå-layout: Oversikt-siden, kalenderen er hovedinnholdet ----------
+     Verktøyene (Priskalkulator/Hoteller/Skoleoversikt) nås nå via den faste
+     venstremenyen (shared/nav.js) og har derfor ikke egne bokser her lenger. */
+  .page-layout{
+    max-width:920px;
+    margin:0 auto;
+    padding:40px 24px 48px;
+  }
+  .page-head h1{
+    font-size:20px;
+    margin:0 0 20px;
+  }
+
+  /* ---------- Kalender-forhåndsvisning: 3 måneder stablet under hverandre, navigerbar, read-only ---------- */
+  .kalender-section-head{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:12px;
+  }
+  .kalender-section-head h2{
+    font-size:13px;
+    font-weight:650;
+    margin:0;
+    color:var(--ink-secondary);
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  .kalender-section-head .head-right{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .preview-nav{ display:flex; align-items:center; gap:6px; }
+  .preview-nav button{
+    padding:5px 10px;
+    border:1px solid var(--hairline);
+    border-radius:7px;
+    font-size:12.5px;
+    background:var(--surface-1);
+    color:var(--ink-secondary);
+    cursor:pointer;
+  }
+  .preview-nav button:hover{ background:var(--page); }
+  .kalender-section-head .open-link{
+    font-size:12.5px;
+    color:var(--accent);
+    text-decoration:none;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .kalender-section-head .open-link:hover{ text-decoration:underline; }
+
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    font-size:12px;
+    color:var(--ink-secondary);
+    margin-bottom:14px;
+  }
+  .legend-item{ display:flex; align-items:center; gap:6px; }
+  .legend-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; flex:0 0 auto; }
+  .legend-dot.square{ border-radius:3px; }
+  .legend-group{ display:flex; flex-direction:column; gap:6px; }
+  .legend-group-title{
+    font-size:11px;
+    font-weight:650;
+    color:var(--ink-muted);
+    text-transform:uppercase;
+    letter-spacing:0.02em;
+  }
+
+  .preview-months{
+    display:flex;
+    flex-direction:column;
+    gap:20px;
+  }
+  .preview-month{
+    background:var(--surface-1);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:18px;
+  }
+  .preview-month-label{
+    font-size:15px;
+    font-weight:650;
+    color:var(--ink-secondary);
+    margin-bottom:12px;
+    text-align:center;
+  }
+  .preview-grid{
+    display:grid;
+    grid-template-columns:repeat(7, 1fr);
+    gap:1px;
+    background:var(--hairline);
+    border:1px solid var(--hairline);
+    border-radius:6px;
+    overflow:hidden;
+  }
+  .preview-daylabel{
+    background:var(--page);
+    padding:5px 2px;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:0.02em;
+    color:var(--ink-muted);
+    text-align:center;
+    font-weight:650;
+  }
+  .preview-day{
+    background:var(--surface-1);
+    min-height:72px;
+    min-width:0;
+    padding:5px;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    overflow:hidden; /* uten dette lar CSS Grid nowrap-tekst i chippene presse kolonnene ut av bredde */
+  }
+  .preview-day.other-month{ background:var(--page); opacity:0.45; }
+  .preview-day.today{ box-shadow:inset 0 0 0 1.5px var(--accent); }
+  .preview-daynum{ font-size:11px; font-weight:650; color:var(--ink-secondary); }
+  .preview-day.today .preview-daynum{ color:var(--accent); }
+  .preview-lane{ display:flex; flex-direction:column; gap:2px; }
+  .preview-chip{
+    font-size:10px;
+    padding:2px 6px;
+    border-radius:4px;
+    font-weight:650;
+    line-height:1.3;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    border:1px solid transparent;
+  }
+  .preview-chip.chip-fritid{
+    border:1.5px dashed rgba(11,11,11,0.35);
+  }
+  .cal-load-msg{ padding:20px 14px; color:var(--ink-muted); font-size:13px; background:var(--surface-1); border:1px solid var(--hairline); border-radius:var(--radius); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand"><span class="company">Caminante Admin</span></span>
+  <div class="user-area">
+    <span id="userName"></span>
+    <button class="logout-btn" id="logoutBtn">Logg ut</button>
+  </div>
+</div>
+
+<div class="page-layout">
+  <div class="page-head">
+    <h1>Oversikt</h1>
+  </div>
+
+  <div class="kalender-column">
+    <div class="kalender-section-head">
+      <h2>Kalender – hvor er vi?</h2>
+      <div class="head-right">
+        <div class="preview-nav" id="previewNav" style="display:none;">
+          <button id="prevBtn" title="Forrige måned">‹</button>
+          <button id="todayNavBtn" title="Tilbake til i dag">I dag</button>
+          <button id="nextBtn" title="Neste måned">›</button>
+        </div>
+        <a class="open-link" href="kalender.html">Åpne kalender →</a>
+      </div>
+    </div>
+    <div id="calLoadMsg" class="cal-load-msg">Laster kalender…</div>
+    <div id="legend" class="legend" style="display:none;"></div>
+    <div class="preview-months" id="previewMonths" style="display:none;"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+/* ==================== Kalender-forhåndsvisning (read-only) ====================
+   Viser tre måneder om gangen (måneden man er i + de to neste), stablet under
+   hverandre i høyrekolonnen, med lokal fram/tilbake-navigering - ingen
+   navigering til kalender.html underveis.
+   Selve redigering (legge til / endre / slette hendelser) skjer kun på
+   kalender.html, nådd via "Åpne kalender →"-lenken. Dagcellene her har ingen
+   klikk-håndtering - kun visning. Farge-/lane-logikken speiler kalender.html
+   med hensikt, se admin-portal-arkitektur.md for begrunnelse. */
+
+// To universelle typer som gjelder begge personer. "Jobb" er standard for nye
+// hendelser; "Fritid" vises som en tydelig lysere (lavere opasitet) variant av
+// personens farge, pluss stiplet kant - se .chip-fritid i <style>. Samme mønster
+// som kalender.html.
+const KATEGORIER = ["Jobb", "Fritid"];
+// Personfarger: faste, IKKE alfabetisk tildelt - Jan-Tore = blå, Vidar = gul
+// (gyllen/amber-tone for lesbarhet). Må holdes i sync med kalender.html. En
+// eventuell tredje person faller tilbake til nøytral grå.
+const PERSON_COLOR_BY_NAME = {
+  "Jan-Tore": { bg: "#2a78d6", fg: "#ffffff" },
+  "Vidar":    { bg: "#eda100", fg: "#0b0b0b" },
+};
+const DEFAULT_PERSON_COLOR = { bg: "#898781", fg: "#ffffff" };
+const FRITID_OPACITY = 0.30;
+function hexToRgba(hex, alpha){
+  const h = hex.replace("#","");
+  const r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+const MANEDER = ["Januar","Februar","Mars","April","Mai","Juni","Juli","August","September","Oktober","November","Desember"];
+const UKEDAGER = ["Ma","Ti","On","To","Fr","Lø","Sø"];
+
+let profileById = {};
+let personColorById = {};
+let allHendelser = [];
+let previewOffset = 0;   // antall måneder forskjøvet fra inneværende måned
+const today = new Date();
+
+function pad2(n){ return String(n).padStart(2,"0"); }
+function fmtDateLocal(date){ return `${date.getFullYear()}-${pad2(date.getMonth()+1)}-${pad2(date.getDate())}`; }
+function escapeHtml(str){
+  return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+function personShortName(id){
+  const p = profileById[id];
+  if(!p) return "?";
+  return (p.navn||"").split(" ")[0] || p.navn || "?";
+}
+function assignPersonColors(profileList){
+  personColorById = {};
+  profileList.forEach(p=>{
+    personColorById[p.id] = PERSON_COLOR_BY_NAME[p.navn] || DEFAULT_PERSON_COLOR;
+  });
+}
+
+function renderLegend(){
+  const el = document.getElementById("legend");
+  const sortedProfiles = Object.values(profileById).sort((a,b)=> (a.navn||"").localeCompare(b.navn||"", "no"));
+  const personItems = sortedProfiles.map(p=>{
+    const c = personColorById[p.id] || DEFAULT_PERSON_COLOR;
+    return `<span class="legend-item"><span class="legend-dot square" style="background:${c.bg}"></span>${escapeHtml(p.navn)}</span>`;
+  }).join("");
+  const typeItems = `
+    <span class="legend-item"><span class="legend-dot square" style="background:#52514e"></span>Jobb</span>
+    <span class="legend-item"><span class="legend-dot square" style="background:rgba(11,11,11,0.30); border:1.5px dashed rgba(11,11,11,0.45);"></span>Fritid</span>
+  `;
+  el.innerHTML = `
+    <div class="legend-group">
+      <span class="legend-group-title">Person</span>
+      <div class="legend" style="margin-bottom:0;">${personItems}</div>
+    </div>
+    <div class="legend-group">
+      <span class="legend-group-title">Type</span>
+      <div class="legend" style="margin-bottom:0;">${typeItems}</div>
+    </div>
+  `;
+}
+
+function buildMonthPanel(year, month){
+  const panel = document.createElement("div");
+  panel.className = "preview-month";
+
+  const label = document.createElement("div");
+  label.className = "preview-month-label";
+  label.textContent = `${MANEDER[month]} ${year}`;
+  panel.appendChild(label);
+
+  const grid = document.createElement("div");
+  grid.className = "preview-grid";
+  UKEDAGER.forEach(d=>{
+    const l = document.createElement("div");
+    l.className = "preview-daylabel";
+    l.textContent = d;
+    grid.appendChild(l);
+  });
+
+  const firstOfMonth = new Date(year, month, 1);
+  const jsDay = firstOfMonth.getDay();               // 0=søn..6=lør
+  const offset = (jsDay + 6) % 7;                    // 0=man..6=søn
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const totalCells = Math.ceil((daysInMonth + offset) / 7) * 7;
+  const todayKey = fmtDateLocal(today);
+
+  for(let i=0;i<totalCells;i++){
+    const cellDate = new Date(year, month, 1 - offset + i);
+    const key = fmtDateLocal(cellDate);
+    const isOtherMonth = cellDate.getMonth() !== month;
+
+    const cell = document.createElement("div");
+    cell.className = "preview-day" + (isOtherMonth ? " other-month" : "") + (key===todayKey ? " today" : "");
+
+    const num = document.createElement("div");
+    num.className = "preview-daynum";
+    num.textContent = cellDate.getDate();
+    cell.appendChild(num);
+
+    // Samme lane-per-person-gruppering som kalender.html, i tettere format.
+    const dayEvents = allHendelser.filter(h => h.start_dato <= key && h.slutt_dato >= key);
+    const byPerson = {};
+    dayEvents.forEach(h=>{ (byPerson[h.person] = byPerson[h.person] || []).push(h); });
+    const personIds = Object.keys(byPerson).sort((a,b)=>{
+      const na = (profileById[a] && profileById[a].navn) || "";
+      const nb = (profileById[b] && profileById[b].navn) || "";
+      return na.localeCompare(nb, "no");
+    });
+    personIds.forEach(pid=>{
+      const lane = document.createElement("div");
+      lane.className = "preview-lane";
+      byPerson[pid].forEach(h=>{
+        const isFritid = h.kategori === "Fritid";
+        const chip = document.createElement("div");
+        chip.className = "preview-chip" + (isFritid ? " chip-fritid" : "");
+        const person = personColorById[pid] || DEFAULT_PERSON_COLOR;
+        chip.style.background = isFritid ? hexToRgba(person.bg, FRITID_OPACITY) : person.bg;
+        chip.style.color = isFritid ? "#0b0b0b" : person.fg;
+        // Kun tittel vises på chippen (faller tilbake til personnavn hvis tittel mangler).
+        chip.textContent = h.tittel || personShortName(pid);
+        chip.title = `${(profileById[pid] && profileById[pid].navn) || "?"} · ${h.kategori}${h.tittel ? " – "+h.tittel : ""}`;
+        lane.appendChild(chip);
+      });
+      cell.appendChild(lane);
+    });
+
+    grid.appendChild(cell);
+  }
+  panel.appendChild(grid);
+  return panel;
+}
+
+function renderPreview(){
+  const container = document.getElementById("previewMonths");
+  container.innerHTML = "";
+  for(let i=0;i<3;i++){
+    const d = new Date(today.getFullYear(), today.getMonth() + previewOffset + i, 1);
+    container.appendChild(buildMonthPanel(d.getFullYear(), d.getMonth()));
+  }
+}
+
+async function loadPreviewData(){
+  const [{ data: hendelserRows, error: e1 }, { data: profileRows, error: e2 }] = await Promise.all([
+    window.sb.from("kalenderhendelser").select("*"),
+    window.sb.from("profiles").select("id, navn"),
+  ]);
+  if(e1 || e2){
+    document.getElementById("calLoadMsg").textContent = "Kunne ikke laste kalenderdata. Åpne kalenderen for detaljer.";
+    console.error(e1, e2);
+    return false;
+  }
+  allHendelser = hendelserRows || [];
+  profileById = {};
+  (profileRows||[]).forEach(p=> profileById[p.id] = p);
+  assignPersonColors(profileRows || []);
+  return true;
+}
+
+/* ---------- Navigering (kun lokal - ingen sidenavigering) ---------- */
+
+document.getElementById("prevBtn").addEventListener("click", ()=>{ previewOffset--; renderPreview(); });
+document.getElementById("nextBtn").addEventListener("click", ()=>{ previewOffset++; renderPreview(); });
+document.getElementById("todayNavBtn").addEventListener("click", ()=>{ previewOffset = 0; renderPreview(); });
+
+/* ---------- Init ---------- */
+
+(async ()=>{
+  const session = await requireLogin();
+  if(!session) return;
+
+  const ok = await loadPreviewData();
+  document.getElementById("calLoadMsg").style.display = "none";
+  if(!ok) return;
+
+  renderLegend();
+  document.getElementById("legend").style.display = "flex";
+  document.getElementById("previewNav").style.display = "flex";
+  document.getElementById("previewMonths").style.display = "grid";
+  renderPreview();
+})();
+</script>
+</body>
+</html>

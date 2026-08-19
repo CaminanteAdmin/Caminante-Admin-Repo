@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kristne skoler – Caminante Admin</title>
+<link rel="stylesheet" href="shared/style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{
+    --good-bg:#e7f6e5;
+    --p1:#1c5cab;
+    --p2:#3987e5;
+    --p3:#86b6ef;
+  }
+  .toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+    padding:14px 24px;
+    background:var(--surface-1);
+    border-bottom:1px solid var(--hairline);
+    position:sticky;
+    top:0;
+    z-index:5;
+  }
+  .toolbar input[type="search"]{
+    flex:1 1 200px;
+    min-width:160px;
+    padding:7px 10px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:13px;
+    background:var(--surface-1);
+    color:var(--ink-primary);
+  }
+  .toolbar select{
+    padding:7px 8px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:13px;
+    background:var(--surface-1);
+    color:var(--ink-primary);
+  }
+  .toolbar button.reset, .toolbar button.action{
+    padding:7px 12px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:13px;
+    background:var(--surface-1);
+    color:var(--ink-secondary);
+    cursor:pointer;
+  }
+  .toolbar button.action.primary{
+    background:var(--accent);
+    color:#fff;
+    border-color:var(--accent);
+  }
+  .toolbar button:hover{ background:var(--page); }
+  .toolbar button.action.primary:hover{ background:#123d75; }
+  .count-pill{
+    font-size:12.5px;
+    color:var(--ink-muted);
+    margin-left:auto;
+    padding-left:8px;
+  }
+  .main{
+    display:flex;
+    gap:16px;
+    padding:16px 24px 32px;
+    align-items:flex-start;
+  }
+  .map-panel{
+    flex:0 0 360px;
+    background:var(--surface-1);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:14px;
+  }
+  .map-panel h2, .list-panel h2{
+    font-size:13px;
+    font-weight:650;
+    margin:0 0 10px;
+    color:var(--ink-secondary);
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  #mapSvg{
+    width:100%;
+    height:480px;
+    display:block;
+    background:#e9f1f6;
+    border-radius:8px;
+    overflow:hidden;
+  }
+  #mapSvg .leaflet-container{ font-family:inherit; border-radius:8px; }
+  .map-note{
+    font-size:11px;
+    color:var(--ink-muted);
+    margin-top:8px;
+    line-height:1.4;
+  }
+  .map-legend{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-top:10px;
+    font-size:12px;
+    color:var(--ink-secondary);
+  }
+  .legend-item{ display:flex; align-items:center; gap:5px; }
+  .legend-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .map-dot{ cursor:pointer; stroke:#fff; stroke-width:1.3; }
+  .map-dot:hover{ stroke:#0b0b0b; }
+  .map-dot.selected{ stroke:#0b0b0b; stroke-width:2.2; }
+  .map-legend-title{
+    font-size:11px;
+    font-weight:600;
+    color:var(--ink-muted);
+    text-transform:uppercase;
+    letter-spacing:0.02em;
+    margin-top:2px;
+  }
+
+  .list-panel{
+    flex:1 1 auto;
+    background:var(--surface-1);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:14px;
+    overflow-x:auto;
+  }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  thead th{
+    text-align:left;
+    font-weight:600;
+    color:var(--ink-secondary);
+    padding:8px 8px;
+    border-bottom:1px solid var(--hairline);
+    cursor:pointer;
+    white-space:nowrap;
+    user-select:none;
+  }
+  thead th:hover{ color:var(--ink-primary); }
+  thead th .arrow{ font-size:10px; color:var(--ink-muted); margin-left:3px; }
+  tbody td{ padding:8px 8px; border-bottom:1px solid var(--hairline); vertical-align:middle; }
+  tbody tr{ cursor:pointer; }
+  tbody tr:hover{ background:var(--page); }
+  tbody tr.selected{ background:#eaf1fb; }
+  .school-name{ font-weight:600; }
+  .school-sub{ font-size:11.5px; color:var(--ink-muted); }
+
+  .chip{
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:20px;
+    font-size:11.5px;
+    font-weight:600;
+    line-height:1.6;
+  }
+  select.status-select{
+    border:1px solid var(--hairline);
+    border-radius:6px;
+    font-size:11.5px;
+    padding:2px 6px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .prio-stars{ color:#c98500; font-size:13px; letter-spacing:1px; }
+  .prio-stars .prio-empty{ color:#dcd9cd; }
+  .prio-none{ font-size:14px; }
+  select.prio-select{
+    border:1px solid var(--hairline);
+    border-radius:6px;
+    font-size:12.5px;
+    padding:2px 6px;
+    background:var(--surface-1);
+    color:#c98500;
+    font-weight:600;
+    cursor:pointer;
+  }
+
+  .overlay-bg{ position:fixed; inset:0; background:rgba(11,11,11,0.30); display:none; z-index:20; }
+  .overlay-bg.open{ display:block; }
+  .profile-panel{
+    position:fixed;
+    top:0; right:0; bottom:0;
+    width:min(520px, 100%);
+    background:var(--surface-1);
+    box-shadow:-8px 0 24px rgba(0,0,0,0.15);
+    transform:translateX(100%);
+    transition:transform 0.18s ease;
+    overflow-y:auto;
+    z-index:21;
+    padding:20px 22px 60px;
+  }
+  .profile-panel.open{ transform:translateX(0); }
+  .profile-close{
+    position:absolute; top:16px; right:18px;
+    border:none; background:none;
+    font-size:20px; cursor:pointer;
+    color:var(--ink-muted); line-height:1;
+  }
+  .profile-close:hover{ color:var(--ink-primary); }
+  .profile-header{ margin-bottom:6px; padding-right:30px; }
+  .profile-header h2{ margin:0 0 4px; font-size:20px; }
+  .profile-header .meta{ font-size:12.5px; color:var(--ink-muted); }
+  .profile-chips{ display:flex; gap:8px; margin-top:10px; align-items:center; }
+
+  .section{ margin-top:22px; padding-top:16px; border-top:1px solid var(--hairline); }
+  .section h3{
+    font-size:12.5px;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    color:var(--ink-secondary);
+    margin:0 0 10px;
+  }
+  .fact-grid{
+    display:grid;
+    grid-template-columns:110px 1fr;
+    row-gap:8px;
+    column-gap:10px;
+    font-size:13px;
+    align-items:center;
+  }
+  .fact-grid label{ color:var(--ink-muted); }
+  .fact-grid input, .fact-grid select{
+    border:1px solid var(--hairline);
+    border-radius:6px;
+    padding:5px 7px;
+    font-size:13px;
+    font-family:inherit;
+    color:var(--ink-primary);
+    width:100%;
+  }
+  .contact-card{
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    padding:10px 12px;
+    margin-bottom:10px;
+    background:var(--page);
+  }
+  .contact-row{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:6px; }
+  .contact-card input, .contact-card textarea{
+    border:1px solid var(--hairline);
+    border-radius:6px;
+    padding:5px 7px;
+    font-size:12.5px;
+    font-family:inherit;
+    width:100%;
+    background:var(--surface-1);
+  }
+  .contact-card textarea{ resize:vertical; min-height:36px; }
+  .contact-remove{
+    font-size:11.5px; color:#b04a4a;
+    background:none; border:none; cursor:pointer;
+    padding:0; margin-top:2px;
+  }
+  .comment-item{
+    padding:10px 0;
+    border-bottom:1px solid var(--hairline);
+    font-size:13px;
+  }
+  .comment-meta{
+    font-size:11.5px;
+    color:var(--ink-muted);
+    margin-bottom:3px;
+    font-variant-numeric:tabular-nums;
+  }
+  .comment-text{ white-space:pre-wrap; line-height:1.5; }
+  .add-comment{ margin-top:12px; }
+  .add-comment textarea{
+    width:100%;
+    min-height:60px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    padding:8px 10px;
+    font-size:13px;
+    font-family:inherit;
+    resize:vertical;
+  }
+  .add-comment .row{ display:flex; justify-content:flex-end; margin-top:6px; }
+  .delete-school{
+    margin-top:24px;
+    font-size:12px;
+    color:#b04a4a;
+    background:none;
+    border:1px solid var(--hairline);
+    border-radius:7px;
+    padding:6px 10px;
+    cursor:pointer;
+  }
+  .delete-school:hover{ background:#fbeaea; border-color:#d03b3b; }
+  .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
+  @media (max-width: 900px){
+    .main{ flex-direction:column; }
+    .map-panel{ flex:1 1 auto; width:100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html"><span class="company">Caminante Admin</span><span class="tool-name">Kristne skoler</span></a>
+  <div class="user-area">
+    <span id="userName"></span>
+    <button class="logout-btn" id="logoutBtn">Logg ut</button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <input type="search" id="searchInput" placeholder="Søk på skolenavn eller kommune…">
+  <select id="filterLandsdel"><option value="">Alle landsdeler</option></select>
+  <select id="filterFylke"><option value="">Alle fylker</option></select>
+  <select id="filterSkoletype"><option value="">Alle skoletyper</option></select>
+  <select id="filterPrioritet"><option value="">Alle prioriteter</option></select>
+  <select id="filterStatus"><option value="">Alle statuser</option></select>
+  <button class="reset" id="resetFilters">Nullstill filter</button>
+  <button class="action primary" id="newSchoolBtn">+ Ny skole</button>
+  <button class="action" id="exportBtn">Eksporter (CSV)</button>
+  <span class="count-pill" id="countPill"></span>
+</div>
+
+<div id="loadMsg" class="load-msg">Laster skoler…</div>
+
+<div class="main" id="mainArea" style="display:none;">
+  <div class="map-panel">
+    <h2>Kart</h2>
+    <div id="mapSvg"></div>
+    <div class="map-legend-title">Farge = status</div>
+    <div class="map-legend">
+      <span class="legend-item"><span class="legend-dot" style="background:#2a78d6"></span>Ikke kontaktet</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#fbc02d"></span>Kontakt etablert</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#0ca30c"></span>Aktiv kunde</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#0b0b0b"></span>Tidligere kunde</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#d03b3b"></span>Ikke aktuell</span>
+    </div>
+    <div class="map-legend-title" style="margin-top:8px;">Størrelse = prioritet</div>
+    <div class="map-legend">
+      <span class="legend-item">★★★ høy</span>
+      <span class="legend-item">★★ middels</span>
+      <span class="legend-item">★ lav</span>
+      <span class="legend-item">🚫 ingen / uaktuell</span>
+    </div>
+    <div class="map-note">Ekte kart (OpenStreetMap). Klikk på et punkt for å åpne skoleprofilen – zoom og dra for å se nærmere.</div>
+  </div>
+
+  <div class="list-panel">
+    <h2>Skoleliste</h2>
+    <table>
+      <thead>
+        <tr>
+          <th data-key="navn">Skole <span class="arrow"></span></th>
+          <th data-key="prioritet">Prioritet <span class="arrow"></span></th>
+          <th data-key="status">Status <span class="arrow"></span></th>
+          <th data-key="skoletype">Skoletype <span class="arrow"></span></th>
+          <th data-key="fylke">Fylke <span class="arrow"></span></th>
+        </tr>
+      </thead>
+      <tbody id="listBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="overlay-bg" id="overlayBg"></div>
+<div class="profile-panel" id="profilePanel"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/nav.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ---------- Reference data ---------- */
+
+const FYLKER = {
+  "Finnmark":        { landsdel:"Nord-Norge", lat:70.1, lon:29.7 },
+  "Troms":           { landsdel:"Nord-Norge", lat:69.6, lon:18.9 },
+  "Nordland":        { landsdel:"Nord-Norge", lat:67.3, lon:14.4 },
+  "Trøndelag":       { landsdel:"Midt-Norge", lat:63.4, lon:10.4 },
+  "Møre og Romsdal": { landsdel:"Vestlandet", lat:62.7, lon:7.2  },
+  "Vestland":        { landsdel:"Vestlandet", lat:60.4, lon:5.3  },
+  "Rogaland":        { landsdel:"Vestlandet", lat:58.97,lon:5.7  },
+  "Agder":           { landsdel:"Sørlandet",  lat:58.15,lon:8.0  },
+  "Telemark":        { landsdel:"Østlandet",  lat:59.2, lon:9.6  },
+  "Vestfold":        { landsdel:"Østlandet",  lat:59.27,lon:10.4 },
+  "Buskerud":        { landsdel:"Østlandet",  lat:59.74,lon:10.2 },
+  "Innlandet":       { landsdel:"Østlandet",  lat:60.8, lon:11.1 },
+  "Oslo":            { landsdel:"Østlandet",  lat:59.91,lon:10.75},
+  "Akershus":        { landsdel:"Østlandet",  lat:59.9, lon:11.3 },
+  "Østfold":         { landsdel:"Østlandet",  lat:59.28,lon:11.4 },
+};
+
+const SKOLETYPER = ["Grunnskole","Videregående skole","Folkehøgskole","Bibelskole","Høyskole"];
+const PRIORITETER = ["P1","P2","P3","Ingen"];
+const STATUSER = ["Ikke kontaktet","Kontakt etablert","Aktiv kunde","Tidligere kunde","Ikke aktuell"];
+const STATUS_COLORS = {
+  "Ikke kontaktet":   { bg:"#2a78d6", fg:"#ffffff" },
+  "Kontakt etablert":  { bg:"#fbc02d", fg:"#0b0b0b" },
+  "Aktiv kunde":       { bg:"#0ca30c", fg:"#ffffff" },
+  "Tidligere kunde":   { bg:"#0b0b0b", fg:"#ffffff" },
+  "Ikke aktuell":      { bg:"#d03b3b", fg:"#ffffff" },
+};
+
+/* ---------- State (in-memory cache of DB rows for the current session) ---------- */
+
+let schools = [];        // skoler rows + .kontakter[] + .kommentarer[] attached client-side
+let currentUserId = null;
+let state = { search:"", landsdel:"", fylke:"", skoletype:"", prioritet:"", status:"", sortKey:"navn", sortDir:1, selectedId:null };
+
+/* ---------- Helpers ---------- */
+
+function priorityRank(p){ return p==="P1"?3 : p==="P2"?2 : p==="P3"?1 : 0; }
+function priorityStars(p){
+  if(p==="Ingen") return `<span class="prio-none" title="Ingen prioritet / ikke aktuell">🚫</span>`;
+  const n = priorityRank(p);
+  return `<span class="prio-stars" title="${p}">${"★".repeat(n)}<span class="prio-empty">${"☆".repeat(3-n)}</span></span>`;
+}
+function priorityOptionLabel(p){
+  return p==="Ingen" ? "🚫 Ingen" : `${"★".repeat(priorityRank(p))}${"☆".repeat(3-priorityRank(p))} ${p}`;
+}
+function statusChip(s){
+  const c = STATUS_COLORS[s] || {bg:"#898781", fg:"#ffffff"};
+  return `<span class="chip" style="background:${c.bg};color:${c.fg}">${s}</span>`;
+}
+function escapeHtml(str){
+  return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+
+/* ---------- Supabase data loading ---------- */
+
+async function loadAllData(){
+  const [{ data: skolerRows, error: e1 }, { data: kontakterRows, error: e2 }, { data: kommentarerRows, error: e3 }, { data: profileRows, error: e4 }, { data: kalkylerRows, error: e5 }] =
+    await Promise.all([
+      window.sb.from("skoler").select("*"),
+      window.sb.from("kontakter").select("*"),
+      window.sb.from("kommentarer").select("*").order("opprettet_dato", { ascending:false }),
+      window.sb.from("profiles").select("id, navn"),
+      window.sb.from("kalkyler").select("id,navn,kunde_gruppe,reisemaal,sist_endret,skole_id").not("skole_id","is",null).order("sist_endret", { ascending:false }),
+    ]);
+  if(e1 || e2 || e3 || e4){
+    document.getElementById("loadMsg").textContent = "Kunne ikke laste data fra databasen. Sjekk Supabase-oppsettet (shared/supabase-client.js) og prøv igjen.";
+    console.error(e1, e2, e3, e4);
+    return false;
+  }
+  if(e5){ console.error(e5); } // manglende "skole_id"-kolonne skal ikke blokkere resten av siden
+  const nameById = {};
+  (profileRows||[]).forEach(p=> nameById[p.id] = p.navn);
+
+  schools = (skolerRows||[]).map(s => ({
+    ...s,
+    kontakter: (kontakterRows||[]).filter(k=>k.skole_id===s.id),
+    kommentarer: (kommentarerRows||[]).filter(c=>c.skole_id===s.id).map(c=>({
+      ...c,
+      forfatter_navn: nameById[c.forfatter] || "Ukjent",
+    })),
+    kalkyler: (kalkylerRows||[]).filter(k=>k.skole_id===s.id),
+  }));
+  return true;
+}
+
+/* ---------- Filter dropdown population ---------- */
+
+function fillSelect(id, values){
+  const el = document.getElementById(id);
+  values.forEach(v=>{
+    const o = document.createElement("option");
+    o.value = v; o.textContent = v;
+    el.appendChild(o);
+  });
+}
+const landsdeler = [...new Set(Object.values(FYLKER).map(f=>f.landsdel))].sort();
+fillSelect("filterLandsdel", landsdeler);
+fillSelect("filterFylke", Object.keys(FYLKER).sort());
+fillSelect("filterSkoletype", SKOLETYPER);
+fillSelect("filterPrioritet", PRIORITETER);
+fillSelect("filterStatus", STATUSER);
+
+/* ---------- Filtering / sorting ---------- */
+
+function filteredSchools(){
+  let list = schools.filter(s=>{
+    if(state.search){
+      const q = state.search.toLowerCase();
+      // Prefiks-treff (begynner med), ikke "inneholder hvor som helst" - samme
+      // forventning som i Priskalkulator sitt kundesøk.
+      if(!(s.navn||"").toLowerCase().startsWith(q) && !(s.kommune||"").toLowerCase().startsWith(q)) return false;
+    }
+    if(state.landsdel && (!FYLKER[s.fylke] || FYLKER[s.fylke].landsdel !== state.landsdel)) return false;
+    if(state.fylke && s.fylke !== state.fylke) return false;
+    if(state.skoletype && s.skoletype !== state.skoletype) return false;
+    if(state.prioritet && s.prioritet !== state.prioritet) return false;
+    if(state.status && s.status !== state.status) return false;
+    return true;
+  });
+  const key = state.sortKey, dir = state.sortDir;
+  list.sort((a,b)=>{
+    let av = a[key], bv = b[key];
+    if(key==="prioritet"){ av = PRIORITETER.indexOf(a.prioritet); bv = PRIORITETER.indexOf(b.prioritet); }
+    if(key==="status"){ av = STATUSER.indexOf(a.status); bv = STATUSER.indexOf(b.status); }
+    if(typeof av === "string") av = av.toLowerCase();
+    if(typeof bv === "string") bv = bv.toLowerCase();
+    if(av < bv) return -1*dir;
+    if(av > bv) return 1*dir;
+    return 0;
+  });
+  return list;
+}
+
+/* ---------- Rendering: list ---------- */
+
+function renderList(){
+  const list = filteredSchools();
+  const body = document.getElementById("listBody");
+  body.innerHTML = "";
+  list.forEach(s=>{
+    const tr = document.createElement("tr");
+    if(s.id === state.selectedId) tr.classList.add("selected");
+    tr.innerHTML = `
+      <td>
+        <div class="school-name">${escapeHtml(s.navn)}</div>
+        <div class="school-sub">${escapeHtml(s.kommune)}</div>
+      </td>
+      <td></td>
+      <td></td>
+      <td>${escapeHtml(s.skoletype)}</td>
+      <td>${escapeHtml(s.fylke)}</td>
+    `;
+    tr.addEventListener("click", (e)=>{ if(e.target.tagName!=="SELECT") openProfile(s.id); });
+    body.appendChild(tr);
+
+    const prCell = tr.children[1];
+    const prSel = document.createElement("select");
+    prSel.className = "prio-select";
+    PRIORITETER.forEach(p=>{
+      const o = document.createElement("option"); o.value=p; o.textContent=priorityOptionLabel(p);
+      if(p===s.prioritet) o.selected = true;
+      prSel.appendChild(o);
+    });
+    prSel.addEventListener("change", async ()=>{
+      await updateSkole(s.id, { prioritet: prSel.value });
+    });
+    prCell.appendChild(prSel);
+
+    const stCell = tr.children[2];
+    const stSel = document.createElement("select");
+    stSel.className = "status-select";
+    const curColor = STATUS_COLORS[s.status] || {bg:"#898781", fg:"#ffffff"};
+    stSel.style.background = curColor.bg;
+    stSel.style.color = curColor.fg;
+    stSel.style.borderColor = curColor.bg;
+    STATUSER.forEach(st=>{
+      const o = document.createElement("option"); o.value=st; o.textContent=st;
+      if(st===s.status) o.selected = true;
+      stSel.appendChild(o);
+    });
+    stSel.addEventListener("change", async ()=>{
+      await updateSkole(s.id, { status: stSel.value });
+    });
+    stCell.appendChild(stSel);
+  });
+  document.getElementById("countPill").textContent = `${list.length} av ${schools.length} skoler vises`;
+}
+
+/* ---------- Rendering: map ---------- */
+
+let leafletMap = null;
+let markerLayer = null;
+
+function ensureLeafletMap(){
+  if(leafletMap) return;
+  leafletMap = L.map("mapSvg", { scrollWheelZoom:true }).setView([64.5, 11.5], 4);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-bidragsytere &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    maxZoom: 19,
+  }).addTo(leafletMap);
+  markerLayer = L.layerGroup().addTo(leafletMap);
+  // Sikrer riktig opptegning selv om kartet ble initialisert mens panelet var skjult.
+  setTimeout(()=> leafletMap.invalidateSize(), 0);
+}
+
+function renderMap(){
+  const list = filteredSchools();
+  ensureLeafletMap();
+  markerLayer.clearLayers();
+
+  list.forEach(s=>{
+    let lat, lon;
+    if(s.lat != null && s.lon != null){
+      // Presis plassering fra skolens egen adresse (geokodet).
+      lat = s.lat; lon = s.lon;
+    } else {
+      // Ingen adresse registrert ennå – faller tilbake til fylkessenter.
+      const f = FYLKER[s.fylke];
+      if(!f) return;
+      lat = f.lat; lon = f.lon;
+    }
+
+    const radius = s.prioritet==="P1"?9 : s.prioritet==="P2"?7 : s.prioritet==="P3"?5.5 : 4;
+    const fillColor = (STATUS_COLORS[s.status] || {bg:"#898781"}).bg;
+    const isSelected = s.id === state.selectedId;
+
+    const marker = L.circleMarker([lat, lon], {
+      radius: radius,
+      color: isSelected ? "#0b0b0b" : "#ffffff",
+      weight: isSelected ? 2.2 : 1.3,
+      fillColor: fillColor,
+      fillOpacity: s.prioritet==="Ingen" ? 0.55 : 1,
+    });
+    marker.bindTooltip(`${escapeHtml(s.navn)} (${escapeHtml(s.kommune)}) – ${s.prioritet==="Ingen"?"Ingen prioritet":s.prioritet}, ${escapeHtml(s.status)}`, { direction:"top", offset:[0,-radius] });
+    marker.on("click", ()=> openProfile(s.id));
+    marker.addTo(markerLayer);
+    if(isSelected) marker.bringToFront();
+  });
+}
+
+/* ---------- Write helpers (Supabase) ---------- */
+
+async function updateSkole(id, patch){
+  const { error } = await window.sb.from("skoler").update(patch).eq("id", id);
+  if(error){ alert("Kunne ikke lagre endringen: " + error.message); return; }
+  const s = schools.find(x=>x.id===id);
+  Object.assign(s, patch);
+  renderList(); renderMap();
+  if(state.selectedId === id) renderProfile(id);
+}
+
+async function createSkole(){
+  const { data, error } = await window.sb.from("skoler").insert({
+    navn: "Ny skole", kommune: "", fylke: "Oslo", skoletype: "Grunnskole",
+    adresse: "", postnummer: "", poststed: "", lat: null, lon: null,
+    elevtall: null, nettside: "", prioritet: "Ingen", status: "Ikke kontaktet",
+  }).select().single();
+  if(error){ alert("Kunne ikke opprette skole: " + error.message); return; }
+  schools.push({ ...data, kontakter:[], kommentarer:[] });
+  renderList(); renderMap();
+  openProfile(data.id);
+}
+
+async function deleteSkole(id){
+  if(!confirm("Slette denne skolen permanent, inkludert alle kontakter og kommentarer?")) return;
+  const { error } = await window.sb.from("skoler").delete().eq("id", id);
+  if(error){ alert("Kunne ikke slette: " + error.message); return; }
+  schools = schools.filter(s=>s.id!==id);
+  closeProfile();
+  renderList(); renderMap();
+}
+
+/* ---------- Profile panel ---------- */
+
+function openProfile(id){
+  state.selectedId = id;
+  renderList(); renderMap();
+  renderProfile(id);
+  document.getElementById("overlayBg").classList.add("open");
+  document.getElementById("profilePanel").classList.add("open");
+}
+function closeProfile(){
+  state.selectedId = null;
+  document.getElementById("overlayBg").classList.remove("open");
+  document.getElementById("profilePanel").classList.remove("open");
+  renderList(); renderMap();
+}
+document.getElementById("overlayBg").addEventListener("click", closeProfile);
+
+function renderProfile(id){
+  const s = schools.find(x=>x.id===id);
+  const panel = document.getElementById("profilePanel");
+
+  panel.innerHTML = `
+    <button class="profile-close" id="closeBtn" title="Lukk">✕</button>
+    <div class="profile-header">
+      <h2>${escapeHtml(s.navn)}</h2>
+      <div class="meta">${escapeHtml(s.kommune)}, ${escapeHtml(s.fylke)} · ${escapeHtml(s.skoletype)}</div>
+      <div class="profile-chips">${priorityStars(s.prioritet)} ${statusChip(s.status)}</div>
+    </div>
+
+    <div class="section">
+      <h3>1. Fakta</h3>
+      <div class="fact-grid">
+        <label>Navn</label><input id="f-navn" value="${escapeHtml(s.navn)}">
+        <label>Adresse</label><input id="f-adresse" value="${escapeHtml(s.adresse)}" placeholder="Gate og husnummer">
+        <label>Postnr/-sted</label>
+        <div class="row" style="display:flex; gap:6px;">
+          <input id="f-postnummer" value="${escapeHtml(s.postnummer)}" placeholder="Postnr" style="width:70px;">
+          <input id="f-poststed" value="${escapeHtml(s.poststed)}" placeholder="Poststed" style="flex:1;">
+        </div>
+        <label>Kommune</label><input id="f-kommune" value="${escapeHtml(s.kommune)}">
+        <label>Fylke</label>
+        <select id="f-fylke">${Object.keys(FYLKER).map(fy=>`<option value="${fy}" ${fy===s.fylke?"selected":""}>${fy}</option>`).join("")}</select>
+        <label>Skoletype</label>
+        <select id="f-skoletype">${SKOLETYPER.map(t=>`<option value="${t}" ${t===s.skoletype?"selected":""}>${t}</option>`).join("")}</select>
+        <label>Elevtall</label><input id="f-elevtall" type="number" value="${s.elevtall ?? ""}">
+        <label>Nettside</label><input id="f-nettside" value="${escapeHtml(s.nettside)}">
+      </div>
+      <div class="save-hint" id="geoHint" style="margin-top:6px;">
+        ${(s.lat!=null && s.lon!=null) ? "📍 Plassert nøyaktig på kartet ut fra adresse." : "⚠️ Ingen koordinater registrert – vises omtrentlig (fylkessenter) på kartet til adresse er slått opp."}
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>2. Relasjoner</h3>
+      <div id="contactsWrap"></div>
+      <button class="small-btn" id="addContactBtn">+ Legg til kontakt</button>
+    </div>
+
+    <div class="section">
+      <h3>3. Lagrede kalkyler</h3>
+      <div id="kalkylerWrap">
+        ${(s.kalkyler && s.kalkyler.length) ? s.kalkyler.map(k => `
+          <a class="kalkyle-item" href="priskalkulator.html?kalkyle=${encodeURIComponent(k.id)}" style="display:block; text-decoration:none; color:inherit; border:1px solid var(--hairline); border-radius:6px; padding:8px 10px; margin-bottom:6px;">
+            <div style="font-weight:600; font-size:13px;">${escapeHtml(k.navn)}</div>
+            <div style="font-size:12px; color:var(--ink-muted);">${escapeHtml(k.reisemaal||"")}${k.reisemaal?" · ":""}sist endret ${new Date(k.sist_endret).toLocaleDateString("nb-NO")}</div>
+          </a>
+        `).join("") : `<div class="save-hint">Ingen kalkyler koblet til denne skolen ennå.</div>`}
+      </div>
+      <a class="small-btn" style="display:inline-block; text-decoration:none;" href="priskalkulator.html?nySkole=${encodeURIComponent(s.id)}&nySkoleNavn=${encodeURIComponent(s.navn)}">+ Ny kalkyle for denne skolen</a>
+    </div>
+
+    <div class="section">
+      <h3>4. Kommentarer</h3>
+      <div id="commentsWrap"></div>
+      <div class="add-comment">
+        <textarea id="newCommentText" placeholder="Skriv en ny kommentar – dato, klokkeslett og forfatter legges til automatisk…"></textarea>
+        <div class="row"><button class="small-btn" id="addCommentBtn">Legg til kommentar</button></div>
+      </div>
+    </div>
+
+    <button class="delete-school" id="deleteSchoolBtn">Slett skole</button>
+  `;
+
+  document.getElementById("closeBtn").addEventListener("click", closeProfile);
+  document.getElementById("deleteSchoolBtn").addEventListener("click", ()=> deleteSkole(s.id));
+
+  const bind = (elId, field, isNumber)=>{
+    document.getElementById(elId).addEventListener("change", async (e)=>{
+      const val = isNumber ? (e.target.value===""? null : Number(e.target.value)) : e.target.value;
+      await updateSkole(s.id, { [field]: val });
+    });
+  };
+  bind("f-navn","navn"); bind("f-adresse","adresse"); bind("f-postnummer","postnummer"); bind("f-poststed","poststed");
+  bind("f-kommune","kommune"); bind("f-fylke","fylke");
+  bind("f-skoletype","skoletype"); bind("f-elevtall","elevtall",true); bind("f-nettside","nettside");
+
+  renderContacts(s);
+  document.getElementById("addContactBtn").addEventListener("click", async ()=>{
+    const { data, error } = await window.sb.from("kontakter").insert({
+      skole_id: s.id, navn:"", rolle:"", telefon:"", epost:"", kommentar:"",
+    }).select().single();
+    if(error){ alert("Kunne ikke legge til kontakt: " + error.message); return; }
+    s.kontakter.push(data);
+    renderContacts(s);
+  });
+
+  renderComments(s);
+  document.getElementById("addCommentBtn").addEventListener("click", async ()=>{
+    const tekst = document.getElementById("newCommentText").value.trim();
+    if(!tekst) return;
+    const { data, error } = await window.sb.from("kommentarer").insert({
+      skole_id: s.id, tekst, forfatter: currentUserId,
+    }).select().single();
+    if(error){ alert("Kunne ikke lagre kommentar: " + error.message); return; }
+    const { data: profile } = await window.sb.from("profiles").select("navn").eq("id", currentUserId).single();
+    s.kommentarer.unshift({ ...data, forfatter_navn: (profile && profile.navn) || "" });
+    document.getElementById("newCommentText").value = "";
+    renderComments(s);
+  });
+}
+
+function renderContacts(s){
+  const wrap = document.getElementById("contactsWrap");
+  wrap.innerHTML = "";
+  if(s.kontakter.length === 0){
+    const p = document.createElement("div");
+    p.className = "save-hint";
+    p.textContent = "Ingen registrerte kontakter ennå.";
+    wrap.appendChild(p);
+  }
+  s.kontakter.forEach((c)=>{
+    const card = document.createElement("div");
+    card.className = "contact-card";
+    card.innerHTML = `
+      <div class="contact-row">
+        <input placeholder="Navn" value="${escapeHtml(c.navn)}" data-field="navn">
+        <input placeholder="Rolle" value="${escapeHtml(c.rolle)}" data-field="rolle">
+      </div>
+      <div class="contact-row">
+        <input placeholder="Telefon" value="${escapeHtml(c.telefon)}" data-field="telefon">
+        <input placeholder="E-post" value="${escapeHtml(c.epost)}" data-field="epost">
+      </div>
+      <textarea placeholder="Kort kommentar (hvordan vi kjenner personen o.l.)" data-field="kommentar">${escapeHtml(c.kommentar)}</textarea>
+      <button class="contact-remove">Fjern kontakt</button>
+    `;
+    card.querySelectorAll("input, textarea").forEach(inp=>{
+      inp.addEventListener("change", async ()=>{
+        const { error } = await window.sb.from("kontakter").update({ [inp.dataset.field]: inp.value }).eq("id", c.id);
+        if(error){ alert("Kunne ikke lagre: " + error.message); return; }
+        c[inp.dataset.field] = inp.value;
+      });
+    });
+    card.querySelector(".contact-remove").addEventListener("click", async ()=>{
+      const { error } = await window.sb.from("kontakter").delete().eq("id", c.id);
+      if(error){ alert("Kunne ikke fjerne kontakt: " + error.message); return; }
+      s.kontakter = s.kontakter.filter(x=>x.id!==c.id);
+      renderContacts(s);
+    });
+    wrap.appendChild(card);
+  });
+}
+
+function renderComments(s){
+  const wrap = document.getElementById("commentsWrap");
+  wrap.innerHTML = "";
+  const sorted = [...s.kommentarer].sort((a,b)=> a.opprettet_dato < b.opprettet_dato ? 1 : -1);
+  if(sorted.length === 0){
+    const p = document.createElement("div");
+    p.className = "save-hint";
+    p.textContent = "Ingen kommentarer registrert ennå.";
+    wrap.appendChild(p);
+  }
+  sorted.forEach(c=>{
+    const row = document.createElement("div");
+    row.className = "comment-item";
+    const d = new Date(c.opprettet_dato);
+    const stamp = d.toLocaleDateString("nb-NO",{year:"numeric",month:"short",day:"numeric"}) + " kl. " + d.toLocaleTimeString("nb-NO",{hour:"2-digit",minute:"2-digit"});
+    row.innerHTML = `<div class="comment-meta">${stamp} · ${escapeHtml(c.forfatter_navn||"")}</div><div class="comment-text">${escapeHtml(c.tekst)}</div>`;
+    wrap.appendChild(row);
+  });
+}
+
+/* ---------- CSV-eksport ---------- */
+
+function exportCsv(){
+  const list = filteredSchools();
+  const headers = ["Navn","Adresse","Postnummer","Poststed","Kommune","Fylke","Skoletype","Elevtall","Nettside","Prioritet","Status"];
+  const rows = list.map(s => [s.navn, s.adresse, s.postnummer, s.poststed, s.kommune, s.fylke, s.skoletype, s.elevtall ?? "", s.nettside, s.prioritet, s.status]);
+  const csv = [headers, ...rows]
+    .map(row => row.map(v => `"${String(v??"").replace(/"/g,'""')}"`).join(";"))
+    .join("\r\n");
+  const blob = new Blob(["﻿"+csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `caminante-skoler-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- Wire up toolbar ---------- */
+
+document.getElementById("searchInput").addEventListener("input", (e)=>{ state.search = e.target.value; renderList(); renderMap(); });
+document.getElementById("filterLandsdel").addEventListener("change", (e)=>{ state.landsdel = e.target.value; renderList(); renderMap(); });
+document.getElementById("filterFylke").addEventListener("change", (e)=>{ state.fylke = e.target.value; renderList(); renderMap(); });
+document.getElementById("filterSkoletype").addEventListener("change", (e)=>{ state.skoletype = e.target.value; renderList(); renderMap(); });
+document.getElementById("filterPrioritet").addEventListener("change", (e)=>{ state.prioritet = e.target.value; renderList(); renderMap(); });
+document.getElementById("filterStatus").addEventListener("change", (e)=>{ state.status = e.target.value; renderList(); renderMap(); });
+document.getElementById("resetFilters").addEventListener("click", ()=>{
+  state.search=""; state.landsdel=""; state.fylke=""; state.skoletype=""; state.prioritet=""; state.status="";
+  document.getElementById("searchInput").value = "";
+  ["filterLandsdel","filterFylke","filterSkoletype","filterPrioritet","filterStatus"].forEach(id=> document.getElementById(id).value = "");
+  renderList(); renderMap();
+});
+document.getElementById("newSchoolBtn").addEventListener("click", createSkole);
+document.getElementById("exportBtn").addEventListener("click", exportCsv);
+
+document.querySelectorAll("thead th[data-key]").forEach(th=>{
+  th.addEventListener("click", ()=>{
+    const key = th.dataset.key;
+    if(state.sortKey === key){ state.sortDir *= -1; } else { state.sortKey = key; state.sortDir = 1; }
+    document.querySelectorAll("thead .arrow").forEach(a=> a.textContent = "");
+    th.querySelector(".arrow").textContent = state.sortDir === 1 ? "▲" : "▼";
+    renderList();
+  });
+});
+
+/* ---------- Init ---------- */
+
+(async ()=>{
+  const session = await requireLogin();
+  if(!session) return;
+  currentUserId = session.user.id;
+
+  const ok = await loadAllData();
+  document.getElementById("loadMsg").style.display = "none";
+  if(!ok) return;
+  document.getElementById("mainArea").style.display = "flex";
+  renderList();
+  renderMap();
+
+  // Lenke fra andre sider (f.eks. priskalkulator.html): ?open=<id> åpner skoleprofilen direkte.
+  const openId = new URLSearchParams(location.search).get("open");
+  if(openId && schools.some(s=>s.id===openId)){ openProfile(openId); }
+})();
+</script>
+</body>
+</html>

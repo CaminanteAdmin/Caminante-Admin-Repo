@@ -1,0 +1,77 @@
+:root{
+  --surface-1:#fcfcfb;
+  --page:#f4f3ef;
+  --ink-primary:#0b0b0b;
+  --ink-secondary:#52514e;
+  --ink-muted:#898781;
+  --hairline:#e1e0d9;
+  --border:rgba(11,11,11,0.10);
+  --good:#0ca30c;
+  --accent:#184f95;
+  --radius:10px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background:var(--page);
+  color:var(--ink-primary);
+  -webkit-font-smoothing:antialiased;
+}
+a{ color:var(--accent); }
+
+/* Shared top bar, present on every page except login */
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 24px;
+  background:var(--surface-1);
+  border-bottom:1px solid var(--hairline);
+  flex-wrap:wrap;
+  gap:8px;
+}
+.topbar .brand{
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+  text-decoration:none;
+  color:var(--ink-primary);
+}
+.topbar .brand .company{ font-weight:650; font-size:16px; }
+.topbar .brand .tool-name{ color:var(--ink-secondary); font-weight:500; font-size:13px; }
+.topbar .user-area{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-size:13px;
+  color:var(--ink-secondary);
+}
+.topbar button.logout-btn, .topbar a.back-link{
+  padding:6px 12px;
+  border:1px solid var(--hairline);
+  border-radius:8px;
+  background:var(--surface-1);
+  color:var(--ink-secondary);
+  font-size:12.5px;
+  cursor:pointer;
+  text-decoration:none;
+}
+.topbar button.logout-btn:hover, .topbar a.back-link:hover{ background:var(--page); }
+
+.small-btn{
+  font-size:12px;
+  padding:6px 10px;
+  border:1px solid var(--hairline);
+  border-radius:7px;
+  background:var(--surface-1);
+  color:var(--ink-secondary);
+  cursor:pointer;
+}
+.small-btn:hover{ background:var(--page); }
+
+.save-hint{ font-size:11px; color:var(--ink-muted); margin-top:4px; }
+
+@media (max-width: 700px){
+  .topbar{ padding:10px 14px; }
+}
