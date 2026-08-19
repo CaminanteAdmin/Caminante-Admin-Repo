@@ -1,7 +1,7 @@
 # sql/
 
 Her ligger SQL-migreringene som er kjørt manuelt i Supabase SQL Editor
-(schema.sql, kalender-/hoteller-migreringer, skole-import osv.).
+(schema.sql, kalender-/hoteller-migreringer, skole-import osv.) .
 
 Denne mappen ligger BEVISST utenfor `site/`, som er den eneste mappen
 `wrangler.jsonc` peker til (`assets.directory: "./site"`). Filene her
