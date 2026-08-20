@@ -507,6 +507,7 @@
         <div id="skoleDropdown" style="display:none; position:absolute; z-index:20; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--border); border-radius:6px; max-height:220px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
       </div>
       <div class="save-hint" id="skoleLink" style="margin-top:4px; font-size:10px;"></div>
+      <div class="save-hint" id="forslagLink" style="margin-top:2px; font-size:10px;"></div>
     </div>
     <div class="field">
       <label for="meta_start">Reisedato / -periode</label>
@@ -522,6 +523,7 @@
     <button class="btn small primary" id="btnSave">Lagre</button>
     <button class="btn small" id="btnSaveCopy">Lagre som kopi</button>
     <button class="btn small remove-btn" id="btnDelete">Slett</button>
+    <button class="btn small" id="btnOpprettForslag" title="Oppretter et nytt reiseforslag basert på denne kalkylen">Opprett forslag fra kalkyle</button>
   </div>
   <div class="kalkyle-status" id="kalkyleStatus">Laster…</div>
 </div>
@@ -1888,6 +1890,7 @@ recalcAll();
    ============================================================ */
 
 let currentKalkyleId = null;
+let currentKalkyleSistEndret = null;
 let currentUserId = null;
 let currentSkoleId = null;
 const skoleIdByName = new Map();
@@ -1951,8 +1954,16 @@ function updateSkoleLinkDisplay(){
 }
 
 function serializeCalculator(){
+  // v1 Forslag-integrasjon: fanger opp enkeltromstillegget kalkulatoren allerede
+  // regner ut til visning (pureCalc1/gatherModule1, begge uendret fra motoren
+  // over), slik at det kan gjenbrukes av Forslag uten at Forslag regner ut noe
+  // selv. Ingenting i selve kalkulator-motoren er endret av dette.
+  let enkeltTilleggPerPerson = null;
+  try{
+    enkeltTilleggPerPerson = pureCalc1(gatherModule1()).enkeltTilleggPerPerson;
+  } catch(e){ console.error('Kunne ikke beregne enkeltromstillegg for lagring:', e); }
   return {
-    counts: JSON.parse(JSON.stringify(state.m1)),
+    counts: { ...JSON.parse(JSON.stringify(state.m1)), enkeltTilleggPerPerson },
     touchedNetter: JSON.parse(JSON.stringify(touchedNetter.m1)),
     values: snapshotValues('m1_inputs'),
   };
@@ -1996,8 +2007,9 @@ async function saveKalkyle(asCopy){
   const payload = { ...meta, kalkyle_data: serializeCalculator() };
   setKalkyleStatus('Lagrer…');
   if(currentKalkyleId && !asCopy){
-    const { error } = await window.sb.from('kalkyler').update(payload).eq('id', currentKalkyleId);
+    const { data, error } = await window.sb.from('kalkyler').update(payload).eq('id', currentKalkyleId).select('sist_endret').single();
     if(error){ setKalkyleStatus('Kunne ikke lagre: ' + error.message); return; }
+    currentKalkyleSistEndret = data.sist_endret;
     setKalkyleStatus('Lagret ' + new Date().toLocaleString('nb-NO'));
   } else {
     const { data, error } = await window.sb.from('kalkyler')
@@ -2005,8 +2017,10 @@ async function saveKalkyle(asCopy){
       .select().single();
     if(error){ setKalkyleStatus('Kunne ikke lagre: ' + error.message); return; }
     currentKalkyleId = data.id;
+    currentKalkyleSistEndret = data.sist_endret;
     setKalkyleStatus((asCopy ? 'Lagret som ny kopi ' : 'Opprettet ') + new Date().toLocaleString('nb-NO'));
   }
+  updateForslagLinkDisplay();
 }
 
 function newKalkyle(){
@@ -2021,10 +2035,66 @@ async function openKalkyleById(id){
   const { data, error } = await window.sb.from('kalkyler').select('*').eq('id', id).single();
   if(error){ setKalkyleStatus('Kunne ikke åpne: ' + error.message); return; }
   currentKalkyleId = data.id;
+  currentKalkyleSistEndret = data.sist_endret;
   fillMeta(data);
   loadCalculatorData(data.kalkyle_data);
   setKalkyleStatus('Åpnet – sist endret ' + new Date(data.sist_endret).toLocaleString('nb-NO'));
   closeOpenPanel();
+  updateForslagLinkDisplay();
+}
+
+/* ---------- Forslag & tilbud-integrasjon ----------
+   Prinsipp: "Priskalkulatoren beregner - Forslag presenterer." Denne delen
+   leser kun allerede beregnede/lagrede verdier (kundepris, enkeltromstillegg)
+   og oppretter en rad i forslag-tabellen - ingen egen prisberegning her. */
+
+async function updateForslagLinkDisplay(){
+  const linkEl = el('forslagLink');
+  if(!linkEl) return;
+  if(!currentKalkyleId){ linkEl.innerHTML = ''; return; }
+  const { data, error } = await window.sb.from('forslag')
+    .select('id,tittel')
+    .eq('kalkyle_id', currentKalkyleId)
+    .order('opprettet_dato', { ascending:false })
+    .limit(1);
+  if(error || !data || !data.length){ linkEl.innerHTML = ''; return; }
+  const f = data[0];
+  linkEl.innerHTML = `📄 <a href="forslag-editor.html?id=${encodeURIComponent(f.id)}">${(f.tittel||'Forslag').replace(/</g,'&lt;')} →</a>`;
+}
+
+async function opprettForslagFraKalkyle(){
+  if(!currentKalkyleId){
+    alert('Lagre kalkylen først - et forslag må kobles til en lagret kalkyle.');
+    return;
+  }
+  let res1;
+  try{
+    res1 = pureCalc1(gatherModule1());
+  } catch(e){
+    alert('Kunne ikke lese ut pris fra kalkylen: ' + e.message);
+    return;
+  }
+  const destinasjon = strVal('m1_navn','') || '';
+  const tittel = strVal('meta_navn','') || destinasjon || 'Nytt forslag';
+  const payload = {
+    tittel,
+    destinasjon,
+    kundetype: currentSkoleId ? 'Skole' : 'Annen gruppe',
+    skole_id: currentSkoleId || null,
+    ansvarlig: currentUserId,
+    fra_dato: strVal('meta_start','') || null,
+    til_dato: strVal('meta_slutt','') || null,
+    antall_reisende: (res1 && res1.anslatt) ? res1.anslatt : null,
+    kalkyle_id: currentKalkyleId,
+    kalkyle_sist_endret_ved_kobling: currentKalkyleSistEndret,
+    pris_per_person: (res1 && res1.kundepris!=null) ? res1.kundepris : null,
+    enkeltromstillegg: (res1 && res1.enkeltTilleggPerPerson!=null) ? res1.enkeltTilleggPerPerson : null,
+    valuta: 'NOK',
+    opprettet_av: currentUserId,
+  };
+  const { data, error } = await window.sb.from('forslag').insert(payload).select().single();
+  if(error){ alert('Kunne ikke opprette forslag: ' + error.message); return; }
+  window.location.href = `forslag-editor.html?id=${encodeURIComponent(data.id)}`;
 }
 
 async function deleteCurrentKalkyle(){
@@ -2084,6 +2154,7 @@ function closeOpenPanel(){
   el('btnSaveCopy').addEventListener('click', ()=> saveKalkyle(true));
   el('btnDelete').addEventListener('click', deleteCurrentKalkyle);
   el('btnOpen').addEventListener('click', openOpenPanel);
+  el('btnOpprettForslag').addEventListener('click', opprettForslagFraKalkyle);
   el('closeOpenBtn').addEventListener('click', closeOpenPanel);
   el('ovlOpen').addEventListener('click', closeOpenPanel);
   el('openSearch').addEventListener('input', (e)=> loadKalkyleList(e.target.value));
