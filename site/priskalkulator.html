@@ -836,6 +836,22 @@ function hotelBlock(prefix, idx, isM1, moduleKey, canRemove){
       </details>`;
   }
 
+  /* Forslag-integrasjon (additivt, påvirker ikke prisberegningen): sted og
+     måltider brukes kun til å fylle ut Forslag automatisk når man trykker
+     "Opprett forslag fra kalkyle" - leses ikke av pureCalc1. Kun i Modul 1,
+     som er den eneste modulen som kobles til Forslag. */
+  const forslagFeltSection = isM1 ? `
+      <div class="row2" style="margin-top:8px;">
+        <div class="field">
+          <label for="${p}sted">Sted / by (til Forslag)</label>
+          <input type="text" id="${p}sted" placeholder="f.eks. Roma" oninput="recalcAll()">
+        </div>
+        <div class="field">
+          <label for="${p}maltider">Måltider (til Forslag)</label>
+          <input type="text" id="${p}maltider" placeholder="f.eks. Frokost inkludert" oninput="recalcAll()">
+        </div>
+      </div>` : '';
+
   return `
     <div class="hotel-block">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
@@ -849,6 +865,7 @@ function hotelBlock(prefix, idx, isM1, moduleKey, canRemove){
         </div>
         ${standardSelect}
       </div>
+      ${forslagFeltSection}
       <div class="hint" style="margin:10px 0 4px;">Pris per rom/natt</div>
       <div class="rate-card">
         ${rateRow(p, dobbelType, moduleKey)}
@@ -904,6 +921,27 @@ function removeHotel(moduleKey, idx){
 }
 
 /* ---------- Fleksible lister: transport/guide, aktiviteter, andre faste kostnader ---------- */
+/* Forslag-integrasjon (additivt): valgfri type (kun transport-linjer), en
+   kundevendt tekst (brukes i Inkludert-listen istedenfor det interne navnet
+   når den er fylt ut) og en avkrysning for om linjen skal med i Inkludert.
+   Leses av gatherList() nedenfor, men påvirker aldri beløpssummeringen -
+   ren tilleggsinformasjon til "Opprett forslag fra kalkyle". */
+const TRANSPORT_TYPES = ['Buss','Tog','Ferge','Transfer','Guide','Annet'];
+function forslagLinjeFelter(rid, typeOptions){
+  const typeSelect = typeOptions ? `
+        <select id="${rid}type" oninput="recalcAll()" onchange="recalcAll()" title="Type (til Forslag)" style="max-width:110px;">
+          ${typeOptions.map(t=>`<option value="${t}">${t}</option>`).join('')}
+        </select>` : '';
+  return `
+      <div style="display:flex;gap:6px;align-items:center;margin:2px 0 6px;flex-wrap:wrap;">
+        ${typeSelect}
+        <input type="text" id="${rid}kundetekst" placeholder="Kundetekst til Inkludert (valgfritt)" oninput="recalcAll()" style="flex:1;min-width:160px;">
+        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink-2);white-space:nowrap;">
+          <input type="checkbox" id="${rid}inkluder" checked oninput="recalcAll()"> Ta med i Inkludert
+        </label>
+      </div>`;
+}
+
 function listCard(prefix, kind, title, hint, countKey, moduleKey, defaults){
   const count = state[moduleKey][countKey];
   const baseCount = DEFAULT_COUNTS[countKey] || 0;
@@ -918,7 +956,8 @@ function listCard(prefix, kind, title, hint, countKey, moduleKey, defaults){
         <input type="number" id="${rid}belop" placeholder="beløp" min="0" step="10" oninput="recalcAll()">
         <select id="${rid}cur" oninput="recalcAll()" onchange="recalcAll()">${currencyOptions(moduleKey)}</select>
         ${removeBtn}
-      </div>`;
+      </div>
+      ${forslagLinjeFelter(rid, kind==='transport' ? TRANSPORT_TYPES : null)}`;
   }
   return `
     <div class="card">
@@ -953,7 +992,15 @@ function gatherList(prefix, kind, count, moduleKey){
     const belopRaw = num(rid+'belop',0)||0;
     if(!belopRaw) continue;
     const belop = resolveCurValue(belopRaw, el(rid+'cur'), prefix, moduleKey);
-    items.push({navn:strVal(rid+'navn',''), belop});
+    const item = {navn:strVal(rid+'navn',''), belop};
+    // Forslag-integrasjon (additivt - påvirker ikke beløpssummeringen over,
+    // kun brukt av "Opprett forslag fra kalkyle"):
+    const typeField = el(rid+'type');
+    if(typeField) item.type = typeField.value;
+    item.kundetekst = strVal(rid+'kundetekst','');
+    const inkluderField = el(rid+'inkluder');
+    item.inkluderITilbud = inkluderField ? inkluderField.checked : true;
+    items.push(item);
   }
   return items;
 }
@@ -1007,7 +1054,8 @@ function flyCard(prefix, moduleKey){
         <input type="number" id="${rid}belop" placeholder="beløp" min="0" step="10" oninput="recalcAll()">
         <select id="${rid}cur" oninput="recalcAll()" onchange="recalcAll()">${currencyOptions(moduleKey)}</select>
         ${removeBtn}
-      </div>`;
+      </div>
+      ${forslagLinjeFelter(rid, null)}`;
   }
   return `
     <div class="card">
@@ -1381,6 +1429,11 @@ function gatherHotel(prefix, idx, moduleKey, isM1){
     ['enkelt','dobbel','trippel','fire'].forEach(t=>{
       hotel.antall[t] = num(hp+t+'_antall',0)||0;
     });
+    // Forslag-integrasjon (additivt - brukes ikke av pureCalc1/prisberegningen,
+    // kun av "Opprett forslag fra kalkyle"):
+    hotel.navn = strVal(hp+'navn','');
+    hotel.sted = strVal(hp+'sted','');
+    hotel.maltider = strVal(hp+'maltider','');
   }
   return hotel;
 }
@@ -1483,6 +1536,11 @@ function gatherModule1(){
   return {
     dager, netterFraDato, hotels,
     fly,
+    // Forslag-integrasjon (additivt): de enkelte fly-linjene ble tidligere
+    // kastet etter at summen (fly, over) var beregnet. De bevares nå også
+    // her, uendret i format, kun til bruk i "Opprett forslag fra kalkyle" -
+    // pureCalc1 leser fortsatt kun p.fly (summen), ikke p.flyItems.
+    flyItems,
     matFrokost: moneyValue(p,'mat_frokost','m1'), matLunsj: moneyValue(p,'mat_lunsj','m1'),
     matMiddag: moneyValue(p,'mat_middag','m1'), matEkstra: moneyValue(p,'mat_ekstra','m1'),
     aktiviteter: gatherList(p,'akt', state.m1.aktCount, 'm1'),
@@ -2062,14 +2120,81 @@ async function updateForslagLinkDisplay(){
   linkEl.innerHTML = `📄 <a href="forslag-editor.html?id=${encodeURIComponent(f.id)}">${(f.tittel||'Forslag').replace(/</g,'&lt;')} →</a>`;
 }
 
+/* Forslag-integrasjon, utvidet versjon: "Priskalkulatoren er i størst mulig
+   grad kilden til de strukturerte reisedataene. Forslag presenterer disse
+   dataene for kunden." Disse hjelpefunksjonene leser KUN allerede innsamlede
+   data fra gatherModule1() (hoteller, fly-, transport-, aktivitets- og
+   andre-kostnads-linjer) - ingen ny beregning, ingen endring av selve
+   prisberegningen (pureCalc1 er urørt). */
+
+const ROOM_TYPE_LABELS = Object.fromEntries(ROOM_TYPES.map(rt=>[rt.key, rt.label]));
+
+function bygHotellopphold(gm1){
+  return (gm1.hotels||[])
+    .filter(h=>h.netter>0)
+    .map((h,i)=>({
+      sortering: i,
+      sted: h.sted || null,
+      fra_dato: null, til_dato: null,
+      netter: h.netter,
+      hotellnavn: h.navn || null,
+      standard: ROOM_TYPE_LABELS[h.standard] || h.standard || null,
+      romtype: ROOM_TYPE_LABELS[h.standard] || h.standard || null,
+      maltider: h.maltider || null,
+    }));
+}
+
+function bygTransportrader(gm1){
+  const rader = [];
+  let sortering = 0;
+  (gm1.flyItems||[]).forEach(item=>{
+    rader.push({
+      sortering: sortering++,
+      transporttype: 'Fly',
+      beskrivelse: (item.kundetekst && item.kundetekst.trim()) ? item.kundetekst.trim() : (item.navn || null),
+    });
+  });
+  (gm1.transport||[]).forEach(item=>{
+    rader.push({
+      sortering: sortering++,
+      transporttype: item.type || 'Buss',
+      beskrivelse: (item.kundetekst && item.kundetekst.trim()) ? item.kundetekst.trim() : (item.navn || null),
+    });
+  });
+  return rader;
+}
+
+function bygInkludertFraKalkyle(gm1){
+  const linjer = [];
+  (gm1.hotels||[]).filter(h=>h.netter>0).forEach(h=>{
+    const stedTxt = h.sted ? ` i ${h.sted}` : '';
+    const maltiderTxt = h.maltider ? ` (${h.maltider})` : '';
+    const navn = h.navn ? h.navn : 'hotell';
+    linjer.push(`${h.netter} ${h.netter===1?'natt':'netter'} ${navn}${stedTxt}${maltiderTxt}`.trim());
+  });
+  const listeposter = [
+    ...(gm1.flyItems||[]),
+    ...(gm1.transport||[]),
+    ...(gm1.aktiviteter||[]),
+    ...(gm1.andreFasteKostnader||[]),
+  ];
+  listeposter.forEach(item=>{
+    if(item.inkluderITilbud===false) return;
+    const txt = (item.kundetekst && item.kundetekst.trim()) ? item.kundetekst.trim() : (item.navn||'').trim();
+    if(txt) linjer.push(txt);
+  });
+  return linjer;
+}
+
 async function opprettForslagFraKalkyle(){
   if(!currentKalkyleId){
     alert('Lagre kalkylen først - et forslag må kobles til en lagret kalkyle.');
     return;
   }
-  let res1;
+  let gm1, res1;
   try{
-    res1 = pureCalc1(gatherModule1());
+    gm1 = gatherModule1();
+    res1 = pureCalc1(gm1);
   } catch(e){
     alert('Kunne ikke lese ut pris fra kalkylen: ' + e.message);
     return;
@@ -2090,10 +2215,26 @@ async function opprettForslagFraKalkyle(){
     pris_per_person: (res1 && res1.kundepris!=null) ? res1.kundepris : null,
     enkeltromstillegg: (res1 && res1.enkeltTilleggPerPerson!=null) ? res1.enkeltTilleggPerPerson : null,
     valuta: 'NOK',
+    inkludert: bygInkludertFraKalkyle(gm1),
     opprettet_av: currentUserId,
   };
   const { data, error } = await window.sb.from('forslag').insert(payload).select().single();
   if(error){ alert('Kunne ikke opprette forslag: ' + error.message); return; }
+
+  const hotellopphold = bygHotellopphold(gm1).map(h=>({...h, forslag_id: data.id}));
+  const transportrader = bygTransportrader(gm1).map(t=>({...t, forslag_id: data.id}));
+  const feil = [];
+  if(hotellopphold.length){
+    const r = await window.sb.from('forslag_hotellopphold').insert(hotellopphold);
+    if(r.error) feil.push('hotellopphold: ' + r.error.message);
+  }
+  if(transportrader.length){
+    const r = await window.sb.from('forslag_transport').insert(transportrader);
+    if(r.error) feil.push('transport: ' + r.error.message);
+  }
+  if(feil.length){
+    alert('Forslaget ble opprettet, men noe av reisedataene kunne ikke overføres automatisk (' + feil.join('; ') + '). Du kan legge dem inn manuelt i Forslaget.');
+  }
   window.location.href = `forslag-editor.html?id=${encodeURIComponent(data.id)}`;
 }
 
