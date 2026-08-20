@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forslag &amp; tilbud – Caminante Admin</title>
+<link rel="stylesheet" href="shared/style.css">
+<style>
+  .toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+    padding:14px 24px;
+    background:var(--surface-1);
+    border-bottom:1px solid var(--hairline);
+    position:sticky;
+    top:0;
+    z-index:5;
+  }
+  .toolbar input[type="search"]{
+    flex:1 1 220px;
+    min-width:160px;
+    padding:7px 10px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:13px;
+    background:var(--surface-1);
+    color:var(--ink-primary);
+  }
+  .toolbar select{
+    padding:7px 8px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:13px;
+    background:var(--surface-1);
+    color:var(--ink-primary);
+  }
+  .toolbar button.reset, .toolbar button.action{
+    padding:7px 12px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:13px;
+    background:var(--surface-1);
+    color:var(--ink-secondary);
+    cursor:pointer;
+  }
+  .toolbar button.action.primary{
+    background:var(--accent);
+    color:#fff;
+    border-color:var(--accent);
+  }
+  .toolbar button:hover{ background:var(--page); }
+  .toolbar button.action.primary:hover{ background:#123d75; }
+  .count-pill{
+    font-size:12.5px;
+    color:var(--ink-muted);
+    margin-left:auto;
+    padding-left:8px;
+  }
+  .main{ padding:16px 24px 32px; }
+  .list-panel{
+    background:var(--surface-1);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:14px;
+    overflow-x:auto;
+  }
+  .list-panel h2{
+    font-size:13px;
+    font-weight:650;
+    margin:0 0 10px;
+    color:var(--ink-secondary);
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  thead th{
+    text-align:left;
+    font-weight:600;
+    color:var(--ink-secondary);
+    padding:8px 8px;
+    border-bottom:1px solid var(--hairline);
+    cursor:pointer;
+    white-space:nowrap;
+    user-select:none;
+  }
+  thead th:hover{ color:var(--ink-primary); }
+  thead th .arrow{ font-size:10px; color:var(--ink-muted); margin-left:3px; }
+  tbody td{ padding:8px 8px; border-bottom:1px solid var(--hairline); vertical-align:middle; white-space:nowrap; }
+  tbody tr{ cursor:pointer; }
+  tbody tr:hover{ background:var(--page); }
+  .forslag-nr{ font-variant-numeric:tabular-nums; color:var(--ink-muted); font-size:12px; }
+  .forslag-tittel{ font-weight:600; }
+  .forslag-sub{ font-size:11.5px; color:var(--ink-muted); }
+  .chip{
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:20px;
+    font-size:11.5px;
+    font-weight:600;
+    line-height:1.6;
+    white-space:nowrap;
+  }
+  .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
+  .empty-msg{ padding:20px 8px; color:var(--ink-muted); font-size:13px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html"><span class="company">Caminante Admin</span><span class="tool-name">Forslag &amp; tilbud</span></a>
+  <div class="user-area">
+    <span id="userName"></span>
+    <button class="logout-btn" id="logoutBtn">Logg ut</button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <input type="search" id="searchInput" placeholder="Søk på tittel, destinasjon eller kunde…">
+  <select id="filterStatus"><option value="">Alle statuser</option></select>
+  <select id="filterKundetype"><option value="">Alle kundetyper</option></select>
+  <button class="reset" id="resetFilters">Nullstill filter</button>
+  <button class="action primary" id="newForslagBtn">+ Nytt forslag</button>
+  <span class="count-pill" id="countPill"></span>
+</div>
+
+<div id="loadMsg" class="load-msg">Laster forslag…</div>
+
+<div class="main" id="mainArea" style="display:none;">
+  <div class="list-panel">
+    <h2>Forslagsliste</h2>
+    <table>
+      <thead>
+        <tr>
+          <th data-key="forslagsnummer">Nr. <span class="arrow"></span></th>
+          <th data-key="tittel">Tittel / destinasjon <span class="arrow"></span></th>
+          <th data-key="kunde_navn">Kunde <span class="arrow"></span></th>
+          <th data-key="kundetype">Kundetype <span class="arrow"></span></th>
+          <th data-key="fra_dato">Reiseperiode <span class="arrow"></span></th>
+          <th data-key="antall_reisende">Antall <span class="arrow"></span></th>
+          <th data-key="ansvarlig_navn">Ansvarlig <span class="arrow"></span></th>
+          <th data-key="status">Status <span class="arrow"></span></th>
+          <th data-key="sist_endret">Sist endret <span class="arrow"></span></th>
+        </tr>
+      </thead>
+      <tbody id="listBody"></tbody>
+    </table>
+    <div id="emptyMsg" class="empty-msg" style="display:none;">Ingen forslag matcher filteret.</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+/* ---------- Referansedata ----------
+   Status/kundetype er Postgres-enum (forslag_status/forslag_kundetype) siden
+   dette er en fastere arbeidsflyt enn f.eks. hotellstatus - men listen her
+   speiler enum-verdiene 1:1, så nye verdier krever en liten SQL-migrering
+   pluss en oppdatering av disse to listene. */
+const STATUSER = ["Utkast","Sendt","Kunde interessert","Gått videre til tilbud","Avslått","Arkivert"];
+const STATUS_COLORS = {
+  "Utkast":                { bg:"#898781", fg:"#ffffff" },
+  "Sendt":                 { bg:"#2a78d6", fg:"#ffffff" },
+  "Kunde interessert":     { bg:"#0ca30c", fg:"#ffffff" },
+  "Gått videre til tilbud":{ bg:"#184f95", fg:"#ffffff" },
+  "Avslått":               { bg:"#b04a4a", fg:"#ffffff" },
+  "Arkivert":              { bg:"#c3c2b7", fg:"#0b0b0b" },
+};
+const KUNDETYPER = ["Firma","Skole","Forening","Annen gruppe"];
+
+/* ---------- State ---------- */
+
+let forslagListe = [];
+let currentUserId = null;
+let state = { search:"", status:"", kundetype:"", sortKey:"sist_endret", sortDir:-1 };
+
+/* ---------- Helpers ---------- */
+
+function escapeHtml(str){
+  return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+function statusChip(s){
+  const c = STATUS_COLORS[s] || {bg:"#898781", fg:"#ffffff"};
+  return `<span class="chip" style="background:${c.bg};color:${c.fg}">${escapeHtml(s)}</span>`;
+}
+function fmtDate(d){
+  if(!d) return "";
+  const dt = new Date(d + "T00:00:00");
+  if(isNaN(dt)) return "";
+  return dt.toLocaleDateString("nb-NO", { year:"numeric", month:"short", day:"numeric" });
+}
+function fmtPeriode(f){
+  if(f.fra_dato && f.til_dato) return `${fmtDate(f.fra_dato)} – ${fmtDate(f.til_dato)}`;
+  if(f.fra_dato) return fmtDate(f.fra_dato);
+  if(f.periode_tekst) return f.periode_tekst;
+  return "";
+}
+function fmtSistEndret(d){
+  if(!d) return "";
+  const dt = new Date(d);
+  return dt.toLocaleDateString("nb-NO",{year:"numeric",month:"short",day:"numeric"}) + " kl. " + dt.toLocaleTimeString("nb-NO",{hour:"2-digit",minute:"2-digit"});
+}
+
+/* ---------- Supabase-lasting ---------- */
+
+async function loadAllData(){
+  const [{ data: forslagRows, error: e1 }, { data: skoleRows, error: e2 }, { data: profileRows, error: e3 }] =
+    await Promise.all([
+      window.sb.from("forslag").select("*"),
+      window.sb.from("skoler").select("id, navn"),
+      window.sb.from("profiles").select("id, navn"),
+    ]);
+  if(e1 || e2 || e3){
+    document.getElementById("loadMsg").textContent = "Kunne ikke laste data fra databasen. Sjekk at forslag-skjemaet er kjørt i Supabase, og prøv igjen.";
+    console.error(e1, e2, e3);
+    return false;
+  }
+  const skoleById = {};
+  (skoleRows||[]).forEach(s=> skoleById[s.id] = s.navn);
+  const navnById = {};
+  (profileRows||[]).forEach(p=> navnById[p.id] = p.navn);
+
+  forslagListe = (forslagRows||[]).map(f => ({
+    ...f,
+    kunde_visning: f.kundetype === "Skole" && f.skole_id ? (skoleById[f.skole_id] || f.kunde_navn || "") : (f.kunde_navn || ""),
+    ansvarlig_navn: navnById[f.ansvarlig] || "",
+  }));
+  return true;
+}
+
+/* ---------- Filter/sortering ---------- */
+
+function fillSelect(id, values, keepFirst){
+  const el = document.getElementById(id);
+  while(el.options.length > (keepFirst ? 1 : 0)) el.remove(el.options.length-1);
+  values.forEach(v=>{
+    const o = document.createElement("option");
+    o.value = v; o.textContent = v;
+    el.appendChild(o);
+  });
+}
+fillSelect("filterStatus", STATUSER, true);
+fillSelect("filterKundetype", KUNDETYPER, true);
+
+function filteredForslag(){
+  let list = forslagListe.filter(f=>{
+    if(state.search){
+      const q = state.search.toLowerCase();
+      const hay = [f.tittel, f.destinasjon, f.kunde_visning].filter(Boolean).join(" ").toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    if(state.status && f.status !== state.status) return false;
+    if(state.kundetype && f.kundetype !== state.kundetype) return false;
+    return true;
+  });
+  const key = state.sortKey, dir = state.sortDir;
+  list.sort((a,b)=>{
+    let av = a[key], bv = b[key];
+    if(key === "status"){ av = STATUSER.indexOf(a.status); bv = STATUSER.indexOf(b.status); }
+    if(typeof av === "string") av = av.toLowerCase();
+    if(typeof bv === "string") bv = bv.toLowerCase();
+    if(av == null) av = "";
+    if(bv == null) bv = "";
+    if(av < bv) return -1*dir;
+    if(av > bv) return 1*dir;
+    return 0;
+  });
+  return list;
+}
+
+/* ---------- Rendering ---------- */
+
+function renderList(){
+  const list = filteredForslag();
+  const body = document.getElementById("listBody");
+  body.innerHTML = "";
+  list.forEach(f=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="forslag-nr">${escapeHtml(f.forslagsnummer)}</td>
+      <td>
+        <div class="forslag-tittel">${escapeHtml(f.tittel)}</div>
+        <div class="forslag-sub">${escapeHtml(f.destinasjon)}</div>
+      </td>
+      <td>${escapeHtml(f.kunde_visning)}</td>
+      <td>${escapeHtml(f.kundetype)}</td>
+      <td>${escapeHtml(fmtPeriode(f))}</td>
+      <td>${f.antall_reisende ?? ""}</td>
+      <td>${escapeHtml(f.ansvarlig_navn)}</td>
+      <td>${statusChip(f.status)}</td>
+      <td>${escapeHtml(fmtSistEndret(f.sist_endret))}</td>
+    `;
+    tr.addEventListener("click", ()=>{ window.location.href = `forslag-editor.html?id=${encodeURIComponent(f.id)}`; });
+    body.appendChild(tr);
+  });
+  document.getElementById("emptyMsg").style.display = list.length === 0 ? "block" : "none";
+  document.getElementById("countPill").textContent = `${list.length} av ${forslagListe.length} forslag vises`;
+}
+
+/* ---------- Nytt forslag ---------- */
+
+async function createForslag(){
+  const { data, error } = await window.sb.from("forslag").insert({
+    tittel: "Nytt forslag",
+    opprettet_av: currentUserId,
+  }).select().single();
+  if(error){ alert("Kunne ikke opprette forslag: " + error.message); return; }
+  window.location.href = `forslag-editor.html?id=${encodeURIComponent(data.id)}`;
+}
+
+/* ---------- Verktøylinje ---------- */
+
+document.getElementById("searchInput").addEventListener("input", (e)=>{ state.search = e.target.value; renderList(); });
+document.getElementById("filterStatus").addEventListener("change", (e)=>{ state.status = e.target.value; renderList(); });
+document.getElementById("filterKundetype").addEventListener("change", (e)=>{ state.kundetype = e.target.value; renderList(); });
+document.getElementById("resetFilters").addEventListener("click", ()=>{
+  state.search=""; state.status=""; state.kundetype="";
+  document.getElementById("searchInput").value = "";
+  ["filterStatus","filterKundetype"].forEach(id=> document.getElementById(id).value = "");
+  renderList();
+});
+document.getElementById("newForslagBtn").addEventListener("click", createForslag);
+
+document.querySelectorAll("thead th[data-key]").forEach(th=>{
+  th.addEventListener("click", ()=>{
+    const key = th.dataset.key;
+    if(state.sortKey === key){ state.sortDir *= -1; } else { state.sortKey = key; state.sortDir = 1; }
+    document.querySelectorAll("thead .arrow").forEach(a=> a.textContent = "");
+    th.querySelector(".arrow").textContent = state.sortDir === 1 ? "▲" : "▼";
+    renderList();
+  });
+});
+
+/* ---------- Init ---------- */
+
+(async ()=>{
+  const session = await requireLogin();
+  if(!session) return;
+  currentUserId = session.user.id;
+
+  const ok = await loadAllData();
+  document.getElementById("loadMsg").style.display = "none";
+  if(!ok) return;
+  document.getElementById("mainArea").style.display = "block";
+  renderList();
+})();
+</script>
+</body>
+</html>

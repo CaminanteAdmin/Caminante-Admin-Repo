@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forslag – Caminante Admin</title>
+<link rel="stylesheet" href="shared/style.css">
+<style>
+  .editor-header{
+    background:var(--surface-1);
+    border-bottom:1px solid var(--hairline);
+    padding:16px 24px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    align-items:flex-start;
+    justify-content:space-between;
+    position:sticky;
+    top:0;
+    z-index:5;
+  }
+  .editor-header .left{ flex:1 1 320px; min-width:260px; }
+  .editor-header .nr{ font-size:11.5px; color:var(--ink-muted); font-variant-numeric:tabular-nums; }
+  .editor-header input#f-tittel{
+    font-size:19px;
+    font-weight:650;
+    border:none;
+    background:none;
+    padding:2px 0;
+    width:100%;
+    color:var(--ink-primary);
+    font-family:inherit;
+  }
+  .editor-header input#f-tittel:focus{ outline:1px solid var(--hairline); border-radius:4px; }
+  .editor-header .right{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+  }
+  select#f-status{
+    padding:6px 8px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:12.5px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .editor-header button{
+    padding:7px 12px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:13px;
+    background:var(--surface-1);
+    color:var(--ink-secondary);
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .editor-header button:hover{ background:var(--page); }
+  .editor-header button.primary{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .editor-header button.primary:hover{ background:#123d75; }
+  .editor-header button.danger{ color:#b04a4a; }
+  .editor-header button.danger:hover{ background:#fbeaea; border-color:#d03b3b; }
+  .save-status{ font-size:11.5px; color:var(--ink-muted); margin-top:4px; }
+
+  .kalkyle-info{ font-size:11.5px; margin-top:6px; }
+  .kalkyle-info a{ font-weight:600; }
+  .kalkyle-drift{
+    margin-top:8px;
+    padding:8px 10px;
+    background:#fff6e0;
+    border:1px solid #e0b84a;
+    border-radius:8px;
+    font-size:12px;
+    color:#6b5410;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .kalkyle-drift button{
+    padding:4px 9px;
+    font-size:11.5px;
+    border:1px solid #e0b84a;
+    background:#fff;
+    border-radius:6px;
+    cursor:pointer;
+  }
+
+  .tab-nav{
+    display:flex;
+    flex-wrap:wrap;
+    gap:2px;
+    padding:0 24px;
+    background:var(--surface-1);
+    border-bottom:1px solid var(--hairline);
+    position:sticky;
+    top:74px;
+    z-index:4;
+    overflow-x:auto;
+  }
+  .tab-btn{
+    padding:10px 14px;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--ink-secondary);
+    background:none;
+    border:none;
+    border-bottom:2.5px solid transparent;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .tab-btn:hover{ color:var(--ink-primary); }
+  .tab-btn.active{ color:var(--accent); border-bottom-color:var(--accent); }
+
+  .tab-panel{ display:none; padding:20px 24px 60px; max-width:820px; }
+  .tab-panel.active{ display:block; }
+
+  .field-grid{
+    display:grid;
+    grid-template-columns:160px 1fr;
+    row-gap:12px;
+    column-gap:14px;
+    font-size:13px;
+    align-items:start;
+  }
+  .field-grid label{ color:var(--ink-muted); padding-top:6px; }
+  .field-grid input, .field-grid select, .field-grid textarea{
+    border:1px solid var(--hairline);
+    border-radius:6px;
+    padding:6px 8px;
+    font-size:13px;
+    font-family:inherit;
+    color:var(--ink-primary);
+    width:100%;
+    box-sizing:border-box;
+  }
+  .field-grid textarea{ min-height:70px; resize:vertical; }
+  .field-hint{ font-size:11px; color:var(--ink-muted); margin-top:3px; }
+
+  .item-card{
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:14px 16px;
+    margin-bottom:12px;
+    background:var(--surface-1);
+  }
+  .item-card .item-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:10px;
+  }
+  .item-card .item-title{ font-size:12.5px; font-weight:650; color:var(--ink-secondary); text-transform:uppercase; letter-spacing:0.02em; }
+  .item-remove{
+    border:none; background:none; color:#b04a4a; font-size:12px; cursor:pointer; padding:2px 4px;
+  }
+  .item-remove:hover{ text-decoration:underline; }
+  .add-item-btn{
+    padding:8px 14px;
+    border:1px dashed var(--hairline);
+    border-radius:8px;
+    background:none;
+    color:var(--ink-secondary);
+    font-size:13px;
+    cursor:pointer;
+    width:100%;
+    text-align:center;
+  }
+  .add-item-btn:hover{ background:var(--page); border-color:var(--ink-muted); }
+
+  .list-editor{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+  .list-editor-row{ display:flex; gap:6px; align-items:center; }
+  .list-editor-row input{
+    flex:1;
+    border:1px solid var(--hairline);
+    border-radius:6px;
+    padding:6px 8px;
+    font-size:13px;
+    font-family:inherit;
+  }
+  .list-editor-row button{
+    border:none; background:none; color:#b04a4a; font-size:14px; cursor:pointer; padding:2px 6px;
+  }
+
+  .img-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; margin-bottom:14px; }
+  .img-card{ border:1px solid var(--hairline); border-radius:8px; overflow:hidden; background:var(--surface-1); }
+  .img-card img{ width:100%; height:100px; object-fit:cover; display:block; background:var(--page); }
+  .img-card .img-body{ padding:8px; }
+  .img-card select, .img-card input{
+    width:100%; font-size:11px; padding:3px 5px; border:1px solid var(--hairline); border-radius:5px; margin-bottom:5px; font-family:inherit;
+  }
+  .img-card .img-remove{ font-size:11px; color:#b04a4a; background:none; border:none; cursor:pointer; padding:0; }
+  .upload-hint{ font-size:11.5px; color:var(--ink-muted); margin-bottom:10px; }
+
+  .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="forslag.html"><span class="company">Caminante Admin</span><span class="tool-name">Forslag &amp; tilbud</span></a>
+  <div class="user-area">
+    <span id="userName"></span>
+    <button class="logout-btn" id="logoutBtn">Logg ut</button>
+  </div>
+</div>
+
+<div id="loadMsg" class="load-msg">Laster forslag…</div>
+
+<div id="editorArea" style="display:none;">
+
+  <div class="editor-header">
+    <div class="left">
+      <div class="nr" id="f-nr"></div>
+      <input type="text" id="f-tittel" placeholder="Forslagstittel">
+      <div class="kalkyle-info" id="kalkyleInfo"></div>
+      <div class="kalkyle-drift" id="kalkyleDrift" style="display:none;">
+        <span>Kalkylen er endret siden Forslaget ble opprettet.</span>
+        <button id="oppdaterPrisBtn">Oppdater pris fra kalkyle</button>
+      </div>
+      <div class="save-status" id="saveStatus"></div>
+    </div>
+    <div class="right">
+      <select id="f-status"></select>
+      <button id="btnLagre" class="primary">Lagre</button>
+      <a id="btnPdf" href="#" target="_blank" style="text-decoration:none;"><button type="button">Forhåndsvis / PDF</button></a>
+      <button id="btnSlett" class="danger">Slett forslag</button>
+    </div>
+  </div>
+
+  <div class="tab-nav" id="tabNav">
+    <button class="tab-btn active" data-tab="grunninfo">Grunninfo</button>
+    <button class="tab-btn" data-tab="transport">Transport</button>
+    <button class="tab-btn" data-tab="hotell">Hotellopphold</button>
+    <button class="tab-btn" data-tab="program">Program</button>
+    <button class="tab-btn" data-tab="pris">Pris</button>
+    <button class="tab-btn" data-tab="inkludert">Inkludert</button>
+    <button class="tab-btn" data-tab="presentasjon">Presentasjon</button>
+    <button class="tab-btn" data-tab="forbehold">Forbehold</button>
+    <button class="tab-btn" data-tab="bilder">Bilder</button>
+  </div>
+
+  <!-- ===== Grunninfo ===== -->
+  <div class="tab-panel active" data-tab="grunninfo">
+    <div class="field-grid">
+      <label for="g-destinasjon">Destinasjon / reiseidé</label><input type="text" id="g-destinasjon">
+      <label for="g-kundetype">Kundetype</label>
+      <select id="g-kundetype">
+        <option value="Firma">Firma</option>
+        <option value="Skole">Skole</option>
+        <option value="Forening">Forening</option>
+        <option value="Annen gruppe">Annen gruppe</option>
+      </select>
+      <label for="g-kunde">Kunde</label>
+      <div>
+        <div id="g-skole-wrap" style="display:none; position:relative;">
+          <input type="text" id="g-skole-sok" placeholder="Søk skolenavn…" autocomplete="off">
+          <div id="g-skole-dropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--hairline); border-radius:6px; max-height:200px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
+        </div>
+        <input type="text" id="g-kunde-navn" placeholder="Kundenavn (fritekst)">
+      </div>
+      <label for="g-kontaktperson">Kontaktperson</label><input type="text" id="g-kontaktperson">
+      <label for="g-ansvarlig">Ansvarlig hos Caminante</label><select id="g-ansvarlig"></select>
+      <label for="g-antall">Antall reisende</label><input type="number" id="g-antall" min="0">
+      <label>Fra- / til-dato</label>
+      <div style="display:flex; gap:8px;">
+        <input type="date" id="g-fra" style="flex:1;">
+        <input type="date" id="g-til" style="flex:1;">
+      </div>
+      <label for="g-periode">Periode (hvis ikke eksakte datoer)</label><input type="text" id="g-periode" placeholder="F.eks. Ultimo mars 2027">
+      <label for="g-avreisested">Avreisested</label><input type="text" id="g-avreisested">
+      <label for="g-notater">Interne notater</label><textarea id="g-notater"></textarea>
+    </div>
+  </div>
+
+  <!-- ===== Transport ===== -->
+  <div class="tab-panel" data-tab="transport">
+    <div id="transportList"></div>
+    <button class="add-item-btn" id="addTransportBtn">+ Legg til transportsegment</button>
+  </div>
+
+  <!-- ===== Hotellopphold ===== -->
+  <div class="tab-panel" data-tab="hotell">
+    <div id="hotellList"></div>
+    <button class="add-item-btn" id="addHotellBtn">+ Legg til hotellopphold</button>
+  </div>
+
+  <!-- ===== Program ===== -->
+  <div class="tab-panel" data-tab="program">
+    <div class="field-grid" style="margin-bottom:18px;">
+      <label for="p-intro">Kort introduksjon</label><textarea id="p-intro"></textarea>
+    </div>
+    <div id="dagList"></div>
+    <button class="add-item-btn" id="addDagBtn">+ Legg til dag</button>
+  </div>
+
+  <!-- ===== Pris ===== -->
+  <div class="tab-panel" data-tab="pris">
+    <div class="field-grid">
+      <label for="pr-per-person">Pris per person</label><input type="number" id="pr-per-person" step="1">
+      <label for="pr-fra">Vis som fra-pris</label>
+      <div><input type="checkbox" id="pr-fra" style="width:auto;"> <span class="field-hint">Presenteres da som «fra kr …,-» i PDF</span></div>
+      <label for="pr-antall">Antall personer prisen er basert på</label><input type="number" id="pr-antall" min="0">
+      <label for="pr-enkeltrom">Enkeltromstillegg</label><input type="number" id="pr-enkeltrom" step="1">
+      <label for="pr-valuta">Valuta</label><input type="text" id="pr-valuta" value="NOK">
+      <label for="pr-kursgrunnlag">Kursgrunnlag</label><input type="text" id="pr-kursgrunnlag" placeholder="F.eks. EUR-kurs 11,5">
+      <label for="pr-forklaring">Forklaring på prisgrunnlaget</label><textarea id="pr-forklaring" placeholder="Vises i PDF, kort og kundevennlig"></textarea>
+      <label for="pr-intern">Intern kommentar</label><textarea id="pr-intern" placeholder="Vises IKKE i PDF - kun til internt bruk"></textarea>
+    </div>
+  </div>
+
+  <!-- ===== Inkludert / ikke inkludert ===== -->
+  <div class="tab-panel" data-tab="inkludert">
+    <h3 style="font-size:12.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-secondary); margin:0 0 10px;">Inkludert</h3>
+    <div class="list-editor" id="inkludertList"></div>
+    <button class="add-item-btn" id="addInkludertBtn" style="margin-bottom:24px;">+ Legg til punkt</button>
+
+    <h3 style="font-size:12.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-secondary); margin:0 0 10px;">Ikke inkludert</h3>
+    <div class="list-editor" id="ikkeInkludertList"></div>
+    <button class="add-item-btn" id="addIkkeInkludertBtn">+ Legg til punkt</button>
+  </div>
+
+  <!-- ===== Presentasjon ===== -->
+  <div class="tab-panel" data-tab="presentasjon">
+    <div class="field-grid">
+      <label for="pres-ingress">Kort ingress</label><textarea id="pres-ingress"></textarea>
+      <label for="pres-reisemal">Om reisemålet</label><textarea id="pres-reisemal"></textarea>
+      <label for="pres-hotell">Om hotellet/hotellene</label><textarea id="pres-hotell"></textarea>
+      <label for="pres-muligheter">Muligheter / opplevelser</label><textarea id="pres-muligheter"></textarea>
+      <label for="pres-hvorfor">Hvorfor reisen kan passe kunden</label><textarea id="pres-hvorfor"></textarea>
+    </div>
+  </div>
+
+  <!-- ===== Forbehold ===== -->
+  <div class="tab-panel" data-tab="forbehold">
+    <div class="field-grid">
+      <label for="fb-tekst">Forbeholdstekst</label><textarea id="fb-tekst" style="min-height:140px;"></textarea>
+    </div>
+    <div class="field-hint">Standardteksten er forhåndsutfylt og kan overstyres fritt per forslag.</div>
+  </div>
+
+  <!-- ===== Bilder ===== -->
+  <div class="tab-panel" data-tab="bilder">
+    <div class="field-grid" style="margin-bottom:18px;">
+      <label>Hovedbilde</label>
+      <div>
+        <div id="hovedbildePreview" style="margin-bottom:8px;"></div>
+        <input type="file" id="hovedbildeFile" accept="image/*">
+      </div>
+    </div>
+    <div class="upload-hint">Andre bilder (destinasjon, hotell, program) – last opp og velg kategori. Bilder knyttet til et hotellopphold eller en dag i programmet kan velges under.</div>
+    <div class="img-grid" id="bildeGrid"></div>
+    <input type="file" id="nyttBildeFile" accept="image/*">
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+/* ============================================================
+   Forslag-editor - v1
+   Ett forslag, ni faner. Én global "Lagre" som synkroniserer
+   hovedraden og alle underlister (transport/hotellopphold/
+   dagsprogram/bilder) mot Supabase i én operasjon.
+   ============================================================ */
+
+const STATUSER = ["Utkast","Sendt","Kunde interessert","Gått videre til tilbud","Avslått","Arkivert"];
+const KUNDETYPER = ["Firma","Skole","Forening","Annen gruppe"];
+const TRANSPORTTYPER = ["Fly","Buss","Tog","Ferge","Annet"];
+const BILDEKATEGORIER = ["Hovedbilde","Destinasjon","Hotell","Program"];
+
+let forslagId = null;
+let currentUserId = null;
+let profiler = [];         // {id, navn}
+let skoleOptions = [];      // {id, navn}
+let skoleNameById = new Map();
+
+let state = {
+  forslag: {},
+  transport: [],       // {id, clientKey, fields:{...}}
+  hotellopphold: [],
+  dagsprogram: [],
+  bilder: [],
+};
+let originalIds = { transport:new Set(), hotellopphold:new Set(), dagsprogram:new Set(), bilder:new Set() };
+
+/* ---------- Helpers ---------- */
+
+function el(id){ return document.getElementById(id); }
+function escapeHtml(str){
+  return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+function newClientKey(){ return (crypto.randomUUID ? crypto.randomUUID() : ("k"+Math.random().toString(36).slice(2))); }
+function numOrNull(v){ return (v===""||v===null||v===undefined||isNaN(v)) ? null : Number(v); }
+
+/* ---------- Tabs ---------- */
+
+document.querySelectorAll(".tab-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelector(`.tab-panel[data-tab="${btn.dataset.tab}"]`).classList.add("active");
+  });
+});
+
+/* ---------- Load ---------- */
+
+async function loadReferenceData(){
+  const [{ data: profileRows }, { data: skoleRows }] = await Promise.all([
+    window.sb.from("profiles").select("id,navn"),
+    window.sb.from("skoler").select("id,navn").order("navn"),
+  ]);
+  profiler = profileRows || [];
+  skoleOptions = skoleRows || [];
+  skoleOptions.forEach(s=> skoleNameById.set(s.id, s.navn));
+
+  const ansvSel = el("g-ansvarlig");
+  ansvSel.innerHTML = '<option value="">– Ikke satt –</option>' + profiler.map(p=>`<option value="${p.id}">${escapeHtml(p.navn)}</option>`).join("");
+  const statusSel = el("f-status");
+  statusSel.innerHTML = STATUSER.map(s=>`<option value="${s}">${s}</option>`).join("");
+}
+
+async function loadForslag(id){
+  const [{ data: f, error: e0 }, { data: transportRows }, { data: hotellRows }, { data: dagRows }, { data: bildeRows }] = await Promise.all([
+    window.sb.from("forslag").select("*").eq("id", id).single(),
+    window.sb.from("forslag_transport").select("*").eq("forslag_id", id).order("sortering"),
+    window.sb.from("forslag_hotellopphold").select("*").eq("forslag_id", id).order("sortering"),
+    window.sb.from("forslag_dagsprogram").select("*").eq("forslag_id", id).order("sortering"),
+    window.sb.from("forslag_bilder").select("*").eq("forslag_id", id).order("sortering"),
+  ]);
+  if(e0 || !f){ return false; }
+
+  state.forslag = f;
+
+  state.hotellopphold = (hotellRows||[]).map(h=>({ id:h.id, clientKey:h.id, fields: stripMeta(h) }));
+  state.dagsprogram = (dagRows||[]).map(d=>({ id:d.id, clientKey:d.id, fields: stripMeta(d) }));
+  state.transport = (transportRows||[]).map(t=>({ id:t.id, clientKey:t.id, fields: stripMeta(t) }));
+
+  const hotellIdSet = new Set(state.hotellopphold.map(h=>h.id));
+  const dagIdSet = new Set(state.dagsprogram.map(d=>d.id));
+  state.bilder = (bildeRows||[]).map(b=>{
+    const fields = stripMeta(b);
+    return {
+      id:b.id, clientKey:b.id, fields,
+      hotellopphold_client_key: (b.hotellopphold_id && hotellIdSet.has(b.hotellopphold_id)) ? b.hotellopphold_id : null,
+      dagsprogram_client_key: (b.dagsprogram_id && dagIdSet.has(b.dagsprogram_id)) ? b.dagsprogram_id : null,
+    };
+  });
+
+  originalIds.transport = new Set(state.transport.map(i=>i.id));
+  originalIds.hotellopphold = new Set(state.hotellopphold.map(i=>i.id));
+  originalIds.dagsprogram = new Set(state.dagsprogram.map(i=>i.id));
+  originalIds.bilder = new Set(state.bilder.map(i=>i.id));
+
+  return true;
+}
+
+// Fjerner id/forslag_id/created_at fra en DB-rad slik at resten kan brukes direkte
+// som "fields" i syncChildTable (unngår at vi ved en feil sender disse tilbake).
+function stripMeta(row){
+  const { id, forslag_id, created_at, hotellopphold_id, dagsprogram_id, ...rest } = row;
+  return rest;
+}
+
+/* ---------- Rendering: Grunninfo ---------- */
+
+function renderGrunninfo(){
+  const f = state.forslag;
+  el("f-nr").textContent = f.forslagsnummer || "";
+  el("f-tittel").value = f.tittel || "";
+  el("f-status").value = f.status || "Utkast";
+  el("g-destinasjon").value = f.destinasjon || "";
+  el("g-kundetype").value = f.kundetype || "Annen gruppe";
+  el("g-kontaktperson").value = f.kontaktperson || "";
+  el("g-ansvarlig").value = f.ansvarlig || "";
+  el("g-antall").value = f.antall_reisende ?? "";
+  el("g-fra").value = f.fra_dato || "";
+  el("g-til").value = f.til_dato || "";
+  el("g-periode").value = f.periode_tekst || "";
+  el("g-avreisested").value = f.avreisested || "";
+  el("g-notater").value = f.interne_notater || "";
+  el("g-kunde-navn").value = f.kunde_navn || "";
+  updateKundetypeVisning();
+  renderKalkyleInfo();
+}
+
+function updateKundetypeVisning(){
+  const isSkole = el("g-kundetype").value === "Skole";
+  el("g-skole-wrap").style.display = isSkole ? "block" : "none";
+  el("g-kunde-navn").style.display = isSkole ? "none" : "block";
+  if(isSkole){
+    el("g-skole-sok").value = state.forslag.skole_id ? (skoleNameById.get(state.forslag.skole_id) || "") : "";
+  }
+}
+
+function renderSkoleDropdown(query){
+  const dd = el("g-skole-dropdown");
+  const q = query.trim().toLowerCase();
+  if(!q){ dd.style.display = "none"; dd.innerHTML=""; return; }
+  const matches = skoleOptions.filter(s=> s.navn.toLowerCase().startsWith(q)).slice(0,30);
+  if(!matches.length){ dd.innerHTML = '<div style="padding:7px 10px; font-size:12.5px; color:var(--ink-muted);">Ingen treff</div>'; dd.style.display="block"; return; }
+  dd.innerHTML = matches.map(s=>`<div class="sk-opt" data-id="${s.id}" style="padding:7px 10px; font-size:13px; cursor:pointer;">${escapeHtml(s.navn)}</div>`).join("");
+  dd.querySelectorAll(".sk-opt").forEach(row=>{
+    row.addEventListener("mouseenter", ()=> row.style.background="var(--page)");
+    row.addEventListener("mouseleave", ()=> row.style.background="");
+    row.addEventListener("mousedown", (e)=>{
+      e.preventDefault();
+      const s = skoleOptions.find(x=>x.id===row.dataset.id);
+      if(s){ state.forslag.skole_id = s.id; el("g-skole-sok").value = s.navn; }
+      dd.style.display="none";
+    });
+  });
+  dd.style.display = "block";
+}
+
+function renderKalkyleInfo(){
+  const f = state.forslag;
+  const info = el("kalkyleInfo");
+  const drift = el("kalkyleDrift");
+  if(!f.kalkyle_id){ info.innerHTML = ""; drift.style.display = "none"; return; }
+  info.innerHTML = `🧮 Koblet til kalkyle: <a href="priskalkulator.html?kalkyle=${encodeURIComponent(f.kalkyle_id)}">Åpne kalkyle →</a>`;
+  window.sb.from("kalkyler").select("sist_endret").eq("id", f.kalkyle_id).single().then(({data})=>{
+    if(!data) return;
+    const stale = f.kalkyle_sist_endret_ved_kobling && new Date(data.sist_endret) > new Date(f.kalkyle_sist_endret_ved_kobling);
+    drift.style.display = stale ? "flex" : "none";
+    drift.dataset.kalkyleSistEndret = data.sist_endret;
+  });
+}
+
+async function oppdaterPrisFraKalkyle(){
+  const f = state.forslag;
+  if(!f.kalkyle_id) return;
+  const { data, error } = await window.sb.from("kalkyler").select("kalkyle_data, sist_endret").eq("id", f.kalkyle_id).single();
+  if(error || !data){ alert("Kunne ikke hente kalkylen."); return; }
+  const counts = (data.kalkyle_data && data.kalkyle_data.counts) || {};
+  f.pris_per_person = (counts.kundepris!=null) ? counts.kundepris : f.pris_per_person;
+  f.enkeltromstillegg = (counts.enkeltTilleggPerPerson!=null) ? counts.enkeltTilleggPerPerson : f.enkeltromstillegg;
+  f.kalkyle_sist_endret_ved_kobling = data.sist_endret;
+  renderPris();
+  renderKalkyleInfo();
+  el("saveStatus").textContent = "Pris hentet fra kalkylen – husk å lagre.";
+}
+
+/* ---------- Rendering: Transport ---------- */
+
+function renderTransport(){
+  const wrap = el("transportList");
+  wrap.innerHTML = "";
+  state.transport.forEach((item, idx)=>{
+    const f = item.fields;
+    const card = document.createElement("div");
+    card.className = "item-card";
+    card.innerHTML = `
+      <div class="item-head">
+        <span class="item-title">Segment ${idx+1}</span>
+        <button class="item-remove" data-idx="${idx}">Fjern</button>
+      </div>
+      <div class="field-grid">
+        <label>Type</label>
+        <select class="t-type">${TRANSPORTTYPER.map(t=>`<option value="${t}" ${t===(f.transporttype||"Fly")?"selected":""}>${t}</option>`).join("")}</select>
+        <label>Retning</label><input class="t-retning" value="${escapeHtml(f.retning)}" placeholder="Utreise / Hjemreise">
+        <label>Dato</label><input type="date" class="t-dato" value="${f.dato||""}">
+        <label>Selskap</label><input class="t-selskap" value="${escapeHtml(f.selskap)}" placeholder="Flyselskap / operatør">
+        <label>Fra</label><input class="t-fra" value="${escapeHtml(f.fra_sted)}">
+        <label>Til</label><input class="t-til" value="${escapeHtml(f.til_sted)}">
+        <label>Avgangstid</label><input class="t-avgang" value="${escapeHtml(f.avgangstid)}">
+        <label>Ankomsttid</label><input class="t-ankomst" value="${escapeHtml(f.ankomsttid)}">
+        <label>Mellomlanding</label><input class="t-mellomlanding" value="${escapeHtml(f.mellomlanding)}" placeholder="Direkte, eller f.eks. Istanbul 1t 40min">
+        <label>Bagasje</label><input class="t-bagasje" value="${escapeHtml(f.bagasje_info)}">
+        <label>Flightinfo</label><input class="t-flightinfo" value="${escapeHtml(f.flightinfo)}">
+        <label>Intern prisreferanse</label><input class="t-pris" value="${escapeHtml(f.prisreferanse)}">
+      </div>
+    `;
+    wrap.appendChild(card);
+    const bind = (cls, field, parser)=>{
+      card.querySelector(cls).addEventListener("change", e=>{ f[field] = parser ? parser(e.target.value) : (e.target.value||null); });
+    };
+    bind(".t-type","transporttype");
+    bind(".t-retning","retning");
+    bind(".t-dato","dato");
+    bind(".t-selskap","selskap");
+    bind(".t-fra","fra_sted");
+    bind(".t-til","til_sted");
+    bind(".t-avgang","avgangstid");
+    bind(".t-ankomst","ankomsttid");
+    bind(".t-mellomlanding","mellomlanding");
+    bind(".t-bagasje","bagasje_info");
+    bind(".t-flightinfo","flightinfo");
+    bind(".t-pris","prisreferanse");
+    card.querySelector(".item-remove").addEventListener("click", ()=>{
+      state.transport.splice(idx,1);
+      renderTransport();
+    });
+  });
+}
+el("addTransportBtn").addEventListener("click", ()=>{
+  state.transport.push({ id:null, clientKey:newClientKey(), fields:{ transporttype:"Fly", sortering: state.transport.length } });
+  renderTransport();
+});
+
+/* ---------- Rendering: Hotellopphold ---------- */
+
+function renderHotell(){
+  const wrap = el("hotellList");
+  wrap.innerHTML = "";
+  state.hotellopphold.forEach((item, idx)=>{
+    const f = item.fields;
+    const card = document.createElement("div");
+    card.className = "item-card";
+    card.innerHTML = `
+      <div class="item-head">
+        <span class="item-title">${escapeHtml(f.sted) || "Hotellopphold " + (idx+1)}</span>
+        <button class="item-remove" data-idx="${idx}">Fjern</button>
+      </div>
+      <div class="field-grid">
+        <label>Sted</label><input class="h-sted" value="${escapeHtml(f.sted)}" placeholder="F.eks. Split">
+        <label>Fra- / til-dato</label>
+        <div style="display:flex; gap:8px;">
+          <input type="date" class="h-fra" value="${f.fra_dato||""}" style="flex:1;">
+          <input type="date" class="h-til" value="${f.til_dato||""}" style="flex:1;">
+        </div>
+        <label>Antall netter</label><input type="number" class="h-netter" value="${f.netter??""}" min="0">
+        <label>Hotellnavn</label><input class="h-navn" value="${escapeHtml(f.hotellnavn)}">
+        <label>Standard</label><input class="h-standard" value="${escapeHtml(f.standard)}" placeholder="F.eks. 4-stjerners">
+        <label>Romtype</label><input class="h-romtype" value="${escapeHtml(f.romtype)}" placeholder="F.eks. Dobbeltrom">
+        <label>Måltider</label><input class="h-maltider" value="${escapeHtml(f.maltider)}" placeholder="F.eks. Frokost inkludert">
+        <label>Kort beskrivelse</label><textarea class="h-beskrivelse">${escapeHtml(f.beskrivelse)}</textarea>
+        <label>Intern prisinfo</label><input class="h-prisinfo" value="${escapeHtml(f.prisinfo)}">
+        <label>Tilgjengelighet</label><input class="h-tilgjengelighet" value="${escapeHtml(f.tilgjengelighet_merknad)}" placeholder="F.eks. Ikke reservert - sjekkes ved bestilling">
+      </div>
+    `;
+    wrap.appendChild(card);
+    const bind = (cls, field)=> card.querySelector(cls).addEventListener("change", e=>{ f[field] = e.target.value || null; });
+    bind(".h-sted","sted"); bind(".h-fra","fra_dato"); bind(".h-til","til_dato");
+    card.querySelector(".h-netter").addEventListener("change", e=>{ f.netter = numOrNull(e.target.value); });
+    bind(".h-navn","hotellnavn"); bind(".h-standard","standard"); bind(".h-romtype","romtype");
+    bind(".h-maltider","maltider"); bind(".h-beskrivelse","beskrivelse"); bind(".h-prisinfo","prisinfo");
+    bind(".h-tilgjengelighet","tilgjengelighet_merknad");
+    card.querySelector(".h-sted").addEventListener("change", ()=> renderHotell());
+    card.querySelector(".item-remove").addEventListener("click", ()=>{
+      const removedKey = item.clientKey;
+      state.hotellopphold.splice(idx,1);
+      state.bilder.forEach(b=>{ if(b.hotellopphold_client_key === removedKey) b.hotellopphold_client_key = null; });
+      renderHotell();
+      renderBilder();
+    });
+  });
+}
+el("addHotellBtn").addEventListener("click", ()=>{
+  state.hotellopphold.push({ id:null, clientKey:newClientKey(), fields:{ sortering: state.hotellopphold.length } });
+  renderHotell();
+});
+
+/* ---------- Rendering: Program (dagsprogram) ---------- */
+
+function renderProgram(){
+  el("p-intro").value = state.forslag.ingress_program || "";
+  const wrap = el("dagList");
+  wrap.innerHTML = "";
+  state.dagsprogram.forEach((item, idx)=>{
+    const f = item.fields;
+    const card = document.createElement("div");
+    card.className = "item-card";
+    card.innerHTML = `
+      <div class="item-head">
+        <span class="item-title">Dag ${f.dagnummer || idx+1}${f.overskrift ? " – " + escapeHtml(f.overskrift) : ""}</span>
+        <button class="item-remove" data-idx="${idx}">Fjern</button>
+      </div>
+      <div class="field-grid">
+        <label>Dagnummer</label><input type="number" class="d-nummer" value="${f.dagnummer??""}" min="1">
+        <label>Dato</label><input type="date" class="d-dato" value="${f.dato||""}">
+        <label>Overskrift</label><input class="d-overskrift" value="${escapeHtml(f.overskrift)}">
+        <label>Tekst</label><textarea class="d-tekst">${escapeHtml(f.tekst)}</textarea>
+        <label>Aktiviteter</label><textarea class="d-aktiviteter" placeholder="Én per linje">${(f.aktiviteter||[]).join("\n")}</textarea>
+        <label>Måltider</label><textarea class="d-maltider" placeholder="Én per linje">${(f.maltider||[]).join("\n")}</textarea>
+      </div>
+    `;
+    wrap.appendChild(card);
+    card.querySelector(".d-nummer").addEventListener("change", e=>{ f.dagnummer = numOrNull(e.target.value); });
+    card.querySelector(".d-dato").addEventListener("change", e=>{ f.dato = e.target.value || null; });
+    card.querySelector(".d-overskrift").addEventListener("change", e=>{ f.overskrift = e.target.value || null; renderProgram(); });
+    card.querySelector(".d-tekst").addEventListener("change", e=>{ f.tekst = e.target.value || null; });
+    card.querySelector(".d-aktiviteter").addEventListener("change", e=>{ f.aktiviteter = e.target.value.split("\n").map(s=>s.trim()).filter(Boolean); });
+    card.querySelector(".d-maltider").addEventListener("change", e=>{ f.maltider = e.target.value.split("\n").map(s=>s.trim()).filter(Boolean); });
+    card.querySelector(".item-remove").addEventListener("click", ()=>{
+      const removedKey = item.clientKey;
+      state.dagsprogram.splice(idx,1);
+      state.bilder.forEach(b=>{ if(b.dagsprogram_client_key === removedKey) b.dagsprogram_client_key = null; });
+      renderProgram();
+      renderBilder();
+    });
+  });
+}
+el("addDagBtn").addEventListener("click", ()=>{
+  state.dagsprogram.push({ id:null, clientKey:newClientKey(), fields:{ dagnummer: state.dagsprogram.length+1, aktiviteter:[], maltider:[], sortering: state.dagsprogram.length } });
+  renderProgram();
+});
+el("p-intro").addEventListener("change", e=>{ state.forslag.ingress_program = e.target.value || null; });
+
+/* ---------- Rendering: Pris ---------- */
+
+function renderPris(){
+  const f = state.forslag;
+  el("pr-per-person").value = f.pris_per_person ?? "";
+  el("pr-fra").checked = !!f.er_fra_pris;
+  el("pr-antall").value = f.pris_antall_personer ?? "";
+  el("pr-enkeltrom").value = f.enkeltromstillegg ?? "";
+  el("pr-valuta").value = f.valuta || "NOK";
+  el("pr-kursgrunnlag").value = f.kursgrunnlag || "";
+  el("pr-forklaring").value = f.prisgrunnlag_forklaring || "";
+  el("pr-intern").value = f.pris_intern_kommentar || "";
+}
+
+/* ---------- Rendering: Inkludert / ikke inkludert ---------- */
+
+function renderListEditor(containerId, arrKey){
+  const wrap = el(containerId);
+  wrap.innerHTML = "";
+  (state.forslag[arrKey]||[]).forEach((val, idx)=>{
+    const row = document.createElement("div");
+    row.className = "list-editor-row";
+    row.innerHTML = `<input value="${escapeHtml(val)}"><button title="Fjern">✕</button>`;
+    row.querySelector("input").addEventListener("change", e=>{ state.forslag[arrKey][idx] = e.target.value; });
+    row.querySelector("button").addEventListener("click", ()=>{
+      state.forslag[arrKey].splice(idx,1);
+      renderListEditor(containerId, arrKey);
+    });
+    wrap.appendChild(row);
+  });
+}
+el("addInkludertBtn").addEventListener("click", ()=>{
+  state.forslag.inkludert = state.forslag.inkludert || [];
+  state.forslag.inkludert.push("");
+  renderListEditor("inkludertList","inkludert");
+});
+el("addIkkeInkludertBtn").addEventListener("click", ()=>{
+  state.forslag.ikke_inkludert = state.forslag.ikke_inkludert || [];
+  state.forslag.ikke_inkludert.push("");
+  renderListEditor("ikkeInkludertList","ikke_inkludert");
+});
+
+/* ---------- Rendering: Presentasjon ---------- */
+
+function renderPresentasjon(){
+  const f = state.forslag;
+  el("pres-ingress").value = f.ingress || "";
+  el("pres-reisemal").value = f.om_reisemalet || "";
+  el("pres-hotell").value = f.om_hotellet || "";
+  el("pres-muligheter").value = f.muligheter_opplevelser || "";
+  el("pres-hvorfor").value = f.hvorfor_passer || "";
+}
+
+/* ---------- Rendering: Forbehold ---------- */
+
+function renderForbehold(){
+  el("fb-tekst").value = state.forslag.forbehold_tekst || "";
+}
+
+/* ---------- Rendering: Bilder ---------- */
+
+async function uploadImageFile(file){
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const path = `${forslagId}/${newClientKey()}.${ext}`;
+  const { error } = await window.sb.storage.from("forslag-bilder").upload(path, file, { upsert:false });
+  if(error) throw error;
+  const { data } = window.sb.storage.from("forslag-bilder").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+function renderHovedbilde(){
+  const wrap = el("hovedbildePreview");
+  wrap.innerHTML = state.forslag.hovedbilde_url
+    ? `<img src="${escapeHtml(state.forslag.hovedbilde_url)}" style="max-width:220px; border-radius:8px; display:block;">`
+    : '<div class="field-hint">Ingen hovedbilde satt ennå.</div>';
+}
+el("hovedbildeFile").addEventListener("change", async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    el("saveStatus").textContent = "Laster opp bilde…";
+    state.forslag.hovedbilde_url = await uploadImageFile(file);
+    renderHovedbilde();
+    el("saveStatus").textContent = "Bilde lastet opp – husk å lagre.";
+  } catch(err){ alert("Kunne ikke laste opp: " + err.message); }
+  e.target.value = "";
+});
+
+function bildeKnyttetTilOptions(b){
+  let opts = '<option value="">– Ingen –</option>';
+  if(b.fields.kategori === "Hotell"){
+    opts += state.hotellopphold.map(h=>`<option value="${h.clientKey}" ${b.hotellopphold_client_key===h.clientKey?"selected":""}>${escapeHtml(h.fields.sted||"Hotellopphold")}</option>`).join("");
+  } else if(b.fields.kategori === "Program"){
+    opts += state.dagsprogram.map(d=>`<option value="${d.clientKey}" ${b.dagsprogram_client_key===d.clientKey?"selected":""}>Dag ${d.fields.dagnummer||"?"}${d.fields.overskrift?" – "+escapeHtml(d.fields.overskrift):""}</option>`).join("");
+  }
+  return opts;
+}
+
+function renderBilder(){
+  renderHovedbilde();
+  const grid = el("bildeGrid");
+  grid.innerHTML = "";
+  state.bilder.forEach((b, idx)=>{
+    const showKnyttetTil = b.fields.kategori === "Hotell" || b.fields.kategori === "Program";
+    const card = document.createElement("div");
+    card.className = "img-card";
+    card.innerHTML = `
+      <img src="${escapeHtml(b.fields.bilde_url)}">
+      <div class="img-body">
+        <select class="b-kategori">${BILDEKATEGORIER.map(k=>`<option value="${k}" ${k===b.fields.kategori?"selected":""}>${k}</option>`).join("")}</select>
+        <select class="b-knyttet" style="display:${showKnyttetTil?"block":"none"};">${bildeKnyttetTilOptions(b)}</select>
+        <input class="b-alt" value="${escapeHtml(b.fields.alt_tekst)}" placeholder="Bildetekst">
+        <button class="img-remove">Fjern</button>
+      </div>
+    `;
+    grid.appendChild(card);
+    card.querySelector(".b-kategori").addEventListener("change", e=>{ b.fields.kategori = e.target.value; b.hotellopphold_client_key=null; b.dagsprogram_client_key=null; renderBilder(); });
+    card.querySelector(".b-knyttet").addEventListener("change", e=>{
+      if(b.fields.kategori === "Hotell") b.hotellopphold_client_key = e.target.value || null;
+      if(b.fields.kategori === "Program") b.dagsprogram_client_key = e.target.value || null;
+    });
+    card.querySelector(".b-alt").addEventListener("change", e=>{ b.fields.alt_tekst = e.target.value || null; });
+    card.querySelector(".img-remove").addEventListener("click", ()=>{ state.bilder.splice(idx,1); renderBilder(); });
+  });
+}
+el("nyttBildeFile").addEventListener("change", async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    el("saveStatus").textContent = "Laster opp bilde…";
+    const url = await uploadImageFile(file);
+    state.bilder.push({ id:null, clientKey:newClientKey(), fields:{ kategori:"Destinasjon", bilde_url:url, alt_tekst:null, sortering: state.bilder.length }, hotellopphold_client_key:null, dagsprogram_client_key:null });
+    renderBilder();
+    el("saveStatus").textContent = "Bilde lastet opp – husk å lagre.";
+  } catch(err){ alert("Kunne ikke laste opp: " + err.message); }
+  e.target.value = "";
+});
+
+/* ---------- Global render ---------- */
+
+function renderAll(){
+  renderGrunninfo();
+  renderTransport();
+  renderHotell();
+  renderProgram();
+  renderPris();
+  renderListEditor("inkludertList","inkludert");
+  renderListEditor("ikkeInkludertList","ikke_inkludert");
+  renderPresentasjon();
+  renderForbehold();
+  renderBilder();
+  el("btnPdf").href = `forslag-print.html?id=${encodeURIComponent(forslagId)}`;
+}
+
+/* ---------- Lagring ---------- */
+
+function collectForslagFields(){
+  const f = state.forslag;
+  return {
+    tittel: f.tittel || "Uten tittel",
+    destinasjon: f.destinasjon || null,
+    kundetype: f.kundetype,
+    kunde_navn: f.kundetype === "Skole" ? null : (f.kunde_navn || null),
+    skole_id: f.kundetype === "Skole" ? (f.skole_id || null) : null,
+    kontaktperson: f.kontaktperson || null,
+    ansvarlig: f.ansvarlig || null,
+    antall_reisende: f.antall_reisende ?? null,
+    fra_dato: f.fra_dato || null,
+    til_dato: f.til_dato || null,
+    periode_tekst: f.periode_tekst || null,
+    avreisested: f.avreisested || null,
+    status: f.status,
+    interne_notater: f.interne_notater || null,
+    kalkyle_id: f.kalkyle_id || null,
+    kalkyle_sist_endret_ved_kobling: f.kalkyle_sist_endret_ved_kobling || null,
+    pris_per_person: f.pris_per_person ?? null,
+    er_fra_pris: !!f.er_fra_pris,
+    pris_antall_personer: f.pris_antall_personer ?? null,
+    valuta: f.valuta || "NOK",
+    kursgrunnlag: f.kursgrunnlag || null,
+    enkeltromstillegg: f.enkeltromstillegg ?? null,
+    prisgrunnlag_forklaring: f.prisgrunnlag_forklaring || null,
+    pris_intern_kommentar: f.pris_intern_kommentar || null,
+    inkludert: f.inkludert || [],
+    ikke_inkludert: f.ikke_inkludert || [],
+    ingress: f.ingress || null,
+    om_reisemalet: f.om_reisemalet || null,
+    om_hotellet: f.om_hotellet || null,
+    muligheter_opplevelser: f.muligheter_opplevelser || null,
+    hvorfor_passer: f.hvorfor_passer || null,
+    forbehold_tekst: f.forbehold_tekst || "",
+    hovedbilde_url: f.hovedbilde_url || null,
+  };
+}
+
+function collectFieldsFromForm(){
+  // Leser inn feltene i DOM-en før lagring (change-events har allerede holdt state
+  // oppdatert for de fleste - dette dekker felt som ikke har rukket å "blure" ennå).
+  const f = state.forslag;
+  f.tittel = el("f-tittel").value;
+  f.status = el("f-status").value;
+  f.destinasjon = el("g-destinasjon").value;
+  f.kundetype = el("g-kundetype").value;
+  f.kontaktperson = el("g-kontaktperson").value;
+  f.ansvarlig = el("g-ansvarlig").value || null;
+  f.antall_reisende = numOrNull(el("g-antall").value);
+  f.fra_dato = el("g-fra").value || null;
+  f.til_dato = el("g-til").value || null;
+  f.periode_tekst = el("g-periode").value;
+  f.avreisested = el("g-avreisested").value;
+  f.interne_notater = el("g-notater").value;
+  f.kunde_navn = el("g-kunde-navn").value;
+  if(f.kundetype !== "Skole") f.skole_id = null;
+
+  f.pris_per_person = numOrNull(el("pr-per-person").value);
+  f.er_fra_pris = el("pr-fra").checked;
+  f.pris_antall_personer = numOrNull(el("pr-antall").value);
+  f.enkeltromstillegg = numOrNull(el("pr-enkeltrom").value);
+  f.valuta = el("pr-valuta").value || "NOK";
+  f.kursgrunnlag = el("pr-kursgrunnlag").value;
+  f.prisgrunnlag_forklaring = el("pr-forklaring").value;
+  f.pris_intern_kommentar = el("pr-intern").value;
+
+  f.ingress = el("pres-ingress").value;
+  f.om_reisemalet = el("pres-reisemal").value;
+  f.om_hotellet = el("pres-hotell").value;
+  f.muligheter_opplevelser = el("pres-muligheter").value;
+  f.hvorfor_passer = el("pres-hvorfor").value;
+
+  f.forbehold_tekst = el("fb-tekst").value;
+}
+
+async function syncChildTable(table, fkField, items, originalIdSet, extraResolver){
+  const keyToId = {};
+  const keepIds = new Set();
+  for(const item of items){
+    if(extraResolver) extraResolver(item);
+    const payload = { ...item.fields, [fkField]: forslagId };
+    if(item.id){
+      const { error } = await window.sb.from(table).update(payload).eq("id", item.id);
+      if(error) throw new Error(table + ": " + error.message);
+      keepIds.add(item.id);
+    } else {
+      const { data, error } = await window.sb.from(table).insert(payload).select().single();
+      if(error) throw new Error(table + ": " + error.message);
+      item.id = data.id;
+      keepIds.add(data.id);
+    }
+    keyToId[item.clientKey] = item.id;
+  }
+  const toDelete = [...originalIdSet].filter(id=>!keepIds.has(id));
+  if(toDelete.length){
+    const { error } = await window.sb.from(table).delete().in("id", toDelete);
+    if(error) throw new Error(table + " (slett): " + error.message);
+  }
+  return keyToId;
+}
+
+async function lagreAlt(){
+  collectFieldsFromForm();
+  el("saveStatus").textContent = "Lagrer…";
+  try{
+    const { error: e0 } = await window.sb.from("forslag").update(collectForslagFields()).eq("id", forslagId);
+    if(e0) throw new Error("forslag: " + e0.message);
+
+    await syncChildTable("forslag_transport", "forslag_id", state.transport, originalIds.transport);
+    const hotellKeyToId = await syncChildTable("forslag_hotellopphold", "forslag_id", state.hotellopphold, originalIds.hotellopphold);
+    const dagKeyToId = await syncChildTable("forslag_dagsprogram", "forslag_id", state.dagsprogram, originalIds.dagsprogram);
+
+    await syncChildTable("forslag_bilder", "forslag_id", state.bilder, originalIds.bilder, (item)=>{
+      item.fields.hotellopphold_id = item.hotellopphold_client_key ? (hotellKeyToId[item.hotellopphold_client_key] || null) : null;
+      item.fields.dagsprogram_id = item.dagsprogram_client_key ? (dagKeyToId[item.dagsprogram_client_key] || null) : null;
+    });
+
+    originalIds.transport = new Set(state.transport.map(i=>i.id));
+    originalIds.hotellopphold = new Set(state.hotellopphold.map(i=>i.id));
+    originalIds.dagsprogram = new Set(state.dagsprogram.map(i=>i.id));
+    originalIds.bilder = new Set(state.bilder.map(i=>i.id));
+
+    // Hent oppdatert forslagsnummer/sist_endret (uendret av oss, men greit å ha korrekt visning)
+    const { data: fresh } = await window.sb.from("forslag").select("forslagsnummer,sist_endret").eq("id", forslagId).single();
+    if(fresh){ el("f-nr").textContent = fresh.forslagsnummer || ""; }
+
+    el("saveStatus").textContent = "Lagret " + new Date().toLocaleString("nb-NO");
+  } catch(err){
+    console.error(err);
+    el("saveStatus").textContent = "Kunne ikke lagre: " + err.message;
+  }
+}
+
+async function slettForslag(){
+  if(!confirm("Slette dette forslaget permanent, inkludert transport, hotellopphold, program og bilder?")) return;
+  const { error } = await window.sb.from("forslag").delete().eq("id", forslagId);
+  if(error){ alert("Kunne ikke slette: " + error.message); return; }
+  window.location.href = "forslag.html";
+}
+
+/* ---------- Wiring ---------- */
+
+el("btnLagre").addEventListener("click", lagreAlt);
+el("btnSlett").addEventListener("click", slettForslag);
+el("oppdaterPrisBtn").addEventListener("click", oppdaterPrisFraKalkyle);
+el("g-kundetype").addEventListener("change", ()=>{ state.forslag.kundetype = el("g-kundetype").value; updateKundetypeVisning(); });
+el("g-skole-sok").addEventListener("input", (e)=>{
+  if(state.forslag.skole_id && skoleNameById.get(state.forslag.skole_id) !== e.target.value){
+    state.forslag.skole_id = null;
+  }
+  renderSkoleDropdown(e.target.value);
+});
+el("g-skole-sok").addEventListener("focus", (e)=>{ if(e.target.value.trim()) renderSkoleDropdown(e.target.value); });
+el("g-skole-sok").addEventListener("blur", ()=> setTimeout(()=>{ el("g-skole-dropdown").style.display="none"; }, 150));
+
+/* ---------- Init ---------- */
+
+(async ()=>{
+  const session = await requireLogin();
+  if(!session) return;
+  currentUserId = session.user.id;
+
+  const params = new URLSearchParams(location.search);
+  forslagId = params.get("id");
+  if(!forslagId){
+    document.getElementById("loadMsg").textContent = "Mangler forslags-ID i lenken.";
+    return;
+  }
+
+  await loadReferenceData();
+  const ok = await loadForslag(forslagId);
+  document.getElementById("loadMsg").style.display = "none";
+  if(!ok){
+    document.getElementById("loadMsg").style.display = "block";
+    document.getElementById("loadMsg").textContent = "Fant ikke forslaget, eller det ble slettet.";
+    return;
+  }
+  document.getElementById("editorArea").style.display = "block";
+  renderAll();
+})();
+</script>
+</body>
+</html>
