@@ -921,21 +921,17 @@ function removeHotel(moduleKey, idx){
 }
 
 /* ---------- Fleksible lister: transport/guide, aktiviteter, andre faste kostnader ---------- */
-/* Forslag-integrasjon (additivt): valgfri type (kun transport-linjer), en
-   kundevendt tekst (brukes i Inkludert-listen istedenfor det interne navnet
-   når den er fylt ut) og en avkrysning for om linjen skal med i Inkludert.
-   Leses av gatherList() nedenfor, men påvirker aldri beløpssummeringen -
-   ren tilleggsinformasjon til "Opprett forslag fra kalkyle". */
-const TRANSPORT_TYPES = ['Buss','Tog','Ferge','Transfer','Guide','Annet'];
-function forslagLinjeFelter(rid, typeOptions){
-  const typeSelect = typeOptions ? `
-        <select id="${rid}type" oninput="recalcAll()" onchange="recalcAll()" title="Type (til Forslag)" style="max-width:110px;">
-          ${typeOptions.map(t=>`<option value="${t}">${t}</option>`).join('')}
-        </select>` : '';
+/* Forslag-integrasjon (additivt): kun en avkrysning for om linjen skal med i
+   Inkludert. Leses av gatherList() nedenfor, men påvirker aldri
+   beløpssummeringen - ren tilleggsinformasjon til "Opprett forslag fra
+   kalkyle". v36: eget "Kundetekst til Inkludert"-felt er fjernet - selve
+   navn/beskrivelse-feltet i linjen (f.eks. "Fly", "Buss") brukes direkte som
+   Inkludert-tekst. v37: type-valget på transportlinjer er også fjernet igjen
+   på ønske fra Vidar - alle transportlinjer overføres nå til Forslaget som
+   type "Buss" (kan justeres manuelt i Forslaget ved behov). */
+function forslagLinjeFelter(rid){
   return `
       <div style="display:flex;gap:6px;align-items:center;margin:2px 0 6px;flex-wrap:wrap;">
-        ${typeSelect}
-        <input type="text" id="${rid}kundetekst" placeholder="Kundetekst til Inkludert (valgfritt)" oninput="recalcAll()" style="flex:1;min-width:160px;">
         <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink-2);white-space:nowrap;">
           <input type="checkbox" id="${rid}inkluder" checked oninput="recalcAll()"> Ta med i Inkludert
         </label>
@@ -957,7 +953,7 @@ function listCard(prefix, kind, title, hint, countKey, moduleKey, defaults){
         <select id="${rid}cur" oninput="recalcAll()" onchange="recalcAll()">${currencyOptions(moduleKey)}</select>
         ${removeBtn}
       </div>
-      ${forslagLinjeFelter(rid, kind==='transport' ? TRANSPORT_TYPES : null)}`;
+      ${forslagLinjeFelter(rid)}`;
   }
   return `
     <div class="card">
@@ -995,9 +991,6 @@ function gatherList(prefix, kind, count, moduleKey){
     const item = {navn:strVal(rid+'navn',''), belop};
     // Forslag-integrasjon (additivt - påvirker ikke beløpssummeringen over,
     // kun brukt av "Opprett forslag fra kalkyle"):
-    const typeField = el(rid+'type');
-    if(typeField) item.type = typeField.value;
-    item.kundetekst = strVal(rid+'kundetekst','');
     const inkluderField = el(rid+'inkluder');
     item.inkluderITilbud = inkluderField ? inkluderField.checked : true;
     items.push(item);
@@ -1055,7 +1048,7 @@ function flyCard(prefix, moduleKey){
         <select id="${rid}cur" oninput="recalcAll()" onchange="recalcAll()">${currencyOptions(moduleKey)}</select>
         ${removeBtn}
       </div>
-      ${forslagLinjeFelter(rid, null)}`;
+      ${forslagLinjeFelter(rid)}`;
   }
   return `
     <div class="card">
@@ -2197,14 +2190,14 @@ function bygTransportrader(gm1){
     rader.push({
       sortering: sortering++,
       transporttype: 'Fly',
-      beskrivelse: (item.kundetekst && item.kundetekst.trim()) ? item.kundetekst.trim() : (item.navn || null),
+      beskrivelse: item.navn || null,
     });
   });
   (gm1.transport||[]).forEach(item=>{
     rader.push({
       sortering: sortering++,
-      transporttype: item.type || 'Buss',
-      beskrivelse: (item.kundetekst && item.kundetekst.trim()) ? item.kundetekst.trim() : (item.navn || null),
+      transporttype: 'Buss',
+      beskrivelse: item.navn || null,
     });
   });
   return rader;
@@ -2226,7 +2219,7 @@ function bygInkludertFraKalkyle(gm1){
   ];
   listeposter.forEach(item=>{
     if(item.inkluderITilbud===false) return;
-    const txt = (item.kundetekst && item.kundetekst.trim()) ? item.kundetekst.trim() : (item.navn||'').trim();
+    const txt = (item.navn||'').trim();
     if(txt) linjer.push(txt);
   });
   return linjer;
