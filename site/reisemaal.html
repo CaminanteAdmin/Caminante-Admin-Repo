@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hoteller – Caminante Admin</title>
+<title>Reisemål – Caminante Admin</title>
 <link rel="stylesheet" href="shared/style.css">
 <style>
   .toolbar{
@@ -93,25 +93,9 @@
   tbody tr{ cursor:pointer; }
   tbody tr:hover{ background:var(--page); }
   tbody tr.selected{ background:#eaf1fb; }
-  .hotel-name{ font-weight:600; }
-  .hotel-sub{ font-size:11.5px; color:var(--ink-muted); }
-
-  .chip{
-    display:inline-block;
-    padding:2px 8px;
-    border-radius:20px;
-    font-size:11.5px;
-    font-weight:600;
-    line-height:1.6;
-  }
-  select.status-select{
-    border:1px solid var(--hairline);
-    border-radius:6px;
-    font-size:11.5px;
-    padding:2px 6px;
-    font-weight:600;
-    cursor:pointer;
-  }
+  .rm-name{ font-weight:600; }
+  .rm-sub{ font-size:11.5px; color:var(--ink-muted); }
+  .rm-flag{ width:20px; height:14px; object-fit:cover; border-radius:2px; vertical-align:middle; margin-right:6px; border:1px solid var(--hairline); }
 
   .overlay-bg{ position:fixed; inset:0; background:rgba(11,11,11,0.30); display:none; z-index:20; }
   .overlay-bg.open{ display:block; }
@@ -135,10 +119,10 @@
     color:var(--ink-muted); line-height:1;
   }
   .profile-close:hover{ color:var(--ink-primary); }
-  .profile-header{ margin-bottom:6px; padding-right:30px; }
+  .profile-header{ margin-bottom:6px; padding-right:30px; display:flex; align-items:center; gap:10px; }
+  .profile-header img.rm-flag-lg{ width:32px; height:22px; object-fit:cover; border-radius:3px; border:1px solid var(--hairline); flex-shrink:0; }
   .profile-header h2{ margin:0 0 4px; font-size:20px; }
   .profile-header .meta{ font-size:12.5px; color:var(--ink-muted); }
-  .profile-chips{ display:flex; gap:8px; margin-top:10px; align-items:center; }
 
   .section{ margin-top:22px; padding-top:16px; border-top:1px solid var(--hairline); }
   .section h3{
@@ -168,18 +152,18 @@
     box-sizing:border-box;
   }
   .fact-grid textarea{ min-height:60px; resize:vertical; align-self:start; margin-top:2px; }
-  .stjerne-radio-group{ display:flex; gap:12px; flex-wrap:wrap; }
-  .stjerne-radio-opt{ display:flex; align-items:center; gap:4px; font-size:13px; color:var(--ink-primary); cursor:pointer; width:auto; }
-  .stjerne-radio-opt input{ width:auto; margin:0; }
+  .fact-grid textarea.tall{ min-height:100px; }
   .upload-hint{ font-size:11.5px; color:var(--ink-muted); margin-bottom:10px; }
-  .hotel-img-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
-  .hotel-img-card{ border:1px solid var(--hairline); border-radius:8px; overflow:hidden; background:var(--surface-1); }
-  .hotel-img-card img{ width:100%; height:90px; object-fit:cover; display:block; background:var(--page); }
-  .hotel-img-body{ padding:6px; display:flex; flex-direction:column; gap:5px; }
-  .hotel-img-body input{
+  .flagg-row{ display:flex; align-items:center; gap:10px; }
+  .flagg-preview{ width:44px; height:30px; object-fit:cover; border-radius:4px; border:1px solid var(--hairline); background:var(--page); }
+  .rm-img-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
+  .rm-img-card{ border:1px solid var(--hairline); border-radius:8px; overflow:hidden; background:var(--surface-1); }
+  .rm-img-card img{ width:100%; height:90px; object-fit:cover; display:block; background:var(--page); }
+  .rm-img-body{ padding:6px; display:flex; flex-direction:column; gap:5px; }
+  .rm-img-body input{
     border:1px solid var(--hairline); border-radius:5px; padding:4px 6px; font-size:12px; font-family:inherit; width:100%; box-sizing:border-box;
   }
-  .hotel-img-remove{ font-size:11px; color:#b04a4a; background:none; border:none; cursor:pointer; padding:0; text-align:left; }
+  .rm-img-remove{ font-size:11px; color:#b04a4a; background:none; border:none; cursor:pointer; padding:0; text-align:left; }
   .comment-item{
     padding:10px 0;
     border-bottom:1px solid var(--hairline);
@@ -204,7 +188,7 @@
     resize:vertical;
   }
   .add-comment .row{ display:flex; justify-content:flex-end; margin-top:6px; }
-  .delete-hotel{
+  .delete-rm{
     margin-top:24px;
     font-size:12px;
     color:#b04a4a;
@@ -214,14 +198,14 @@
     padding:6px 10px;
     cursor:pointer;
   }
-  .delete-hotel:hover{ background:#fbeaea; border-color:#d03b3b; }
+  .delete-rm:hover{ background:#fbeaea; border-color:#d03b3b; }
   .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <a class="brand" href="index.html"><span class="company">Caminante Admin</span><span class="tool-name">Hoteller</span></a>
+  <a class="brand" href="index.html"><span class="company">Caminante Admin</span><span class="tool-name">Reisemål</span></a>
   <div class="user-area">
     <span id="userName"></span>
     <button class="logout-btn" id="logoutBtn">Logg ut</button>
@@ -229,28 +213,26 @@
 </div>
 
 <div class="toolbar">
-  <input type="search" id="searchInput" placeholder="Søk på hotellnavn, by eller land…">
+  <input type="search" id="searchInput" placeholder="Søk på reisemål, by eller land…">
   <select id="filterLand"><option value="">Alle land</option></select>
-  <select id="filterStatus"><option value="">Alle statuser</option></select>
   <button class="reset" id="resetFilters">Nullstill filter</button>
-  <button class="action primary" id="newHotelBtn">+ Nytt hotell</button>
+  <button class="action primary" id="newReisemaalBtn">+ Nytt reisemål</button>
   <button class="action" id="exportBtn">Eksporter (CSV)</button>
   <span class="count-pill" id="countPill"></span>
 </div>
 
-<div id="loadMsg" class="load-msg">Laster hoteller…</div>
+<div id="loadMsg" class="load-msg">Laster reisemål…</div>
 
 <div class="main" id="mainArea" style="display:none;">
   <div class="list-panel">
-    <h2>Hotelliste</h2>
+    <h2>Reisemålsliste</h2>
     <table>
       <thead>
         <tr>
-          <th data-key="navn">Hotell <span class="arrow"></span></th>
-          <th data-key="status">Status <span class="arrow"></span></th>
-          <th data-key="prisniva">Prisnivå <span class="arrow"></span></th>
-          <th data-key="kapasitet">Kapasitet <span class="arrow"></span></th>
-          <th data-key="kontaktperson">Kontaktperson <span class="arrow"></span></th>
+          <th data-key="navn">Reisemål <span class="arrow"></span></th>
+          <th data-key="land">Land <span class="arrow"></span></th>
+          <th data-key="valuta">Valuta <span class="arrow"></span></th>
+          <th data-key="folketall">Folketall <span class="arrow"></span></th>
         </tr>
       </thead>
       <tbody id="listBody"></tbody>
@@ -266,63 +248,43 @@
 <script src="shared/auth.js"></script>
 <script src="shared/nav.js"></script>
 <script>
-/* ---------- Reference data ---------- */
-
-// Status og prisnivå er bevisst fritekst (ikke Postgres-enum) - nye verdier kan
-// legges til her uten SQL-migrering, samme designvalg som kalenderhendelser.
-const STATUSER = ["Research", "Erfaring", "Avtale"];
-const STATUS_COLORS = {
-  "Research": { bg:"#898781", fg:"#ffffff" },   // vurderes, ingen erfaring ennå
-  "Erfaring": { bg:"#2a78d6", fg:"#ffffff" },   // brukt, ingen fast avtale
-  "Avtale":   { bg:"#0ca30c", fg:"#ffffff" },   // fast avtale på plass
-};
-const PRISNIVAER = ["", "€", "€€", "€€€"];
-
 /* ---------- State (in-memory cache of DB rows for the current session) ---------- */
 
-let hotels = [];          // hoteller-rader + .kommentarer[] tilknyttet klientsidig
-let reisemaalOversikt = []; // { id, navn, land, by } - til "Reisemål"-nedtrekket
+let reisemaal = [];       // reisemaal-rader + .kommentarer[]/.bilder[] tilknyttet klientsidig
 let currentUserId = null;
-let state = { search:"", land:"", status:"", sortKey:"navn", sortDir:1, selectedId:null };
-const STJERNE_ALTERNATIVER = [2,3,4,5];
+let state = { search:"", land:"", sortKey:"navn", sortDir:1, selectedId:null };
 
 /* ---------- Helpers ---------- */
 
 function escapeHtml(str){
   return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 }
-function statusChip(s){
-  const c = STATUS_COLORS[s] || {bg:"#898781", fg:"#ffffff"};
-  return `<span class="chip" style="background:${c.bg};color:${c.fg}">${escapeHtml(s)}</span>`;
-}
 
 /* ---------- Supabase data loading ---------- */
 
 async function loadAllData(){
-  const [{ data: hotellRows, error: e1 }, { data: kommentarerRows, error: e2 }, { data: profileRows, error: e3 }, { data: bildeRows, error: e4 }, { data: reisemaalRows, error: e5 }] =
+  const [{ data: rmRows, error: e1 }, { data: kommentarerRows, error: e2 }, { data: profileRows, error: e3 }, { data: bildeRows, error: e4 }] =
     await Promise.all([
-      window.sb.from("hoteller").select("*"),
-      window.sb.from("hotell_kommentarer").select("*").order("opprettet_dato", { ascending:false }),
+      window.sb.from("reisemaal").select("*"),
+      window.sb.from("reisemaal_kommentarer").select("*").order("opprettet_dato", { ascending:false }),
       window.sb.from("profiles").select("id, navn"),
-      window.sb.from("hotell_bilder").select("*").order("sortering"),
-      window.sb.from("reisemaal").select("id, navn, land, by").order("navn"),
+      window.sb.from("reisemaal_bilder").select("*").order("sortering"),
     ]);
-  if(e1 || e2 || e3 || e4 || e5){
-    document.getElementById("loadMsg").textContent = "Kunne ikke laste data fra databasen. Sjekk at sql/2026-07-27-hoteller.sql er kjørt i Supabase, og prøv igjen.";
-    console.error(e1, e2, e3, e4, e5);
+  if(e1 || e2 || e3 || e4){
+    document.getElementById("loadMsg").textContent = "Kunne ikke laste data fra databasen. Prøv igjen, eller sjekk databaseoppsettet for reisemaal-tabellene.";
+    console.error(e1, e2, e3, e4);
     return false;
   }
-  reisemaalOversikt = reisemaalRows || [];
   const nameById = {};
   (profileRows||[]).forEach(p=> nameById[p.id] = p.navn);
 
-  hotels = (hotellRows||[]).map(h => ({
-    ...h,
-    kommentarer: (kommentarerRows||[]).filter(c=>c.hotell_id===h.id).map(c=>({
+  reisemaal = (rmRows||[]).map(r => ({
+    ...r,
+    kommentarer: (kommentarerRows||[]).filter(c=>c.reisemaal_id===r.id).map(c=>({
       ...c,
       forfatter_navn: nameById[c.forfatter] || "Ukjent",
     })),
-    bilder: (bildeRows||[]).filter(b=>b.hotell_id===h.id),
+    bilder: (bildeRows||[]).filter(b=>b.reisemaal_id===r.id),
   }));
   return true;
 }
@@ -340,30 +302,26 @@ function fillSelect(id, values, keepFirst){
   });
 }
 function refreshLandFilter(){
-  const land = [...new Set(hotels.map(h=>h.land).filter(Boolean))].sort((a,b)=> a.localeCompare(b,"no"));
+  const land = [...new Set(reisemaal.map(r=>r.land).filter(Boolean))].sort((a,b)=> a.localeCompare(b,"no"));
   const current = state.land;
   fillSelect("filterLand", land, true);
   if(land.includes(current)) document.getElementById("filterLand").value = current;
 }
-fillSelect("filterStatus", STATUSER, true);
 
 /* ---------- Filtering / sorting ---------- */
 
-function filteredHotels(){
-  let list = hotels.filter(h=>{
+function filteredReisemaal(){
+  let list = reisemaal.filter(r=>{
     if(state.search){
       const q = state.search.toLowerCase();
-      if(!(h.navn||"").toLowerCase().includes(q) && !(h.by||"").toLowerCase().includes(q) && !(h.land||"").toLowerCase().includes(q)) return false;
+      if(!(r.navn||"").toLowerCase().includes(q) && !(r.by||"").toLowerCase().includes(q) && !(r.land||"").toLowerCase().includes(q)) return false;
     }
-    if(state.land && h.land !== state.land) return false;
-    if(state.status && h.status !== state.status) return false;
+    if(state.land && r.land !== state.land) return false;
     return true;
   });
   const key = state.sortKey, dir = state.sortDir;
   list.sort((a,b)=>{
     let av = a[key], bv = b[key];
-    if(key==="status"){ av = STATUSER.indexOf(a.status); bv = STATUSER.indexOf(b.status); }
-    if(key==="prisniva"){ av = PRISNIVAER.indexOf(a.prisniva||""); bv = PRISNIVAER.indexOf(b.prisniva||""); }
     if(typeof av === "string") av = av.toLowerCase();
     if(typeof bv === "string") bv = bv.toLowerCase();
     if(av == null) av = "";
@@ -378,75 +336,56 @@ function filteredHotels(){
 /* ---------- Rendering: list ---------- */
 
 function renderList(){
-  const list = filteredHotels();
+  const list = filteredReisemaal();
   const body = document.getElementById("listBody");
   body.innerHTML = "";
-  list.forEach(h=>{
+  list.forEach(r=>{
     const tr = document.createElement("tr");
-    if(h.id === state.selectedId) tr.classList.add("selected");
-    const sted = [h.by, h.land].filter(Boolean).join(", ");
+    if(r.id === state.selectedId) tr.classList.add("selected");
     tr.innerHTML = `
       <td>
-        <div class="hotel-name">${escapeHtml(h.navn)}</div>
-        <div class="hotel-sub">${escapeHtml(sted)}</div>
+        ${r.flagg_bilde_url ? `<img class="rm-flag" src="${escapeHtml(r.flagg_bilde_url)}">` : ""}
+        <div class="rm-name" style="display:inline-block;">${escapeHtml(r.navn)}</div>
+        <div class="rm-sub">${escapeHtml(r.by||"")}</div>
       </td>
-      <td></td>
-      <td>${escapeHtml(h.prisniva)}</td>
-      <td>${escapeHtml(h.kapasitet)}</td>
-      <td>${escapeHtml(h.kontaktperson)}</td>
+      <td>${escapeHtml(r.land)}</td>
+      <td>${escapeHtml(r.valuta)}</td>
+      <td>${escapeHtml(r.folketall)}</td>
     `;
-    tr.addEventListener("click", (e)=>{ if(e.target.tagName!=="SELECT") openProfile(h.id); });
+    tr.addEventListener("click", ()=> openProfile(r.id));
     body.appendChild(tr);
-
-    const stCell = tr.children[1];
-    const stSel = document.createElement("select");
-    stSel.className = "status-select";
-    const curColor = STATUS_COLORS[h.status] || {bg:"#898781", fg:"#ffffff"};
-    stSel.style.background = curColor.bg;
-    stSel.style.color = curColor.fg;
-    stSel.style.borderColor = curColor.bg;
-    STATUSER.forEach(st=>{
-      const o = document.createElement("option"); o.value=st; o.textContent=st;
-      if(st===h.status) o.selected = true;
-      stSel.appendChild(o);
-    });
-    stSel.addEventListener("change", async ()=>{
-      await updateHotell(h.id, { status: stSel.value });
-    });
-    stCell.appendChild(stSel);
   });
-  document.getElementById("countPill").textContent = `${list.length} av ${hotels.length} hoteller vises`;
+  document.getElementById("countPill").textContent = `${list.length} av ${reisemaal.length} reisemål vises`;
 }
 
 /* ---------- Write helpers (Supabase) ---------- */
 
-async function updateHotell(id, patch){
-  const { error } = await window.sb.from("hoteller").update(patch).eq("id", id);
+async function updateReisemaal(id, patch){
+  const { error } = await window.sb.from("reisemaal").update(patch).eq("id", id);
   if(error){ alert("Kunne ikke lagre endringen: " + error.message); return; }
-  const h = hotels.find(x=>x.id===id);
-  Object.assign(h, patch);
+  const r = reisemaal.find(x=>x.id===id);
+  Object.assign(r, patch);
   refreshLandFilter();
   renderList();
   if(state.selectedId === id) renderProfile(id);
 }
 
-async function createHotell(){
-  const { data, error } = await window.sb.from("hoteller").insert({
-    navn: "Nytt hotell", by: "", land: "", status: "Research", prisniva: "", kapasitet: "",
-    kontaktperson: "", telefon: "", epost: "", nettside: "", opprettet_av: currentUserId,
+async function createReisemaal(){
+  const { data, error } = await window.sb.from("reisemaal").insert({
+    navn: "Nytt reisemål", by: "", land: "", opprettet_av: currentUserId,
   }).select().single();
-  if(error){ alert("Kunne ikke opprette hotell: " + error.message); return; }
-  hotels.push({ ...data, kommentarer:[] });
+  if(error){ alert("Kunne ikke opprette reisemål: " + error.message); return; }
+  reisemaal.push({ ...data, kommentarer:[], bilder:[] });
   refreshLandFilter();
   renderList();
   openProfile(data.id);
 }
 
-async function deleteHotell(id){
-  if(!confirm("Slette dette hotellet permanent, inkludert alle kommentarer?")) return;
-  const { error } = await window.sb.from("hoteller").delete().eq("id", id);
+async function deleteReisemaal(id){
+  if(!confirm("Slette dette reisemålet permanent, inkludert alle bilder og kommentarer?")) return;
+  const { error } = await window.sb.from("reisemaal").delete().eq("id", id);
   if(error){ alert("Kunne ikke slette: " + error.message); return; }
-  hotels = hotels.filter(h=>h.id!==id);
+  reisemaal = reisemaal.filter(r=>r.id!==id);
   closeProfile();
   refreshLandFilter();
   renderList();
@@ -470,60 +409,50 @@ function closeProfile(){
 document.getElementById("overlayBg").addEventListener("click", closeProfile);
 
 function renderProfile(id){
-  const h = hotels.find(x=>x.id===id);
+  const r = reisemaal.find(x=>x.id===id);
   const panel = document.getElementById("profilePanel");
-  const sted = [h.by, h.land].filter(Boolean).join(", ") || "Sted ikke satt";
+  const sted = [r.by, r.land].filter(Boolean).join(", ") || "Sted ikke satt";
 
   panel.innerHTML = `
     <button class="profile-close" id="closeBtn" title="Lukk">✕</button>
     <div class="profile-header">
-      <h2>${escapeHtml(h.navn)}</h2>
-      <div class="meta">${escapeHtml(sted)}</div>
-      <div class="profile-chips">${statusChip(h.status)}</div>
+      ${r.flagg_bilde_url ? `<img class="rm-flag-lg" src="${escapeHtml(r.flagg_bilde_url)}">` : ""}
+      <div>
+        <h2>${escapeHtml(r.navn)}</h2>
+        <div class="meta">${escapeHtml(sted)}</div>
+      </div>
     </div>
 
     <div class="section">
       <h3>1. Fakta</h3>
       <div class="fact-grid">
-        <label>Navn</label><input id="f-navn" value="${escapeHtml(h.navn)}">
-        <label>Antall stjerner</label>
-        <div class="stjerne-radio-group">
-          ${STJERNE_ALTERNATIVER.map(n=>`
-            <label class="stjerne-radio-opt">
-              <input type="radio" name="f-stjerner" value="${n}" ${h.stjerner===n?"checked":""}>
-              ${"★".repeat(n)}
-            </label>`).join("")}
+        <label>Navn</label><input id="f-navn" value="${escapeHtml(r.navn)}">
+        <label>By</label><input id="f-by" value="${escapeHtml(r.by)}">
+        <label>Land</label><input id="f-land" value="${escapeHtml(r.land)}">
+        <label>Valuta</label><input id="f-valuta" value="${escapeHtml(r.valuta)}" placeholder="F.eks. HRK / EUR">
+        <label>Folketall</label><input id="f-folketall" value="${escapeHtml(r.folketall)}" placeholder="F.eks. 178 000">
+        <label>Flagg</label>
+        <div class="flagg-row">
+          ${r.flagg_bilde_url ? `<img class="flagg-preview" src="${escapeHtml(r.flagg_bilde_url)}">` : `<div class="flagg-preview"></div>`}
+          <input type="file" id="flaggFile" accept="image/*" style="flex:1;">
         </div>
-        <label>By</label><input id="f-by" value="${escapeHtml(h.by)}">
-        <label>Land</label><input id="f-land" value="${escapeHtml(h.land)}">
-        <label>Reisemål</label>
-        <select id="f-reisemaal">
-          <option value="">Ikke knyttet til et reisemål</option>
-          ${reisemaalOversikt.map(rm=>`<option value="${rm.id}" ${h.reisemaal_id===rm.id?"selected":""}>${escapeHtml(rm.navn)}${rm.land?` (${escapeHtml(rm.land)})`:""}</option>`).join("")}
-        </select>
-        <label>Nettside</label><input id="f-nettside" value="${escapeHtml(h.nettside)}" placeholder="https://…">
-        <label>Standard</label><input id="f-standard" value="${escapeHtml(h.standard)}" placeholder="F.eks. 4-stjerners">
-        <label>Beskrivelse</label><textarea id="f-beskrivelse" placeholder="Generell, fri beskrivelse av hotellet - brukes ved «Velg fra hotelloversikt» i Forslag">${escapeHtml(h.beskrivelse)}</textarea>
       </div>
     </div>
 
     <div class="section">
-      <h3>2. Kontakt &amp; pris</h3>
+      <h3>2. Presentasjon</h3>
+      <div class="upload-hint">Standardiserte tekster som hentes inn ved «Velg fra reisemål-oversikt» i Forslag - fritt redigerbare per forslag etterpå.</div>
       <div class="fact-grid">
-        <label>Kontaktperson</label><input id="f-kontaktperson" value="${escapeHtml(h.kontaktperson)}">
-        <label>Telefon</label><input id="f-telefon" value="${escapeHtml(h.telefon)}">
-        <label>E-post</label><input id="f-epost" value="${escapeHtml(h.epost)}">
-        <label>Prisnivå</label>
-        <select id="f-prisniva">${PRISNIVAER.map(p=>`<option value="${p}" ${p===(h.prisniva||"")?"selected":""}>${p===""?"Ikke satt":p}</option>`).join("")}</select>
-        <label>Kapasitet</label><input id="f-kapasitet" value="${escapeHtml(h.kapasitet)}" placeholder="F.eks. 120 rom, sal opptil 250">
+        <label>Om reisemålet</label><textarea id="f-om-reisemaalet" class="tall">${escapeHtml(r.om_reisemaalet)}</textarea>
+        <label>Muligheter og opplevelser</label><textarea id="f-muligheter" class="tall">${escapeHtml(r.muligheter_opplevelser)}</textarea>
       </div>
     </div>
 
     <div class="section">
       <h3>3. Bilder</h3>
-      <div class="upload-hint">Generelle bilder av hotellet - brukes ved «Velg fra hotelloversikt» i Forslag. Ikke turspesifikke bilder (de lastes opp per forslag).</div>
-      <div class="hotel-img-grid" id="hotelBildeGrid"></div>
-      <input type="file" id="nyttHotelBildeFile" accept="image/*" style="margin-top:10px;">
+      <div class="upload-hint">Generelle bilder av reisemålet - brukes ved «Velg fra reisemål-oversikt» i Forslag.</div>
+      <div class="rm-img-grid" id="rmBildeGrid"></div>
+      <input type="file" id="nyttRmBildeFile" accept="image/*" style="margin-top:10px;">
     </div>
 
     <div class="section">
@@ -535,104 +464,109 @@ function renderProfile(id){
       </div>
     </div>
 
-    <button class="delete-hotel" id="deleteHotelBtn">Slett hotell</button>
+    <button class="delete-rm" id="deleteRmBtn">Slett reisemål</button>
   `;
 
   document.getElementById("closeBtn").addEventListener("click", closeProfile);
-  document.getElementById("deleteHotelBtn").addEventListener("click", ()=> deleteHotell(h.id));
+  document.getElementById("deleteRmBtn").addEventListener("click", ()=> deleteReisemaal(r.id));
 
   const bind = (elId, field)=>{
     document.getElementById(elId).addEventListener("change", async (e)=>{
-      await updateHotell(h.id, { [field]: e.target.value });
+      await updateReisemaal(r.id, { [field]: e.target.value || null });
     });
   };
-  bind("f-navn","navn"); bind("f-by","by"); bind("f-land","land"); bind("f-nettside","nettside");
-  bind("f-standard","standard"); bind("f-beskrivelse","beskrivelse");
-  bind("f-kontaktperson","kontaktperson"); bind("f-telefon","telefon"); bind("f-epost","epost");
-  bind("f-prisniva","prisniva"); bind("f-kapasitet","kapasitet");
-  document.getElementById("f-reisemaal").addEventListener("change", async (e)=>{
-    await updateHotell(h.id, { reisemaal_id: e.target.value || null });
-  });
-  document.querySelectorAll('input[name="f-stjerner"]').forEach(radio=>{
-    radio.addEventListener("change", async (e)=>{
-      await updateHotell(h.id, { stjerner: Number(e.target.value) });
-    });
-  });
+  bind("f-navn","navn"); bind("f-by","by"); bind("f-land","land");
+  bind("f-valuta","valuta"); bind("f-folketall","folketall");
+  bind("f-om-reisemaalet","om_reisemaalet"); bind("f-muligheter","muligheter_opplevelser");
 
-  renderHotelBilder(h);
-  document.getElementById("nyttHotelBildeFile").addEventListener("change", async (e)=>{
+  document.getElementById("flaggFile").addEventListener("change", async (e)=>{
     const file = e.target.files[0];
     if(!file) return;
     try{
       const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-      const path = `${h.id}/${(crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2))}.${ext}`;
-      const { error: upErr } = await window.sb.storage.from("hotell-bilder").upload(path, file, { upsert:false });
+      const path = `${r.id}/flagg-${(crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2))}.${ext}`;
+      const { error: upErr } = await window.sb.storage.from("reisemaal-bilder").upload(path, file, { upsert:false });
       if(upErr) throw upErr;
-      const { data: pub } = window.sb.storage.from("hotell-bilder").getPublicUrl(path);
-      const { data, error } = await window.sb.from("hotell_bilder").insert({
-        hotell_id: h.id, bilde_url: pub.publicUrl, sortering: h.bilder.length,
+      const { data: pub } = window.sb.storage.from("reisemaal-bilder").getPublicUrl(path);
+      await updateReisemaal(r.id, { flagg_bilde_url: pub.publicUrl });
+    } catch(err){ alert("Kunne ikke laste opp flagg: " + err.message); }
+    e.target.value = "";
+  });
+
+  renderRmBilder(r);
+  document.getElementById("nyttRmBildeFile").addEventListener("change", async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    try{
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `${r.id}/${(crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2))}.${ext}`;
+      const { error: upErr } = await window.sb.storage.from("reisemaal-bilder").upload(path, file, { upsert:false });
+      if(upErr) throw upErr;
+      const { data: pub } = window.sb.storage.from("reisemaal-bilder").getPublicUrl(path);
+      const { data, error } = await window.sb.from("reisemaal_bilder").insert({
+        reisemaal_id: r.id, bilde_url: pub.publicUrl, sortering: r.bilder.length,
       }).select().single();
       if(error) throw error;
-      h.bilder.push(data);
-      renderHotelBilder(h);
+      r.bilder.push(data);
+      renderRmBilder(r);
     } catch(err){ alert("Kunne ikke laste opp bilde: " + err.message); }
     e.target.value = "";
   });
 
-  renderComments(h);
+  renderComments(r);
   document.getElementById("addCommentBtn").addEventListener("click", async ()=>{
     const tekst = document.getElementById("newCommentText").value.trim();
     if(!tekst) return;
-    const { data, error } = await window.sb.from("hotell_kommentarer").insert({
-      hotell_id: h.id, tekst, forfatter: currentUserId,
+    const { data, error } = await window.sb.from("reisemaal_kommentarer").insert({
+      reisemaal_id: r.id, tekst, forfatter: currentUserId,
     }).select().single();
     if(error){ alert("Kunne ikke lagre kommentar: " + error.message); return; }
     const { data: profile } = await window.sb.from("profiles").select("navn").eq("id", currentUserId).single();
-    h.kommentarer.unshift({ ...data, forfatter_navn: (profile && profile.navn) || "" });
+    r.kommentarer.unshift({ ...data, forfatter_navn: (profile && profile.navn) || "" });
     document.getElementById("newCommentText").value = "";
-    renderComments(h);
+    renderComments(r);
   });
 }
 
-function renderHotelBilder(h){
-  const grid = document.getElementById("hotelBildeGrid");
+function renderRmBilder(r){
+  const grid = document.getElementById("rmBildeGrid");
   grid.innerHTML = "";
-  if(!h.bilder.length){
+  if(!r.bilder.length){
     grid.innerHTML = '<div class="save-hint">Ingen bilder lastet opp ennå.</div>';
     return;
   }
-  h.bilder.forEach(b=>{
+  r.bilder.forEach(b=>{
     const card = document.createElement("div");
-    card.className = "hotel-img-card";
+    card.className = "rm-img-card";
     card.innerHTML = `
       <img src="${escapeHtml(b.bilde_url)}">
-      <div class="hotel-img-body">
-        <input class="hb-alt" value="${escapeHtml(b.alt_tekst)}" placeholder="Bildetekst">
-        <button class="hotel-img-remove">Fjern</button>
+      <div class="rm-img-body">
+        <input class="rb-alt" value="${escapeHtml(b.alt_tekst)}" placeholder="Bildetekst">
+        <button class="rm-img-remove">Fjern</button>
       </div>
     `;
     grid.appendChild(card);
-    card.querySelector(".hb-alt").addEventListener("change", async (e)=>{
-      const { error } = await window.sb.from("hotell_bilder").update({ alt_tekst: e.target.value || null }).eq("id", b.id);
+    card.querySelector(".rb-alt").addEventListener("change", async (e)=>{
+      const { error } = await window.sb.from("reisemaal_bilder").update({ alt_tekst: e.target.value || null }).eq("id", b.id);
       if(error){ alert("Kunne ikke lagre bildetekst: " + error.message); return; }
       b.alt_tekst = e.target.value || null;
     });
-    card.querySelector(".hotel-img-remove").addEventListener("click", async ()=>{
+    card.querySelector(".rm-img-remove").addEventListener("click", async ()=>{
       // v: sletter kun databaseraden, ikke selve fila i Storage - samme
-      // etablerte mønster som forslag-editor.html sin Bilder-fane (bevisst
-      // enkel løsning, filen blir liggende foreldreløs i bucketen).
-      const { error } = await window.sb.from("hotell_bilder").delete().eq("id", b.id);
+      // etablerte mønster som hoteller.html og forslag-editor.html sin
+      // Bilder-fane (bevisst enkel løsning).
+      const { error } = await window.sb.from("reisemaal_bilder").delete().eq("id", b.id);
       if(error){ alert("Kunne ikke slette bilde: " + error.message); return; }
-      h.bilder = h.bilder.filter(x=>x.id!==b.id);
-      renderHotelBilder(h);
+      r.bilder = r.bilder.filter(x=>x.id!==b.id);
+      renderRmBilder(r);
     });
   });
 }
 
-function renderComments(h){
+function renderComments(r){
   const wrap = document.getElementById("commentsWrap");
   wrap.innerHTML = "";
-  const sorted = [...h.kommentarer].sort((a,b)=> a.opprettet_dato < b.opprettet_dato ? 1 : -1);
+  const sorted = [...r.kommentarer].sort((a,b)=> a.opprettet_dato < b.opprettet_dato ? 1 : -1);
   if(sorted.length === 0){
     const p = document.createElement("div");
     p.className = "save-hint";
@@ -649,36 +583,17 @@ function renderComments(h){
   });
 }
 
-/* ---------- CSV-eksport ---------- */
-
-function exportCsv(){
-  const list = filteredHotels();
-  const headers = ["Navn","By","Land","Status","Prisnivå","Kapasitet","Kontaktperson","Telefon","E-post","Nettside"];
-  const rows = list.map(h => [h.navn, h.by, h.land, h.status, h.prisniva, h.kapasitet, h.kontaktperson, h.telefon, h.epost, h.nettside]);
-  const csv = [headers, ...rows]
-    .map(row => row.map(v => `"${String(v??"").replace(/"/g,'""')}"`).join(";"))
-    .join("\r\n");
-  const blob = new Blob(["﻿"+csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `caminante-hoteller-${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 /* ---------- Wire up toolbar ---------- */
 
 document.getElementById("searchInput").addEventListener("input", (e)=>{ state.search = e.target.value; renderList(); });
 document.getElementById("filterLand").addEventListener("change", (e)=>{ state.land = e.target.value; renderList(); });
-document.getElementById("filterStatus").addEventListener("change", (e)=>{ state.status = e.target.value; renderList(); });
 document.getElementById("resetFilters").addEventListener("click", ()=>{
-  state.search=""; state.land=""; state.status="";
+  state.search=""; state.land="";
   document.getElementById("searchInput").value = "";
-  ["filterLand","filterStatus"].forEach(id=> document.getElementById(id).value = "");
+  document.getElementById("filterLand").value = "";
   renderList();
 });
-document.getElementById("newHotelBtn").addEventListener("click", createHotell);
+document.getElementById("newReisemaalBtn").addEventListener("click", createReisemaal);
 document.getElementById("exportBtn").addEventListener("click", exportCsv);
 
 document.querySelectorAll("thead th[data-key]").forEach(th=>{
@@ -690,6 +605,24 @@ document.querySelectorAll("thead th[data-key]").forEach(th=>{
     renderList();
   });
 });
+
+/* ---------- CSV-eksport ---------- */
+
+function exportCsv(){
+  const list = filteredReisemaal();
+  const headers = ["Navn","By","Land","Valuta","Folketall"];
+  const rows = list.map(r => [r.navn, r.by, r.land, r.valuta, r.folketall]);
+  const csv = [headers, ...rows]
+    .map(row => row.map(v => `"${String(v??"").replace(/"/g,'""')}"`).join(";"))
+    .join("\r\n");
+  const blob = new Blob(["﻿"+csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `caminante-reisemaal-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 /* ---------- Init ---------- */
 

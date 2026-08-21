@@ -370,6 +370,9 @@ async function createForslag(){
   const { data, error } = await window.sb.from("forslag").insert({
     tittel: "Nytt forslag",
     opprettet_av: currentUserId,
+    // v: standard "Ikke inkludert"-punkter forhåndsutfylt på alle nye
+    // forslag - fritt redigerbare/slettbare etterpå per forslag.
+    ikke_inkludert: ["Øvrige måltider", "Reiseforsikring", "Eventuell tips til guide og sjåfør"],
   }).select().single();
   if(error){ alert("Kunne ikke opprette forslag: " + error.message); return; }
   window.location.href = `forslag-editor.html?id=${encodeURIComponent(data.id)}`;

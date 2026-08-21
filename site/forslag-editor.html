@@ -228,6 +228,32 @@
   }
   .add-item-btn:hover{ background:rgba(255,255,255,0.5); border-color:var(--blue); }
 
+  /* v: kompakt knappestil - samme visuelle språk som .btn.small i
+     kalkyle-editor.html (f.eks. "+ Legg til valuta"). Brukes der en
+     fullbredde stiplet add-item-btn oppleves for stor/dominerende,
+     f.eks. "+ Legg til annen romtype" og "Velg fra hotelloversikt". */
+  .btn-small-add{
+    display:inline-block;
+    border:1px solid var(--card-border);
+    background:var(--surface-1);
+    color:var(--ink);
+    padding:5px 10px;
+    border-radius:7px;
+    font-size:12px;
+    font-weight:500;
+    cursor:pointer;
+    width:auto;
+    text-align:center;
+    margin-top:8px;
+  }
+  .btn-small-add:hover{ background:rgba(255,255,255,0.5); border-color:var(--blue); }
+
+  /* v: "Antall stjerner" - obligatorisk radiovalg (2-5), ingen forhåndsvalgt
+     standard. Samme visuelle mønster som stjerne-radioen i hoteller.html. */
+  .stjerne-radio-group{ display:flex; gap:12px; flex-wrap:wrap; }
+  .stjerne-radio-opt{ display:flex; align-items:center; gap:4px; font-size:13px; color:var(--ink-primary); cursor:pointer; width:auto; }
+  .stjerne-radio-opt input{ width:auto; margin:0; }
+
   .list-editor{ display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
   .list-editor-row{ display:flex; gap:6px; align-items:center; }
   .list-editor-row input{
@@ -242,6 +268,21 @@
   .list-editor-row button{
     border:none; background:none; color:#b04a4a; font-size:14px; cursor:pointer; padding:2px 6px;
   }
+  /* v: dra-og-slipp for å bytte rekkefølge på Inkludert/Ikke inkludert-
+     punkter. Håndtaket (ikke hele raden) er draggable, slik at man fortsatt
+     kan markere/redigere tekst i inputfeltet uten å starte en drag. */
+  .list-editor-row .drag-handle{
+    cursor:grab;
+    color:var(--ink-muted);
+    font-size:15px;
+    line-height:1;
+    padding:2px 3px;
+    user-select:none;
+    flex:none;
+  }
+  .list-editor-row .drag-handle:active{ cursor:grabbing; }
+  .list-editor-row.dragging{ opacity:0.4; }
+  .list-editor-row.drag-over{ background:var(--page); border-radius:6px; }
   /* v: avkrysningsrader for "Andre romtyper" (Hotellopphold-fanen). Egen
      bredde på selve avkrysningsboksen er nødvendig - ellers arver den
      width:100% fra ".field-grid input" over og strekker seg over hele
@@ -249,15 +290,16 @@
   .checkbox-row{ display:flex; align-items:center; gap:7px; margin-bottom:6px; }
   .checkbox-row input[type="checkbox"]{ width:auto; flex:none; }
   .checkbox-row label{ padding-top:0; }
-  /* v: søkefelt for "Velg fra hotelloversikt" - samme mønster som
-     g-skole-sok/g-skole-dropdown i Grunninfo. */
-  #hotellOversiktSok{
+  /* v: søkefelt for "Velg fra hotelloversikt"/"Velg fra reisemål-oversikt" -
+     samme mønster som g-kunde-navn/g-skole-dropdown i Grunninfo. Delt klasse
+     (ikke id, siden det finnes flere hotellblokker samtidig). */
+  .h-oversikt-sok, #presReisemaalSok{
     width:100%; box-sizing:border-box; border:1px solid var(--card-border); border-radius:6px;
     padding:8px 10px; font-size:13px; font-family:inherit; color:var(--ink-primary); background:var(--surface-1);
   }
-  .hotell-opt{ padding:7px 10px; font-size:13px; cursor:pointer; }
-  .hotell-opt:hover{ background:var(--page); }
-  .hotell-opt .hotell-opt-sub{ font-size:11.5px; color:var(--ink-muted); }
+  .hotell-opt, .reisemaal-opt{ padding:7px 10px; font-size:13px; cursor:pointer; }
+  .hotell-opt:hover, .reisemaal-opt:hover{ background:var(--page); }
+  .hotell-opt .hotell-opt-sub, .reisemaal-opt .reisemaal-opt-sub{ font-size:11.5px; color:var(--ink-muted); }
 
   .img-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; margin-bottom:0; }
   .img-card{ border:1px solid var(--card-border); border-radius:8px; overflow:hidden; background:var(--surface-1); }
@@ -269,6 +311,27 @@
   }
   .img-card .img-remove{ font-size:11px; color:#b04a4a; background:none; border:none; cursor:pointer; padding:0; }
   .upload-hint{ font-size:11.5px; color:var(--ink-muted); margin-bottom:14px; }
+
+  /* v: Bilder-fanen bygget om fra rullegardin-basert kategorisering til én
+     "dropbox" per kategori/underkategori - man drar bildefiler dit direkte
+     (native HTML5 drag-and-drop, ingen ekstern bibliotek), eller klikker
+     "velg fil". Erstatter de gamle b-kategori/b-knyttet-nedtrekkene i
+     img-card - hvilken boks bildet ligger i AVGJØR kategori/tilknytning nå,
+     i stedet for et felt man må huske å sette manuelt. */
+  .bilde-dropbox{
+    border:2px dashed var(--card-border);
+    border-radius:10px;
+    padding:12px;
+    transition:border-color .15s, background .15s;
+  }
+  .bilde-dropbox.drag-over{ border-color:var(--blue); background:rgba(24,79,149,0.05); }
+  .bilde-dropbox .img-grid{ margin-bottom:10px; }
+  .bilde-dropbox-hint{ font-size:12px; color:var(--ink-muted); text-align:center; padding:6px 2px; }
+  .bilde-dropbox-browse{ color:var(--blue); cursor:pointer; text-decoration:underline; }
+  .bilde-dropbox-browse input{ display:none; }
+  .bilde-subbox{ margin-bottom:16px; }
+  .bilde-subbox:last-child{ margin-bottom:0; }
+  .bilde-subbox-title{ font-size:12.5px; font-weight:600; color:var(--ink-secondary); margin-bottom:8px; }
 
   .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
 </style>
@@ -323,14 +386,26 @@
     <div class="card">
       <div class="field-grid">
         <!-- v: Kunde flyttet øverst i Grunninfo, foran Destinasjon/Kundetype,
-             etter ønske om at kundenavn skal stå øverst på siden. -->
-        <label for="g-kunde">Kunde</label>
+             etter ønske om at kundenavn skal stå øverst på siden.
+             v5-RETTELSE: "Kunde" var tidligere TO separate felt som byttet på
+             å vises basert på Kundetype (fritekst g-kunde-navn vs. skolesøk
+             g-skole-sok) - det var rot-årsaken til at kundenavn "forsvant":
+             var Kundetype="Skole" uten at kalkylen/forslaget var koblet til
+             en REGISTRERT skole (kun fritekst kunde_navn), viste skolesøk-
+             feltet ingenting (kun fylt fra et satt skole_id), og selve
+             lagre-logikken (collectForslagFields) nullet i tillegg ut
+             kunde_navn ved neste lagring siden den antok Skole alltid brukte
+             skole_id. Nå er det ETT felt, alltid synlig, samme mønster som
+             "Kundenavn" i kalkyle-editor.html - fritekst med skolesøk-
+             autocomplete i samme felt når Kundetype=Skole. -->
+        <label for="g-kunde-navn">Kunde</label>
         <div>
-          <div id="g-skole-wrap" style="display:none; position:relative;">
-            <input type="text" id="g-skole-sok" placeholder="Søk skolenavn…" autocomplete="off">
+          <div style="position:relative;">
+            <input type="text" id="g-kunde-navn" placeholder="Kundenavn, eller søk skolenavn…" autocomplete="off" style="width:100%; box-sizing:border-box; padding-right:24px;">
+            <button type="button" id="gKundeSkoleClear" title="Fjern kobling til skole" style="display:none; position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none; cursor:pointer; font-size:13px; color:var(--ink-muted); line-height:1; padding:3px 5px;">✕</button>
             <div id="g-skole-dropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:200px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
           </div>
-          <input type="text" id="g-kunde-navn" placeholder="Kundenavn (fritekst)">
+          <div class="field-hint" id="g-skole-link" style="margin-top:3px;"></div>
         </div>
         <label for="g-destinasjon">Destinasjon / reiseidé</label><input type="text" id="g-destinasjon">
         <label for="g-kundetype">Kundetype</label>
@@ -456,9 +531,29 @@
     <div class="card">
       <div class="field-grid">
         <label for="pres-ingress">Kort ingress</label><textarea id="pres-ingress"></textarea>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Reisemål</div>
+      <!-- v: "Om reisemålet"/"Muligheter og opplevelser" standardiseres via
+           Reisemål-registeret (reisemaal.html) - IKKE fra hotellet. Henter
+           begge feltene inn som fritekstkopier ved valg, samme mønster som
+           «Velg fra hotelloversikt». -->
+      <div style="position:relative; margin-bottom:14px;">
+        <button type="button" class="btn-small-add" id="presVelgReisemaalBtn">Velg fra reisemål-oversikt</button>
+        <div class="pres-reisemaal-wrap" id="presReisemaalWrap" style="display:none; position:relative; margin-top:8px;">
+          <input type="text" id="presReisemaalSok" placeholder="Søk reisemål…" autocomplete="off">
+          <div class="pres-reisemaal-dropdown" id="presReisemaalDropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:240px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
+        </div>
+      </div>
+      <div class="field-grid">
         <label for="pres-reisemal">Om reisemålet</label><textarea id="pres-reisemal"></textarea>
-        <label for="pres-hotell">Om hotellet/hotellene</label><textarea id="pres-hotell"></textarea>
         <label for="pres-muligheter">Muligheter / opplevelser</label><textarea id="pres-muligheter"></textarea>
+      </div>
+    </div>
+    <div class="card">
+      <div class="field-grid">
+        <label for="pres-hotell">Om hotellet/hotellene</label><textarea id="pres-hotell"></textarea>
         <label for="pres-hvorfor">Hvorfor reisen kan passe kunden</label><textarea id="pres-hvorfor"></textarea>
       </div>
     </div>
@@ -481,11 +576,27 @@
       <div id="hovedbildePreview" style="margin-bottom:8px;"></div>
       <input type="file" id="hovedbildeFile" accept="image/*">
     </div>
+
+    <div class="card">
+      <div class="card-title">Destinasjon</div>
+      <div class="bilde-dropbox" id="bildeBoxDestinasjon"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Program</div>
+      <div class="upload-hint">Ett bildeområde per dag i programmet.</div>
+      <div id="bildeProgramSubboxes"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Hotell</div>
+      <div class="upload-hint">Ett bildeområde per hotellopphold.</div>
+      <div id="bildeHotellSubboxes"></div>
+    </div>
+
     <div class="card">
       <div class="card-title">Andre bilder</div>
-      <div class="upload-hint">Destinasjon, hotell, program – last opp og velg kategori. Bilder knyttet til et hotellopphold eller en dag i programmet kan velges under.</div>
-      <div class="img-grid" id="bildeGrid"></div>
-      <input type="file" id="nyttBildeFile" accept="image/*" style="margin-top:14px;">
+      <div class="bilde-dropbox" id="bildeBoxAndre"></div>
     </div>
   </div>
 
@@ -505,7 +616,9 @@
 
 const STATUSER = ["Utkast","Sendt","Kunde interessert","Gått videre til tilbud","Avslått","Arkivert"];
 const KUNDETYPER = ["Firma","Skole","Forening","Annen gruppe"];
-const BILDEKATEGORIER = ["Hovedbilde","Destinasjon","Hotell","Program"];
+// v: ikke lenger brukt til et nedtrekksfelt (se Bilder-fanens dropbokser),
+// men beholdt som dokumentasjon av gyldige forslag_bilder.kategori-verdier.
+const BILDEKATEGORIER = ["Destinasjon","Hotell","Program","Andre"];
 
 let forslagId = null;
 let currentUserId = null;
@@ -514,6 +627,8 @@ let skoleOptions = [];      // {id, navn}
 let skoleNameById = new Map();
 let hotellOversikt = [];       // rader fra hoteller-tabellen, til "Velg fra hotelloversikt"
 let hotellBilderOversikt = []; // rader fra hotell_bilder, samme formål
+let reisemaalOversikt = [];       // rader fra reisemaal-tabellen, til "Velg fra reisemål-oversikt"
+let reisemaalBilderOversikt = []; // rader fra reisemaal_bilder, samme formål
 
 let state = {
   forslag: {},
@@ -547,17 +662,21 @@ document.querySelectorAll(".tab-btn").forEach(btn=>{
 /* ---------- Load ---------- */
 
 async function loadReferenceData(){
-  const [{ data: profileRows }, { data: skoleRows }, { data: hotellRows }, { data: hotellBildeRows }] = await Promise.all([
+  const [{ data: profileRows }, { data: skoleRows }, { data: hotellRows }, { data: hotellBildeRows }, { data: reisemaalRows }, { data: reisemaalBildeRows }] = await Promise.all([
     window.sb.from("profiles").select("id,navn"),
     window.sb.from("skoler").select("id,navn").order("navn"),
     window.sb.from("hoteller").select("*").order("navn"),
     window.sb.from("hotell_bilder").select("*").order("sortering"),
+    window.sb.from("reisemaal").select("*").order("navn"),
+    window.sb.from("reisemaal_bilder").select("*").order("sortering"),
   ]);
   profiler = profileRows || [];
   skoleOptions = skoleRows || [];
   skoleOptions.forEach(s=> skoleNameById.set(s.id, s.navn));
   hotellOversikt = hotellRows || [];
   hotellBilderOversikt = hotellBildeRows || [];
+  reisemaalOversikt = reisemaalRows || [];
+  reisemaalBilderOversikt = reisemaalBildeRows || [];
 
   const ansvSel = el("g-ansvarlig");
   ansvSel.innerHTML = '<option value="">– Ikke satt –</option>' + profiler.map(p=>`<option value="${p.id}">${escapeHtml(p.navn)}</option>`).join("");
@@ -656,24 +775,45 @@ function renderGrunninfo(){
   el("g-periode").value = f.periode_tekst || "";
   el("g-avreisested").value = f.avreisested || "";
   el("g-notater").value = f.interne_notater || "";
-  el("g-kunde-navn").value = f.kunde_navn || "";
-  updateKundetypeVisning();
+  // v5: kunde-feltet viser alltid en verdi uansett Kundetype - primært den
+  // lagrede fritekst kunde_navn (som fra nå av alltid holdes i synk med et
+  // ev. valgt skolenavn, se selectSkoleForKunde()), med fallback til å slå
+  // opp skolenavnet fra skole_id for eldre rader som ble lagret FØR denne
+  // rettelsen (der kunde_navn kan ha blitt feilaktig nullet ut).
+  el("g-kunde-navn").value = f.kunde_navn || (f.skole_id ? (skoleNameById.get(f.skole_id) || "") : "");
+  updateSkoleLinkDisplay();
   renderKalkyleInfo();
 }
 
-function updateKundetypeVisning(){
-  const isSkole = el("g-kundetype").value === "Skole";
-  el("g-skole-wrap").style.display = isSkole ? "block" : "none";
-  el("g-kunde-navn").style.display = isSkole ? "none" : "block";
-  if(isSkole){
-    el("g-skole-sok").value = state.forslag.skole_id ? (skoleNameById.get(state.forslag.skole_id) || "") : "";
+// v5: "Kunde" er nå ETT alltid synlig felt for alle Kundetyper (var tidligere
+// to felt som byttet på å vises basert på Kundetype - se HTML-kommentaren
+// over feltet for hvorfor det var rot-årsaken til at kundenavn "forsvant").
+// Skolesøk-autocomplete er fortsatt kun aktivt når Kundetype="Skole".
+function updateSkoleLinkDisplay(){
+  const linkEl = el("g-skole-link");
+  const clearBtn = el("gKundeSkoleClear");
+  if(clearBtn) clearBtn.style.display = state.forslag.skole_id ? "block" : "none";
+  if(!linkEl) return;
+  if(state.forslag.skole_id && skoleNameById.has(state.forslag.skole_id)){
+    linkEl.innerHTML = `🏫 <a href="skoler.html?open=${encodeURIComponent(state.forslag.skole_id)}">${escapeHtml(skoleNameById.get(state.forslag.skole_id))} →</a>`;
+  } else {
+    linkEl.textContent = "";
   }
+}
+
+function selectSkoleForKunde(s){
+  state.forslag.skole_id = s.id;
+  el("g-kunde-navn").value = s.navn;
+  el("g-skole-dropdown").style.display = "none";
+  updateSkoleLinkDisplay();
 }
 
 function renderSkoleDropdown(query){
   const dd = el("g-skole-dropdown");
   const q = query.trim().toLowerCase();
   if(!q){ dd.style.display = "none"; dd.innerHTML=""; return; }
+  // Kun treff der navnet BEGYNNER på det du skriver - samme mønster som
+  // skolesøket i kalkyle-editor.html.
   const matches = skoleOptions.filter(s=> s.navn.toLowerCase().startsWith(q)).slice(0,30);
   if(!matches.length){ dd.innerHTML = '<div style="padding:7px 10px; font-size:12.5px; color:var(--ink-muted);">Ingen treff</div>'; dd.style.display="block"; return; }
   dd.innerHTML = matches.map(s=>`<div class="sk-opt" data-id="${s.id}" style="padding:7px 10px; font-size:13px; cursor:pointer;">${escapeHtml(s.navn)}</div>`).join("");
@@ -683,8 +823,7 @@ function renderSkoleDropdown(query){
     row.addEventListener("mousedown", (e)=>{
       e.preventDefault();
       const s = skoleOptions.find(x=>x.id===row.dataset.id);
-      if(s){ state.forslag.skole_id = s.id; el("g-skole-sok").value = s.navn; }
-      dd.style.display="none";
+      if(s) selectSkoleForKunde(s);
     });
   });
   dd.style.display = "block";
@@ -712,6 +851,10 @@ async function oppdaterPrisFraKalkyle(){
   const counts = (data.kalkyle_data && data.kalkyle_data.counts) || {};
   f.pris_per_person = (counts.kundepris!=null) ? counts.kundepris : f.pris_per_person;
   f.enkeltromstillegg = (counts.enkeltTilleggPerPerson!=null) ? counts.enkeltTilleggPerPerson : f.enkeltromstillegg;
+  // v: "Antall personer prisen er basert på" hentes fra kalkylens antall
+  // betalende deltakere (counts.anslattVisning = p.anslatt i kalkylen) -
+  // ikke antall_reisende, som også teller med reiseledere.
+  f.pris_antall_personer = (counts.anslattVisning!=null) ? counts.anslattVisning : f.pris_antall_personer;
   f.kalkyle_sist_endret_ved_kobling = data.sist_endret;
   renderPris();
   renderKalkyleInfo();
@@ -835,7 +978,7 @@ function renderRomtypeAndre(container, f){
       <input class="romtype-egendefinert-input" value="${escapeHtml(val)}" placeholder="F.eks. Familierom">
       <button type="button" class="romtype-egendefinert-fjern" title="Fjern">✕</button>
     </div>`).join("");
-  container.innerHTML = `${fixedRows}${customRows}<button type="button" class="add-item-btn romtype-legg-til" style="margin-top:8px;">+ Legg til annen romtype</button>`;
+  container.innerHTML = `${fixedRows}${customRows}<button type="button" class="btn-small-add romtype-legg-til">+ Legg til annen romtype</button>`;
   container.querySelectorAll(".romtype-fast").forEach(cb=>{
     cb.addEventListener("change", ()=>{
       const type = cb.dataset.type;
@@ -885,7 +1028,7 @@ function renderHotell(){
            (se velgHotellFraOversiktInn()), det legges ikke til et nytt
            hotellopphold. -->
       <div style="position:relative; margin-bottom:14px;">
-        <button type="button" class="add-item-btn h-velg-fra-oversikt-btn" style="margin-top:0;">Velg fra hotelloversikt</button>
+        <button type="button" class="btn-small-add h-velg-fra-oversikt-btn" style="margin-top:0;">Velg fra hotelloversikt</button>
         <div class="h-oversikt-wrap" style="display:none; position:relative; margin-top:8px;">
           <input type="text" class="h-oversikt-sok" placeholder="Søk hotellnavn eller by…" autocomplete="off">
           <div class="h-oversikt-dropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:240px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
@@ -893,6 +1036,14 @@ function renderHotell(){
       </div>
       <div class="field-grid">
         <label>Hotellnavn</label><input class="h-navn" value="${escapeHtml(f.hotellnavn)}">
+        <label>Antall stjerner</label>
+        <div class="stjerne-radio-group">
+          ${[2,3,4,5].map(n=>`
+            <label class="stjerne-radio-opt">
+              <input type="radio" class="h-stjerner" name="h-stjerner-${item_uid(card)}" value="${n}" ${f.stjerner===n?"checked":""}>
+              ${"★".repeat(n)}
+            </label>`).join("")}
+        </div>
         <label>Sted</label><input class="h-sted" value="${escapeHtml(f.sted)}" placeholder="F.eks. Split">
         <label>Fra- / til-dato</label>
         <div style="display:flex; gap:8px;">
@@ -900,7 +1051,6 @@ function renderHotell(){
           <input type="date" class="h-til" value="${f.til_dato||""}" style="flex:1;">
         </div>
         <label>Antall netter</label><input type="number" class="h-netter" value="${f.netter??""}" min="0">
-        <label>Standard</label><input class="h-standard" value="${escapeHtml(f.standard)}" placeholder="F.eks. 4-stjerners">
         <label>Standard romtype</label>
         <select class="h-standard-romtype">${ROOM_TYPE_OPTIONS.map(rt=>`<option value="${rt}" ${rt===(f.romtype_standard||"Dobbeltrom")?"selected":""}>${rt}</option>`).join("")}</select>
         <label>Andre romtyper</label>
@@ -915,9 +1065,12 @@ function renderHotell(){
     const bind = (cls, field)=> card.querySelector(cls).addEventListener("change", e=>{ f[field] = e.target.value || null; });
     bind(".h-sted","sted"); bind(".h-fra","fra_dato"); bind(".h-til","til_dato");
     card.querySelector(".h-netter").addEventListener("change", e=>{ f.netter = numOrNull(e.target.value); });
-    bind(".h-navn","hotellnavn"); bind(".h-standard","standard");
+    bind(".h-navn","hotellnavn");
     bind(".h-maltider","maltider"); bind(".h-beskrivelse","beskrivelse"); bind(".h-prisinfo","prisinfo");
     bind(".h-tilgjengelighet","tilgjengelighet_merknad");
+    card.querySelectorAll(".h-stjerner").forEach(radio=>{
+      radio.addEventListener("change", e=>{ f.stjerner = Number(e.target.value); });
+    });
     const romtypeWrap = card.querySelector(".romtype-andre-wrap");
     renderRomtypeAndre(romtypeWrap, f);
     card.querySelector(".h-standard-romtype").addEventListener("change", e=>{
@@ -942,10 +1095,13 @@ function renderHotell(){
     velgBtn.addEventListener("click", ()=>{
       const show = oversiktWrap.style.display === "none";
       oversiktWrap.style.display = show ? "block" : "none";
-      if(show) oversiktSok.focus();
+      if(show){
+        renderHotellOversiktDropdown(oversiktDropdown, oversiktSok.value, item);
+        oversiktSok.focus();
+      }
     });
     oversiktSok.addEventListener("input", e=> renderHotellOversiktDropdown(oversiktDropdown, e.target.value, item));
-    oversiktSok.addEventListener("focus", e=>{ if(e.target.value.trim()) renderHotellOversiktDropdown(oversiktDropdown, e.target.value, item); });
+    oversiktSok.addEventListener("focus", e=> renderHotellOversiktDropdown(oversiktDropdown, e.target.value, item));
     oversiktSok.addEventListener("blur", ()=> setTimeout(()=>{ oversiktDropdown.style.display = "none"; }, 150));
   });
   el("addHotellBtn").style.display = state.hotellopphold.length >= HOTELL_MAKS ? "none" : "block";
@@ -959,6 +1115,7 @@ el("addHotellBtn").addEventListener("click", ()=>{
     fields:{ sortering: state.hotellopphold.length, fra_dato: state.forslag.fra_dato||null, til_dato: state.forslag.til_dato||null },
   });
   renderHotell();
+  renderBilder(); // v: ny hotell-underboks i Bilder-fanen med en gang
 });
 
 /* ---------- "Velg fra hotelloversikt" ----------
@@ -972,12 +1129,19 @@ el("addHotellBtn").addEventListener("click", ()=>{
    med dropdown-elementet og søkefeltet sendt inn som parametre siden det
    finnes ett sett per hotellblokk i stedet for ett globalt. */
 function renderHotellOversiktDropdown(dd, query, item){
+  // v: viser ALLE registrerte hoteller når feltet åpnes/er tomt, filtrerer
+  // deretter til hoteller som BEGYNNER PÅ det som tastes (ikke fritekstsøk
+  // hvor som helst i navnet - "begynner på" gir mer forutsigbare treff).
   const q = query.trim().toLowerCase();
-  if(!q){ dd.style.display = "none"; dd.innerHTML = ""; return; }
-  const matches = hotellOversikt.filter(h=>{
-    const hay = [h.navn, h.by, h.land].filter(Boolean).join(" ").toLowerCase();
-    return hay.includes(q);
-  }).slice(0,30);
+  const matches = (q
+    ? hotellOversikt.filter(h => (h.navn||"").toLowerCase().startsWith(q))
+    : hotellOversikt
+  ).slice(0,30);
+  if(!hotellOversikt.length){
+    dd.innerHTML = '<div class="hotell-opt" style="cursor:default;">Ingen hoteller registrert</div>';
+    dd.style.display = "block";
+    return;
+  }
   if(!matches.length){
     dd.innerHTML = '<div class="hotell-opt" style="cursor:default;">Ingen treff</div>';
     dd.style.display = "block";
@@ -1002,9 +1166,12 @@ function velgHotellFraOversiktInn(item, id){
   const sted = [h.by, h.land].filter(Boolean).join(", ");
   f.hotellnavn = h.navn || null;
   f.sted = sted || null;
-  f.standard = h.standard || null;
   f.beskrivelse = h.beskrivelse || null;
   f.hotell_id = h.id;
+  // v: Antall stjerner følger med fra hotelloversikten hvis satt der, ellers
+  // står feltet blankt og klart til å velges manuelt (jf. Vidar: "er det
+  // ikke lagt inn antall stjerner på hotellet står den blank").
+  f.stjerner = h.stjerner || null;
   // Bytter man hotell i en blokk som allerede har bilder fra et tidligere
   // valgt hotell, erstattes disse også - de hørte til det GAMLE hotellet og
   // ville ellers vist feil bilder under det nye hotellnavnet. Bilder lastet
@@ -1066,6 +1233,7 @@ function renderProgram(){
 el("addDagBtn").addEventListener("click", ()=>{
   state.dagsprogram.push({ id:null, clientKey:newClientKey(), fields:{ dagnummer: state.dagsprogram.length+1, aktiviteter:[], maltider:[], sortering: state.dagsprogram.length } });
   renderProgram();
+  renderBilder(); // v: ny dag-underboks i Bilder-fanen med en gang
 });
 el("p-intro").addEventListener("change", e=>{ state.forslag.ingress_program = e.target.value || null; });
 
@@ -1091,12 +1259,40 @@ function renderListEditor(containerId, arrKey){
   (state.forslag[arrKey]||[]).forEach((val, idx)=>{
     const row = document.createElement("div");
     row.className = "list-editor-row";
-    row.innerHTML = `<input value="${escapeHtml(val)}"><button title="Fjern">✕</button>`;
+    row.innerHTML = `<span class="drag-handle" draggable="true" title="Dra for å endre rekkefølge">⠿</span><input value="${escapeHtml(val)}"><button title="Fjern">✕</button>`;
     row.querySelector("input").addEventListener("change", e=>{ state.forslag[arrKey][idx] = e.target.value; });
     row.querySelector("button").addEventListener("click", ()=>{
       state.forslag[arrKey].splice(idx,1);
       renderListEditor(containerId, arrKey);
     });
+
+    // v: dra-og-slipp for å bytte rekkefølge - se css-kommentar ved
+    // .drag-handle. Håndtaket starter draget, men selve raden er drop-mål
+    // (dragover/drop), slik at man kan slippe hvor som helst på raden.
+    const handle = row.querySelector(".drag-handle");
+    handle.addEventListener("dragstart", e=>{
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(idx));
+      row.classList.add("dragging");
+    });
+    handle.addEventListener("dragend", ()=> row.classList.remove("dragging"));
+    row.addEventListener("dragover", e=>{
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      row.classList.add("drag-over");
+    });
+    row.addEventListener("dragleave", ()=> row.classList.remove("drag-over"));
+    row.addEventListener("drop", e=>{
+      e.preventDefault();
+      row.classList.remove("drag-over");
+      const fromIdx = Number(e.dataTransfer.getData("text/plain"));
+      if(isNaN(fromIdx) || fromIdx === idx) return;
+      const arr = state.forslag[arrKey];
+      const [moved] = arr.splice(fromIdx, 1);
+      arr.splice(idx, 0, moved);
+      renderListEditor(containerId, arrKey);
+    });
+
     wrap.appendChild(row);
   });
 }
@@ -1121,6 +1317,64 @@ function renderPresentasjon(){
   el("pres-muligheter").value = f.muligheter_opplevelser || "";
   el("pres-hvorfor").value = f.hvorfor_passer || "";
 }
+
+/* ---------- "Velg fra reisemål-oversikt" (Presentasjon) ----------
+   Henter "Om reisemålet" og "Muligheter og opplevelser" fra Reisemål-
+   registeret (reisemaal.html) inn i forslaget - IKKE fra hotellet (Vidar
+   presiserte dette eksplisitt). Fritekstkopier, fritt redigerbare etterpå,
+   samme mønster som "Velg fra hotelloversikt". Viser alle reisemål ved
+   åpning, filtrerer på "begynner på" ved søk - samme mønster som
+   hotell-dropdownen. */
+function renderReisemaalDropdown(dd, query){
+  const q = query.trim().toLowerCase();
+  const matches = (q
+    ? reisemaalOversikt.filter(r => (r.navn||"").toLowerCase().startsWith(q))
+    : reisemaalOversikt
+  ).slice(0,30);
+  if(!reisemaalOversikt.length){
+    dd.innerHTML = '<div class="reisemaal-opt" style="cursor:default;">Ingen reisemål registrert</div>';
+    dd.style.display = "block";
+    return;
+  }
+  if(!matches.length){
+    dd.innerHTML = '<div class="reisemaal-opt" style="cursor:default;">Ingen treff</div>';
+    dd.style.display = "block";
+    return;
+  }
+  dd.innerHTML = matches.map(r=>{
+    const sted = [r.by, r.land].filter(Boolean).join(", ");
+    return `<div class="reisemaal-opt" data-id="${r.id}">${escapeHtml(r.navn)}${sted?`<div class="reisemaal-opt-sub">${escapeHtml(sted)}</div>`:""}</div>`;
+  }).join("");
+  dd.style.display = "block";
+  dd.querySelectorAll(".reisemaal-opt[data-id]").forEach(row=>{
+    row.addEventListener("mousedown", (e)=>{
+      e.preventDefault();
+      velgReisemaalInn(row.dataset.id);
+    });
+  });
+}
+function velgReisemaalInn(id){
+  const r = reisemaalOversikt.find(x=>x.id===id);
+  if(!r) return;
+  const f = state.forslag;
+  f.reisemaal_id = r.id;
+  f.om_reisemalet = r.om_reisemaalet || "";
+  f.muligheter_opplevelser = r.muligheter_opplevelser || "";
+  renderPresentasjon();
+  el("presReisemaalWrap").style.display = "none";
+}
+el("presVelgReisemaalBtn").addEventListener("click", ()=>{
+  const wrap = el("presReisemaalWrap");
+  const show = wrap.style.display === "none";
+  wrap.style.display = show ? "block" : "none";
+  if(show){
+    renderReisemaalDropdown(el("presReisemaalDropdown"), el("presReisemaalSok").value);
+    el("presReisemaalSok").focus();
+  }
+});
+el("presReisemaalSok").addEventListener("input", e=> renderReisemaalDropdown(el("presReisemaalDropdown"), e.target.value));
+el("presReisemaalSok").addEventListener("focus", e=> renderReisemaalDropdown(el("presReisemaalDropdown"), e.target.value));
+el("presReisemaalSok").addEventListener("blur", ()=> setTimeout(()=>{ el("presReisemaalDropdown").style.display = "none"; }, 150));
 
 /* ---------- Rendering: Forbehold ---------- */
 
@@ -1157,55 +1411,150 @@ el("hovedbildeFile").addEventListener("change", async (e)=>{
   e.target.value = "";
 });
 
-function bildeKnyttetTilOptions(b){
-  let opts = '<option value="">– Ingen –</option>';
-  if(b.fields.kategori === "Hotell"){
-    opts += state.hotellopphold.map(h=>`<option value="${h.clientKey}" ${b.hotellopphold_client_key===h.clientKey?"selected":""}>${escapeHtml(h.fields.sted||"Hotellopphold")}</option>`).join("");
-  } else if(b.fields.kategori === "Program"){
-    opts += state.dagsprogram.map(d=>`<option value="${d.clientKey}" ${b.dagsprogram_client_key===d.clientKey?"selected":""}>Dag ${d.fields.dagnummer||"?"}${d.fields.overskrift?" – "+escapeHtml(d.fields.overskrift):""}</option>`).join("");
+/* v: Bilder-fanen bygget om fra "last opp, velg kategori i nedtrekk" til én
+   boks per kategori/underkategori man kan dra bilder rett inn i (native
+   HTML5 drag-and-drop) eller klikke "velg fil" på. Hvilken boks bildet
+   havner i AVGJØR kategori og evt. tilknytning til hotellopphold/dag - man
+   trenger ikke lenger sette dette manuelt i et eget felt. */
+
+function bildeThumbCard(b){
+  const card = document.createElement("div");
+  card.className = "img-card";
+  card.innerHTML = `
+    <img src="${escapeHtml(b.fields.bilde_url)}">
+    <div class="img-body">
+      <input class="b-alt" value="${escapeHtml(b.fields.alt_tekst)}" placeholder="Bildetekst">
+      <button class="img-remove">Fjern</button>
+    </div>
+  `;
+  card.querySelector(".b-alt").addEventListener("change", e=>{ b.fields.alt_tekst = e.target.value || null; });
+  card.querySelector(".img-remove").addEventListener("click", ()=>{
+    const i = state.bilder.indexOf(b);
+    if(i > -1) state.bilder.splice(i,1);
+    renderBilder();
+  });
+  return card;
+}
+
+async function uploadFilesIntoBox(fileList, kategori, extra){
+  const files = [...fileList].filter(f=> f.type && f.type.startsWith("image/"));
+  if(!files.length) return;
+  el("saveStatus").textContent = files.length>1 ? "Laster opp bilder…" : "Laster opp bilde…";
+  for(const file of files){
+    try{
+      const url = await uploadImageFile(file);
+      state.bilder.push({
+        id:null, clientKey:newClientKey(),
+        fields:{ kategori, bilde_url:url, alt_tekst:null, sortering: state.bilder.length },
+        hotellopphold_client_key: (extra && extra.hotellopphold_client_key) || null,
+        dagsprogram_client_key: (extra && extra.dagsprogram_client_key) || null,
+      });
+    } catch(err){ alert("Kunne ikke laste opp: " + err.message); }
   }
-  return opts;
+  el("saveStatus").textContent = "Bilde lastet opp – husk å lagre.";
+  renderBilder();
+}
+
+// Tegner innholdet (miniatyrer) i én dropbox på nytt, og kobler
+// drag&drop/fil-input KUN første gang (data-wired-flagg) - boksens
+// beholder-element er det samme på tvers av renderBilder()-kall for de to
+// faste boksene (Destinasjon/Andre), så lytterne må ikke dobles opp for
+// hvert kall. Program-/Hotell-underboksene er derimot alltid FRISKE
+// DOM-elementer (bygges på nytt hver gang i renderBilder), så der er det
+// trygt at wiring skjer på nytt hver gang uansett.
+function buildBildeDropbox(boxEl, items, kategori, extra){
+  let grid = boxEl.querySelector(".img-grid");
+  if(!grid){
+    grid = document.createElement("div");
+    grid.className = "img-grid";
+    boxEl.appendChild(grid);
+  }
+  grid.innerHTML = "";
+  grid.style.display = items.length ? "grid" : "none";
+  items.forEach(b=> grid.appendChild(bildeThumbCard(b)));
+
+  if(boxEl.dataset.wired) return;
+  boxEl.dataset.wired = "1";
+
+  const hint = document.createElement("div");
+  hint.className = "bilde-dropbox-hint";
+  hint.innerHTML = `Dra bilder hit, eller <label class="bilde-dropbox-browse">velg fil<input type="file" accept="image/*" multiple></label>`;
+  boxEl.appendChild(hint);
+  hint.querySelector('input[type="file"]').addEventListener("change", (e)=>{
+    uploadFilesIntoBox(e.target.files, kategori, extra);
+    e.target.value = "";
+  });
+  boxEl.addEventListener("dragover", e=>{ e.preventDefault(); boxEl.classList.add("drag-over"); });
+  boxEl.addEventListener("dragleave", ()=> boxEl.classList.remove("drag-over"));
+  boxEl.addEventListener("drop", e=>{
+    e.preventDefault();
+    boxEl.classList.remove("drag-over");
+    uploadFilesIntoBox(e.dataTransfer.files, kategori, extra);
+  });
 }
 
 function renderBilder(){
   renderHovedbilde();
-  const grid = el("bildeGrid");
-  grid.innerHTML = "";
-  state.bilder.forEach((b, idx)=>{
-    const showKnyttetTil = b.fields.kategori === "Hotell" || b.fields.kategori === "Program";
-    const card = document.createElement("div");
-    card.className = "img-card";
-    card.innerHTML = `
-      <img src="${escapeHtml(b.fields.bilde_url)}">
-      <div class="img-body">
-        <select class="b-kategori">${BILDEKATEGORIER.map(k=>`<option value="${k}" ${k===b.fields.kategori?"selected":""}>${k}</option>`).join("")}</select>
-        <select class="b-knyttet" style="display:${showKnyttetTil?"block":"none"};">${bildeKnyttetTilOptions(b)}</select>
-        <input class="b-alt" value="${escapeHtml(b.fields.alt_tekst)}" placeholder="Bildetekst">
-        <button class="img-remove">Fjern</button>
-      </div>
-    `;
-    grid.appendChild(card);
-    card.querySelector(".b-kategori").addEventListener("change", e=>{ b.fields.kategori = e.target.value; b.hotellopphold_client_key=null; b.dagsprogram_client_key=null; renderBilder(); });
-    card.querySelector(".b-knyttet").addEventListener("change", e=>{
-      if(b.fields.kategori === "Hotell") b.hotellopphold_client_key = e.target.value || null;
-      if(b.fields.kategori === "Program") b.dagsprogram_client_key = e.target.value || null;
+
+  buildBildeDropbox(el("bildeBoxDestinasjon"), state.bilder.filter(b=> b.fields.kategori==="Destinasjon"), "Destinasjon", null);
+
+  const programWrap = el("bildeProgramSubboxes");
+  programWrap.innerHTML = "";
+  if(!state.dagsprogram.length){
+    programWrap.innerHTML = '<div class="field-hint">Ingen dager lagt til i Program-fanen ennå.</div>';
+  } else {
+    state.dagsprogram.forEach(d=>{
+      const sub = document.createElement("div");
+      sub.className = "bilde-subbox";
+      const title = document.createElement("div");
+      title.className = "bilde-subbox-title";
+      title.textContent = `Dag ${d.fields.dagnummer||"?"}${d.fields.overskrift?" – "+d.fields.overskrift:""}`;
+      sub.appendChild(title);
+      const box = document.createElement("div");
+      box.className = "bilde-dropbox";
+      sub.appendChild(box);
+      programWrap.appendChild(sub);
+      const items = state.bilder.filter(b=> b.fields.kategori==="Program" && b.dagsprogram_client_key===d.clientKey);
+      buildBildeDropbox(box, items, "Program", { dagsprogram_client_key: d.clientKey });
     });
-    card.querySelector(".b-alt").addEventListener("change", e=>{ b.fields.alt_tekst = e.target.value || null; });
-    card.querySelector(".img-remove").addEventListener("click", ()=>{ state.bilder.splice(idx,1); renderBilder(); });
+  }
+
+  const hotellWrap = el("bildeHotellSubboxes");
+  hotellWrap.innerHTML = "";
+  if(!state.hotellopphold.length){
+    hotellWrap.innerHTML = '<div class="field-hint">Ingen hotellopphold lagt til i Hotellopphold-fanen ennå.</div>';
+  } else {
+    state.hotellopphold.forEach((h, idx)=>{
+      const sub = document.createElement("div");
+      sub.className = "bilde-subbox";
+      const title = document.createElement("div");
+      title.className = "bilde-subbox-title";
+      title.textContent = `Hotell ${idx+1}`;
+      sub.appendChild(title);
+      const box = document.createElement("div");
+      box.className = "bilde-dropbox";
+      sub.appendChild(box);
+      hotellWrap.appendChild(sub);
+      const items = state.bilder.filter(b=> b.fields.kategori==="Hotell" && b.hotellopphold_client_key===h.clientKey);
+      buildBildeDropbox(box, items, "Hotell", { hotellopphold_client_key: h.clientKey });
+    });
+  }
+
+  // "Andre bilder" er et bevisst fangnett: alt som ikke tydelig hører hjemme
+  // i Destinasjon eller i en gyldig Program-/Hotell-underboks havner her -
+  // f.eks. eldre bilder fra før denne ombyggingen, eller bilder knyttet til
+  // et hotellopphold/en dag som siden er slettet. Sikrer at ingen bilder
+  // "forsvinner" (blir usynlige) etter denne endringen.
+  const kjenteHotellKeys = new Set(state.hotellopphold.map(h=>h.clientKey));
+  const kjenteDagKeys = new Set(state.dagsprogram.map(d=>d.clientKey));
+  const andreItems = state.bilder.filter(b=>{
+    if(b.fields.kategori === "Destinasjon") return false;
+    if(b.fields.kategori === "Hotell" && kjenteHotellKeys.has(b.hotellopphold_client_key)) return false;
+    if(b.fields.kategori === "Program" && kjenteDagKeys.has(b.dagsprogram_client_key)) return false;
+    return true;
   });
+  buildBildeDropbox(el("bildeBoxAndre"), andreItems, "Andre", null);
 }
-el("nyttBildeFile").addEventListener("change", async (e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  try{
-    el("saveStatus").textContent = "Laster opp bilde…";
-    const url = await uploadImageFile(file);
-    state.bilder.push({ id:null, clientKey:newClientKey(), fields:{ kategori:"Destinasjon", bilde_url:url, alt_tekst:null, sortering: state.bilder.length }, hotellopphold_client_key:null, dagsprogram_client_key:null });
-    renderBilder();
-    el("saveStatus").textContent = "Bilde lastet opp – husk å lagre.";
-  } catch(err){ alert("Kunne ikke laste opp: " + err.message); }
-  e.target.value = "";
-});
 
 /* ---------- Global render ---------- */
 
@@ -1231,7 +1580,13 @@ function collectForslagFields(){
     tittel: f.tittel || "Uten tittel",
     destinasjon: f.destinasjon || null,
     kundetype: f.kundetype,
-    kunde_navn: f.kundetype === "Skole" ? null : (f.kunde_navn || null),
+    // v5-RETTELSE: kunde_navn ble tidligere alltid nullet ut når
+    // Kundetype="Skole", uansett om det faktisk fantes en fritekstverdi der
+    // (kun ment for tilfeller der skole_id også var satt) - det var
+    // rot-årsaken til at kundenavnet "forsvant" for skoler som ikke er
+    // registrert i skoledatabasen. kunde_navn lagres nå alltid som det står
+    // i feltet, uavhengig av Kundetype.
+    kunde_navn: f.kunde_navn || null,
     skole_id: f.kundetype === "Skole" ? (f.skole_id || null) : null,
     kontaktperson: f.kontaktperson || null,
     ansvarlig: f.ansvarlig || null,
@@ -1255,6 +1610,7 @@ function collectForslagFields(){
     inkludert: f.inkludert || [],
     ikke_inkludert: f.ikke_inkludert || [],
     ingress: f.ingress || null,
+    reisemaal_id: f.reisemaal_id || null,
     om_reisemalet: f.om_reisemalet || null,
     om_hotellet: f.om_hotellet || null,
     muligheter_opplevelser: f.muligheter_opplevelser || null,
@@ -1371,15 +1727,36 @@ async function slettForslag(){
 el("btnLagre").addEventListener("click", lagreAlt);
 el("btnSlett").addEventListener("click", slettForslag);
 el("oppdaterPrisBtn").addEventListener("click", oppdaterPrisFraKalkyle);
-el("g-kundetype").addEventListener("change", ()=>{ state.forslag.kundetype = el("g-kundetype").value; updateKundetypeVisning(); });
-el("g-skole-sok").addEventListener("input", (e)=>{
+el("g-kundetype").addEventListener("change", ()=>{
+  state.forslag.kundetype = el("g-kundetype").value;
+  // Skolekobling gir bare mening for Kundetype=Skole - fjernes ved bytte til
+  // noe annet (selve kunde-navn-teksten i feltet berøres ikke).
+  if(state.forslag.kundetype !== "Skole"){
+    state.forslag.skole_id = null;
+    el("g-skole-dropdown").style.display = "none";
+    updateSkoleLinkDisplay();
+  }
+});
+el("g-kunde-navn").addEventListener("input", (e)=>{
+  // Fritekst som ikke (lenger) matcher det koblede skolenavnet -> koblingen
+  // fjernes helt til brukeren faktisk klikker et treff i listen. Selve
+  // teksten i feltet berøres ikke - man kan fortsette å skrive fritekst.
   if(state.forslag.skole_id && skoleNameById.get(state.forslag.skole_id) !== e.target.value){
     state.forslag.skole_id = null;
+    updateSkoleLinkDisplay();
   }
-  renderSkoleDropdown(e.target.value);
+  if(state.forslag.kundetype === "Skole") renderSkoleDropdown(e.target.value);
 });
-el("g-skole-sok").addEventListener("focus", (e)=>{ if(e.target.value.trim()) renderSkoleDropdown(e.target.value); });
-el("g-skole-sok").addEventListener("blur", ()=> setTimeout(()=>{ el("g-skole-dropdown").style.display="none"; }, 150));
+el("g-kunde-navn").addEventListener("focus", (e)=>{
+  if(state.forslag.kundetype === "Skole" && e.target.value.trim() && !state.forslag.skole_id) renderSkoleDropdown(e.target.value);
+});
+el("g-kunde-navn").addEventListener("blur", ()=> setTimeout(()=>{ el("g-skole-dropdown").style.display="none"; }, 150));
+el("gKundeSkoleClear").addEventListener("click", ()=>{
+  // Fjerner kun koblingen til skolen - navnet som allerede står i feltet
+  // beholdes, siden det nå også er forslagets fritekst kundenavn.
+  state.forslag.skole_id = null;
+  updateSkoleLinkDisplay();
+});
 
 /* ---------- Init ---------- */
 

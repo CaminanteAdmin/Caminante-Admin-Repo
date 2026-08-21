@@ -148,7 +148,27 @@
   tbody tr.row-clickable:hover{ background:var(--card-bg); }
   .navn-cell{ font-weight:600; }
   .num-cell{ font-variant-numeric:tabular-nums; }
-  .row-actions{ display:flex; gap:6px; }
+  .row-actions{ display:flex; gap:6px; justify-content:flex-end; }
+  /* v: samme ikon-knapp-mønster som forslag.html sin oversikt (kopiere-ikon
+     / slette-ikon i stedet for tekstknappene "Dupliser"/"Slett") - tar
+     mindre plass i en tabellrad. */
+  .icon-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:28px;
+    height:28px;
+    border:1px solid var(--border);
+    border-radius:7px;
+    background:var(--surface-1);
+    color:var(--ink-2);
+    cursor:pointer;
+    padding:0;
+  }
+  .icon-btn:hover{ background:var(--page); }
+  .icon-btn.danger{ color:#b04a4a; }
+  .icon-btn.danger:hover{ background:#fbeaea; border-color:#d03b3b; }
+  .icon-btn svg{ width:15px; height:15px; display:block; }
   .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
   .empty-msg{ padding:20px 8px; color:var(--ink-muted); font-size:13px; }
 </style>
@@ -312,8 +332,12 @@ function renderList(){
       <td class="num-cell">${k.dbTotalt!=null ? kr(k.dbTotalt) : '–'}</td>
       <td>${escapeHtml(fmtSistEndret(k.sist_endret))}</td>
       <td class="row-actions">
-        <button class="btn small" data-action="dupliser" data-id="${k.id}">Dupliser</button>
-        <button class="btn small remove-btn" data-action="slett" data-id="${k.id}">Slett</button>
+        <button class="icon-btn" data-action="dupliser" data-id="${k.id}" title="Dupliser kalkyle">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6.5" y="6.5" width="10" height="10" rx="1.8"/><path d="M3.5 13V4.8A1.3 1.3 0 0 1 4.8 3.5h8.2"/></svg>
+        </button>
+        <button class="icon-btn danger" data-action="slett" data-id="${k.id}" title="Slett kalkyle">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4.6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V6M6.2 6l.6 9.3a1 1 0 0 0 1 .95h4.4a1 1 0 0 0 1-.95L14 6"/></svg>
+        </button>
       </td>
     `;
     tr.addEventListener('click', (e)=>{

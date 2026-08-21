@@ -2599,9 +2599,16 @@ async function opprettForslagFraKalkyle(){
     kalkyle_id: currentKalkyleId,
     kalkyle_sist_endret_ved_kobling: currentKalkyleSistEndret,
     pris_per_person: (res1 && res1.kundepris!=null) ? res1.kundepris : null,
+    // v: "Antall personer prisen er basert på" i Pris-fanen skal hentes fra
+    // kalkylens antall BETALENDE deltakere (p.anslatt/res1.anslatt) - ikke
+    // antall_reisende, som også teller med reiseledere.
+    pris_antall_personer: (res1 && res1.anslatt) ? res1.anslatt : null,
     enkeltromstillegg: (res1 && res1.enkeltTilleggPerPerson!=null) ? res1.enkeltTilleggPerPerson : null,
     valuta: 'NOK',
     inkludert: bygInkludertFraKalkyle(gm1),
+    // v: standard "Ikke inkludert"-punkter forhåndsutfylt - samme standardliste
+    // som "+ Nytt forslag" i forslag.html, fritt redigerbare/slettbare etterpå.
+    ikke_inkludert: ["Øvrige måltider", "Reiseforsikring", "Eventuell tips til guide og sjåfør"],
     opprettet_av: currentUserId,
   };
   const { data, error } = await window.sb.from('forslag').insert(payload).select().single();

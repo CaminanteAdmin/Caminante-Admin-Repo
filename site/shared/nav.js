@@ -22,6 +22,7 @@
     { label: "Forslag & Tilbud", href: "forslag.html" },
     { label: "Reiser",         disabled: true },
     { label: "Påmeldinger",    disabled: true },
+    { label: "Reisemål",       href: "reisemaal.html" },
     { label: "Hoteller",       href: "hoteller.html" },
     { label: "Skoleoversikt",  href: "skoler.html" },
     { label: "Kunder",         disabled: true },
