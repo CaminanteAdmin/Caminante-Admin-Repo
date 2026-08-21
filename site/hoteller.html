@@ -157,7 +157,7 @@
     align-items:center;
   }
   .fact-grid label{ color:var(--ink-muted); }
-  .fact-grid input, .fact-grid select{
+  .fact-grid input, .fact-grid select, .fact-grid textarea{
     border:1px solid var(--hairline);
     border-radius:6px;
     padding:5px 7px;
@@ -165,7 +165,18 @@
     font-family:inherit;
     color:var(--ink-primary);
     width:100%;
+    box-sizing:border-box;
   }
+  .fact-grid textarea{ min-height:60px; resize:vertical; align-self:start; margin-top:2px; }
+  .upload-hint{ font-size:11.5px; color:var(--ink-muted); margin-bottom:10px; }
+  .hotel-img-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
+  .hotel-img-card{ border:1px solid var(--hairline); border-radius:8px; overflow:hidden; background:var(--surface-1); }
+  .hotel-img-card img{ width:100%; height:90px; object-fit:cover; display:block; background:var(--page); }
+  .hotel-img-body{ padding:6px; display:flex; flex-direction:column; gap:5px; }
+  .hotel-img-body input{
+    border:1px solid var(--hairline); border-radius:5px; padding:4px 6px; font-size:12px; font-family:inherit; width:100%; box-sizing:border-box;
+  }
+  .hotel-img-remove{ font-size:11px; color:#b04a4a; background:none; border:none; cursor:pointer; padding:0; text-align:left; }
   .comment-item{
     padding:10px 0;
     border-bottom:1px solid var(--hairline);
@@ -283,15 +294,16 @@ function statusChip(s){
 /* ---------- Supabase data loading ---------- */
 
 async function loadAllData(){
-  const [{ data: hotellRows, error: e1 }, { data: kommentarerRows, error: e2 }, { data: profileRows, error: e3 }] =
+  const [{ data: hotellRows, error: e1 }, { data: kommentarerRows, error: e2 }, { data: profileRows, error: e3 }, { data: bildeRows, error: e4 }] =
     await Promise.all([
       window.sb.from("hoteller").select("*"),
       window.sb.from("hotell_kommentarer").select("*").order("opprettet_dato", { ascending:false }),
       window.sb.from("profiles").select("id, navn"),
+      window.sb.from("hotell_bilder").select("*").order("sortering"),
     ]);
-  if(e1 || e2 || e3){
+  if(e1 || e2 || e3 || e4){
     document.getElementById("loadMsg").textContent = "Kunne ikke laste data fra databasen. Sjekk at sql/2026-07-27-hoteller.sql er kjørt i Supabase, og prøv igjen.";
-    console.error(e1, e2, e3);
+    console.error(e1, e2, e3, e4);
     return false;
   }
   const nameById = {};
@@ -303,6 +315,7 @@ async function loadAllData(){
       ...c,
       forfatter_navn: nameById[c.forfatter] || "Ukjent",
     })),
+    bilder: (bildeRows||[]).filter(b=>b.hotell_id===h.id),
   }));
   return true;
 }
@@ -469,6 +482,8 @@ function renderProfile(id){
         <label>By</label><input id="f-by" value="${escapeHtml(h.by)}">
         <label>Land</label><input id="f-land" value="${escapeHtml(h.land)}">
         <label>Nettside</label><input id="f-nettside" value="${escapeHtml(h.nettside)}" placeholder="https://…">
+        <label>Standard</label><input id="f-standard" value="${escapeHtml(h.standard)}" placeholder="F.eks. 4-stjerners">
+        <label>Beskrivelse</label><textarea id="f-beskrivelse" placeholder="Generell, fri beskrivelse av hotellet - brukes ved «Velg fra hotelloversikt» i Forslag">${escapeHtml(h.beskrivelse)}</textarea>
       </div>
     </div>
 
@@ -485,7 +500,14 @@ function renderProfile(id){
     </div>
 
     <div class="section">
-      <h3>3. Kommentarer</h3>
+      <h3>3. Bilder</h3>
+      <div class="upload-hint">Generelle bilder av hotellet - brukes ved «Velg fra hotelloversikt» i Forslag. Ikke turspesifikke bilder (de lastes opp per forslag).</div>
+      <div class="hotel-img-grid" id="hotelBildeGrid"></div>
+      <input type="file" id="nyttHotelBildeFile" accept="image/*" style="margin-top:10px;">
+    </div>
+
+    <div class="section">
+      <h3>4. Kommentarer</h3>
       <div id="commentsWrap"></div>
       <div class="add-comment">
         <textarea id="newCommentText" placeholder="Skriv en ny kommentar/erfaring – dato, klokkeslett og forfatter legges til automatisk…"></textarea>
@@ -505,8 +527,29 @@ function renderProfile(id){
     });
   };
   bind("f-navn","navn"); bind("f-by","by"); bind("f-land","land"); bind("f-nettside","nettside");
+  bind("f-standard","standard"); bind("f-beskrivelse","beskrivelse");
   bind("f-kontaktperson","kontaktperson"); bind("f-telefon","telefon"); bind("f-epost","epost");
   bind("f-prisniva","prisniva"); bind("f-kapasitet","kapasitet");
+
+  renderHotelBilder(h);
+  document.getElementById("nyttHotelBildeFile").addEventListener("change", async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    try{
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `${h.id}/${(crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2))}.${ext}`;
+      const { error: upErr } = await window.sb.storage.from("hotell-bilder").upload(path, file, { upsert:false });
+      if(upErr) throw upErr;
+      const { data: pub } = window.sb.storage.from("hotell-bilder").getPublicUrl(path);
+      const { data, error } = await window.sb.from("hotell_bilder").insert({
+        hotell_id: h.id, bilde_url: pub.publicUrl, sortering: h.bilder.length,
+      }).select().single();
+      if(error) throw error;
+      h.bilder.push(data);
+      renderHotelBilder(h);
+    } catch(err){ alert("Kunne ikke laste opp bilde: " + err.message); }
+    e.target.value = "";
+  });
 
   renderComments(h);
   document.getElementById("addCommentBtn").addEventListener("click", async ()=>{
@@ -520,6 +563,41 @@ function renderProfile(id){
     h.kommentarer.unshift({ ...data, forfatter_navn: (profile && profile.navn) || "" });
     document.getElementById("newCommentText").value = "";
     renderComments(h);
+  });
+}
+
+function renderHotelBilder(h){
+  const grid = document.getElementById("hotelBildeGrid");
+  grid.innerHTML = "";
+  if(!h.bilder.length){
+    grid.innerHTML = '<div class="save-hint">Ingen bilder lastet opp ennå.</div>';
+    return;
+  }
+  h.bilder.forEach(b=>{
+    const card = document.createElement("div");
+    card.className = "hotel-img-card";
+    card.innerHTML = `
+      <img src="${escapeHtml(b.bilde_url)}">
+      <div class="hotel-img-body">
+        <input class="hb-alt" value="${escapeHtml(b.alt_tekst)}" placeholder="Bildetekst">
+        <button class="hotel-img-remove">Fjern</button>
+      </div>
+    `;
+    grid.appendChild(card);
+    card.querySelector(".hb-alt").addEventListener("change", async (e)=>{
+      const { error } = await window.sb.from("hotell_bilder").update({ alt_tekst: e.target.value || null }).eq("id", b.id);
+      if(error){ alert("Kunne ikke lagre bildetekst: " + error.message); return; }
+      b.alt_tekst = e.target.value || null;
+    });
+    card.querySelector(".hotel-img-remove").addEventListener("click", async ()=>{
+      // v: sletter kun databaseraden, ikke selve fila i Storage - samme
+      // etablerte mønster som forslag-editor.html sin Bilder-fane (bevisst
+      // enkel løsning, filen blir liggende foreldreløs i bucketen).
+      const { error } = await window.sb.from("hotell_bilder").delete().eq("id", b.id);
+      if(error){ alert("Kunne ikke slette bilde: " + error.message); return; }
+      h.bilder = h.bilder.filter(x=>x.id!==b.id);
+      renderHotelBilder(h);
+    });
   });
 }
 

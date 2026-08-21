@@ -129,26 +129,32 @@
   .tab-panel{ display:none; padding:20px 24px 60px; max-width:880px; }
   .tab-panel.active{ display:block; }
 
-  /* v1: hovedinnholdet i hver fane samles nå i én stor, blåtonet .card -
-     samme visuelle språk som kortene i kalkyle-editor.html (blå bakgrunn,
-     10px hjørner, generøs padding, uppercase korttittel). Felt/input-
-     bakgrunnen er HVIT (var(--surface-1), rettet i v2 - var(--page) leste
-     som gråtonet mot den blå bunnen) slik at feltene "letter seg" tydelig,
-     akkurat som i kalkulatoren. */
+  /* v1: hovedinnholdet i hver fane samles i én stor .card - samme visuelle
+     språk som kortene i kalkyle-editor.html (10px hjørner, generøs padding,
+     uppercase korttittel). v3: kort-BAKGRUNNEN er nå hvit (var(--surface-1)),
+     ikke lenger blåtonet (var(--card-bg), som var v1) - Vidar ønsket hvit
+     bakgrunn overalt i Forslag. Den blåtonede kant-fargen (--card-border)
+     står fortsatt, som eneste visuelle avgrensning av kortet mot siden. */
   .card{
-    background:var(--card-bg);
+    background:var(--surface-1);
     border:1px solid var(--card-border);
     border-radius:10px;
     padding:18px 20px;
     margin-bottom:18px;
   }
+  /* v: tydeligere hierarki mellom hovedoverskrift (.card-title, f.eks.
+     "Utreise"/"Hotell 1") og underoverskrift (.item-title, f.eks. "Flight 1")
+     - de så tidligere nesten like ut i vekt/størrelse. .card-title er nå
+     synlig større og i blått, .item-title er nedtonet (se lenger ned) slik
+     at det tydelig leses som en del av seksjonen over, ikke en likestilt
+     overskrift. */
   .card-title{
-    font-size:13px;
-    font-weight:700;
+    font-size:15px;
+    font-weight:750;
     text-transform:uppercase;
     letter-spacing:0.03em;
-    color:var(--ink-secondary);
-    margin:0 0 14px;
+    color:var(--blue-dark);
+    margin:0 0 16px;
   }
   .card:last-child{ margin-bottom:0; }
   /* v2: feltene skal være HVITE (var(--surface-1)), ikke gråtonet
@@ -194,7 +200,7 @@
     align-items:center;
     margin-bottom:10px;
   }
-  .item-block .item-title{ font-size:12.5px; font-weight:650; color:var(--ink-secondary); text-transform:uppercase; letter-spacing:0.02em; }
+  .item-block .item-title{ font-size:11.5px; font-weight:600; color:var(--ink-muted); text-transform:none; letter-spacing:0.01em; }
   .item-remove{
     border:none; background:none; color:#b04a4a; font-size:12px; cursor:pointer; padding:2px 4px;
   }
@@ -211,7 +217,7 @@
     text-align:center;
     margin-top:16px;
   }
-  .add-item-btn:hover{ background:rgba(255,255,255,0.5); border-color:var(--blue); }
+  .add-item-btn:hover{ background:var(--page); border-color:var(--blue); }
 
   .list-editor{ display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
   .list-editor-row{ display:flex; gap:6px; align-items:center; }
@@ -227,6 +233,22 @@
   .list-editor-row button{
     border:none; background:none; color:#b04a4a; font-size:14px; cursor:pointer; padding:2px 6px;
   }
+  /* v: avkrysningsrader for "Andre romtyper" (Hotellopphold-fanen). Egen
+     bredde på selve avkrysningsboksen er nødvendig - ellers arver den
+     width:100% fra ".field-grid input" over og strekker seg over hele
+     radens bredde, som dytter label-teksten helt til høyre. */
+  .checkbox-row{ display:flex; align-items:center; gap:7px; margin-bottom:6px; }
+  .checkbox-row input[type="checkbox"]{ width:auto; flex:none; }
+  .checkbox-row label{ padding-top:0; }
+  /* v: søkefelt for "Velg fra hotelloversikt" - samme mønster som
+     g-skole-sok/g-skole-dropdown i Grunninfo. */
+  #hotellOversiktSok{
+    width:100%; box-sizing:border-box; border:1px solid var(--card-border); border-radius:6px;
+    padding:8px 10px; font-size:13px; font-family:inherit; color:var(--ink-primary); background:var(--surface-1);
+  }
+  .hotell-opt{ padding:7px 10px; font-size:13px; cursor:pointer; }
+  .hotell-opt:hover{ background:var(--page); }
+  .hotell-opt .hotell-opt-sub{ font-size:11.5px; color:var(--ink-muted); }
 
   .img-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; margin-bottom:0; }
   .img-card{ border:1px solid var(--card-border); border-radius:8px; overflow:hidden; background:var(--surface-1); }
@@ -339,23 +361,39 @@
       <div class="item-list" id="utreiseList"></div>
       <button class="add-item-btn" id="addUtreiseBtn">+ Legg til flight</button>
     </div>
-    <div class="card">
-      <div class="card-title">Retur</div>
-      <div class="item-list" id="returList"></div>
-      <button class="add-item-btn" id="addReturBtn">+ Legg til flight</button>
-    </div>
+    <!-- v: Intern flight flyttet mellom Utreise og Retur (var tidligere
+         nederst) - gir mer mening tidsmessig, siden en eventuell intern
+         flygning skjer mellom ut- og hjemreisen. Fortsatt et valgfritt
+         tillegg, skjult til "+ Legg til intern flight" trykkes. -->
     <div class="card" id="internCard" style="display:none;">
       <div class="card-title">Intern flight</div>
       <div class="item-list" id="internList"></div>
       <button class="add-item-btn" id="addInternBtn">+ Legg til flight</button>
     </div>
     <button class="add-item-btn" id="addInternSectionBtn">+ Legg til intern flight</button>
+    <div class="card">
+      <div class="card-title">Retur</div>
+      <div class="item-list" id="returList"></div>
+      <button class="add-item-btn" id="addReturBtn">+ Legg til flight</button>
+    </div>
   </div>
 
   <!-- ===== Hotellopphold ===== -->
   <div class="tab-panel" data-tab="hotell">
     <div class="card">
       <div class="card-title">Hotellopphold</div>
+      <!-- v: "Velg fra hotelloversikt" - henter generell hotellinfo (og
+           bilder) fra Hoteller-verktøyet inn i et nytt hotellopphold.
+           Turspesifikke felt (datoer/netter/romtype/pris/tilgjengelighet)
+           forhåndsutfylles bevisst IKKE - kun det som er generelt for
+           hotellet. Alt er fritekst-kopier som kan redigeres videre. -->
+      <div style="position:relative; margin-bottom:16px;">
+        <button type="button" class="add-item-btn" id="velgHotellBtn" style="margin-top:0;">Velg fra hotelloversikt</button>
+        <div id="hotellOversiktWrap" style="display:none; position:relative; margin-top:8px;">
+          <input type="text" id="hotellOversiktSok" placeholder="Søk hotellnavn eller by…" autocomplete="off">
+          <div id="hotellOversiktDropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:240px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
+        </div>
+      </div>
       <div class="item-list" id="hotellList"></div>
       <button class="add-item-btn" id="addHotellBtn">+ Legg til hotellopphold</button>
     </div>
@@ -468,6 +506,8 @@ let currentUserId = null;
 let profiler = [];         // {id, navn}
 let skoleOptions = [];      // {id, navn}
 let skoleNameById = new Map();
+let hotellOversikt = [];       // rader fra hoteller-tabellen, til "Velg fra hotelloversikt"
+let hotellBilderOversikt = []; // rader fra hotell_bilder, samme formål
 
 let state = {
   forslag: {},
@@ -501,13 +541,17 @@ document.querySelectorAll(".tab-btn").forEach(btn=>{
 /* ---------- Load ---------- */
 
 async function loadReferenceData(){
-  const [{ data: profileRows }, { data: skoleRows }] = await Promise.all([
+  const [{ data: profileRows }, { data: skoleRows }, { data: hotellRows }, { data: hotellBildeRows }] = await Promise.all([
     window.sb.from("profiles").select("id,navn"),
     window.sb.from("skoler").select("id,navn").order("navn"),
+    window.sb.from("hoteller").select("*").order("navn"),
+    window.sb.from("hotell_bilder").select("*").order("sortering"),
   ]);
   profiler = profileRows || [];
   skoleOptions = skoleRows || [];
   skoleOptions.forEach(s=> skoleNameById.set(s.id, s.navn));
+  hotellOversikt = hotellRows || [];
+  hotellBilderOversikt = hotellBildeRows || [];
 
   const ansvSel = el("g-ansvarlig");
   ansvSel.innerHTML = '<option value="">– Ikke satt –</option>' + profiler.map(p=>`<option value="${p.id}">${escapeHtml(p.navn)}</option>`).join("");
@@ -530,6 +574,23 @@ async function loadForslag(id){
   state.hotellopphold = (hotellRows||[]).map(h=>({ id:h.id, clientKey:h.id, fields: stripMeta(h) }));
   state.dagsprogram = (dagRows||[]).map(d=>({ id:d.id, clientKey:d.id, fields: stripMeta(d) }));
   state.transport = (transportRows||[]).map(t=>({ id:t.id, clientKey:t.id, fields: stripMeta(t) }));
+
+  // v: Utreise og Retur skal alltid ha minst 1 åpen flight som standard (en
+  // reise har jo alltid en ut- og hjemreise) - hvis forslaget ikke har noen
+  // rader i en av kategoriene ennå, legges én tom flight til her (kun i
+  // minnet - lagres først når brukeren faktisk trykker Lagre), forhåndsutfylt
+  // med reisens fra-/til-dato hvis satt. Intern flight er fortsatt et rent
+  // valgfritt tillegg og får ingen automatisk oppføring.
+  const harUtreise = state.transport.some(t => (t.fields.kategori||"utreise") === "utreise");
+  const harRetur = state.transport.some(t => t.fields.kategori === "retur");
+  if(!harUtreise){
+    const dato = f.fra_dato ? f.fra_dato + "T00:00" : null;
+    state.transport.push({ id:null, clientKey:newClientKey(), fields:{ kategori:"utreise", sortering: state.transport.length, avreise_tidspunkt: dato, ankomst_tidspunkt: dato } });
+  }
+  if(!harRetur){
+    const dato = f.til_dato ? f.til_dato + "T00:00" : null;
+    state.transport.push({ id:null, clientKey:newClientKey(), fields:{ kategori:"retur", sortering: state.transport.length, avreise_tidspunkt: dato, ankomst_tidspunkt: dato } });
+  }
 
   const hotellIdSet = new Set(state.hotellopphold.map(h=>h.id));
   const dagIdSet = new Set(state.dagsprogram.map(d=>d.id));
@@ -693,8 +754,20 @@ function renderFlySection(kategori, containerId, placeholder){
   });
 }
 
+// v: Avreise/Ankomst forhåndsutfylles med reisens fra-/til-dato (fra
+// Grunninfo-fanen) når en ny flight legges til - Utreise/Intern får
+// fra-dato, Retur får til-dato, begge med klokkeslett 00:00 som en nøytral
+// standardverdi. Fortsatt fritt redigerbart, f.eks. hvis ankomst er over
+// midnatt påfølgende dag. Leser DOM-verdien direkte (ikke state.forslag) for
+// å få med en eventuell ennå ulagret endring av datoene i Grunninfo.
+function defaultFlightDato(kategori){
+  const dato = kategori === "retur" ? el("g-til").value : el("g-fra").value;
+  return dato ? dato + "T00:00" : null;
+}
+
 function addFlight(kategori){
-  state.transport.push({ id:null, clientKey:newClientKey(), fields:{ kategori, sortering: state.transport.length } });
+  const dato = defaultFlightDato(kategori);
+  state.transport.push({ id:null, clientKey:newClientKey(), fields:{ kategori, sortering: state.transport.length, avreise_tidspunkt: dato, ankomst_tidspunkt: dato } });
   renderTransport();
 }
 
@@ -713,6 +786,60 @@ el("addInternSectionBtn").addEventListener("click", ()=> addFlight("intern"));
 
 /* ---------- Rendering: Hotellopphold ---------- */
 
+// v: Romtype er ikke lenger ett fritekstfelt - "Standard romtype" er nå ett
+// eget felt (nedtrekksmeny, samme fire typer som i Priskalkulatoren:
+// Enkeltrom/Dobbeltrom/Trippelrom/Firemannsrom), og "Andre romtyper" lar
+// brukeren huke av flere av de samme fire typene (automatisk avhukingen ut
+// fra hva som er priset i kalkylen håndteres av bygHotellopphold() i
+// kalkyle-editor.html ved overføring - se der), pluss en "+ Legg til annen
+// romtype"-knapp for helt egendefinerte typer (fritekst). Lagres i tre nye
+// kolonner (romtype_standard/romtype_andre/romtype_egendefinert) - den gamle
+// "romtype"-kolonnen (fritekst) står urørt og ubrukt i databasen.
+const ROOM_TYPE_OPTIONS = ["Enkeltrom","Dobbeltrom","Trippelrom","Firemannsrom"];
+
+function renderRomtypeAndre(container, f){
+  const standard = f.romtype_standard || "Dobbeltrom";
+  const andre = f.romtype_andre || [];
+  const egendefinert = f.romtype_egendefinert || [];
+  const fixedRows = ROOM_TYPE_OPTIONS.filter(rt=>rt!==standard).map(rt=>`
+    <div class="checkbox-row">
+      <input type="checkbox" class="romtype-fast" data-type="${escapeHtml(rt)}" ${andre.includes(rt)?"checked":""} id="rt_${item_uid(container)}_${rt}">
+      <label for="rt_${item_uid(container)}_${rt}">${rt}</label>
+    </div>`).join("");
+  const customRows = egendefinert.map((val)=>`
+    <div class="list-editor-row">
+      <input class="romtype-egendefinert-input" value="${escapeHtml(val)}" placeholder="F.eks. Familierom">
+      <button type="button" class="romtype-egendefinert-fjern" title="Fjern">✕</button>
+    </div>`).join("");
+  container.innerHTML = `${fixedRows}${customRows}<button type="button" class="add-item-btn romtype-legg-til" style="margin-top:8px;">+ Legg til annen romtype</button>`;
+  container.querySelectorAll(".romtype-fast").forEach(cb=>{
+    cb.addEventListener("change", ()=>{
+      const type = cb.dataset.type;
+      f.romtype_andre = f.romtype_andre || [];
+      if(cb.checked){ if(!f.romtype_andre.includes(type)) f.romtype_andre.push(type); }
+      else { f.romtype_andre = f.romtype_andre.filter(t=>t!==type); }
+    });
+  });
+  container.querySelectorAll(".romtype-egendefinert-input").forEach((inp, i)=>{
+    inp.addEventListener("change", e=>{ f.romtype_egendefinert[i] = e.target.value; });
+  });
+  container.querySelectorAll(".romtype-egendefinert-fjern").forEach((btn, i)=>{
+    btn.addEventListener("click", ()=>{
+      f.romtype_egendefinert.splice(i,1);
+      renderRomtypeAndre(container, f);
+    });
+  });
+  container.querySelector(".romtype-legg-til").addEventListener("click", ()=>{
+    f.romtype_egendefinert = f.romtype_egendefinert || [];
+    f.romtype_egendefinert.push("");
+    renderRomtypeAndre(container, f);
+  });
+}
+// Enkel, stabil unik streng per container-element (til checkbox-id/label-for) -
+// bruker en løpende teller lagret direkte på DOM-noden.
+let _romtypeUidCounter = 0;
+function item_uid(el){ if(!el.dataset.uid) el.dataset.uid = String(_romtypeUidCounter++); return el.dataset.uid; }
+
 function renderHotell(){
   const wrap = el("hotellList");
   wrap.innerHTML = "";
@@ -722,10 +849,11 @@ function renderHotell(){
     card.className = "item-block";
     card.innerHTML = `
       <div class="item-head">
-        <span class="item-title">${escapeHtml(f.sted) || "Hotellopphold " + (idx+1)}</span>
+        <span class="item-title">${escapeHtml(f.sted) || "Hotell " + (idx+1)}</span>
         <button class="item-remove" data-idx="${idx}">Fjern</button>
       </div>
       <div class="field-grid">
+        <label>Hotellnavn</label><input class="h-navn" value="${escapeHtml(f.hotellnavn)}">
         <label>Sted</label><input class="h-sted" value="${escapeHtml(f.sted)}" placeholder="F.eks. Split">
         <label>Fra- / til-dato</label>
         <div style="display:flex; gap:8px;">
@@ -733,9 +861,11 @@ function renderHotell(){
           <input type="date" class="h-til" value="${f.til_dato||""}" style="flex:1;">
         </div>
         <label>Antall netter</label><input type="number" class="h-netter" value="${f.netter??""}" min="0">
-        <label>Hotellnavn</label><input class="h-navn" value="${escapeHtml(f.hotellnavn)}">
         <label>Standard</label><input class="h-standard" value="${escapeHtml(f.standard)}" placeholder="F.eks. 4-stjerners">
-        <label>Romtype</label><input class="h-romtype" value="${escapeHtml(f.romtype)}" placeholder="F.eks. Dobbeltrom">
+        <label>Standard romtype</label>
+        <select class="h-standard-romtype">${ROOM_TYPE_OPTIONS.map(rt=>`<option value="${rt}" ${rt===(f.romtype_standard||"Dobbeltrom")?"selected":""}>${rt}</option>`).join("")}</select>
+        <label>Andre romtyper</label>
+        <div class="romtype-andre-wrap"></div>
         <label>Måltider</label><input class="h-maltider" value="${escapeHtml(f.maltider)}" placeholder="F.eks. Frokost inkludert">
         <label>Kort beskrivelse</label><textarea class="h-beskrivelse">${escapeHtml(f.beskrivelse)}</textarea>
         <label>Intern prisinfo</label><input class="h-prisinfo" value="${escapeHtml(f.prisinfo)}">
@@ -746,9 +876,17 @@ function renderHotell(){
     const bind = (cls, field)=> card.querySelector(cls).addEventListener("change", e=>{ f[field] = e.target.value || null; });
     bind(".h-sted","sted"); bind(".h-fra","fra_dato"); bind(".h-til","til_dato");
     card.querySelector(".h-netter").addEventListener("change", e=>{ f.netter = numOrNull(e.target.value); });
-    bind(".h-navn","hotellnavn"); bind(".h-standard","standard"); bind(".h-romtype","romtype");
+    bind(".h-navn","hotellnavn"); bind(".h-standard","standard");
     bind(".h-maltider","maltider"); bind(".h-beskrivelse","beskrivelse"); bind(".h-prisinfo","prisinfo");
     bind(".h-tilgjengelighet","tilgjengelighet_merknad");
+    const romtypeWrap = card.querySelector(".romtype-andre-wrap");
+    renderRomtypeAndre(romtypeWrap, f);
+    card.querySelector(".h-standard-romtype").addEventListener("change", e=>{
+      const nyStandard = e.target.value;
+      f.romtype_andre = (f.romtype_andre||[]).filter(t=>t!==nyStandard);
+      f.romtype_standard = nyStandard;
+      renderRomtypeAndre(romtypeWrap, f);
+    });
     card.querySelector(".h-sted").addEventListener("change", ()=> renderHotell());
     card.querySelector(".item-remove").addEventListener("click", ()=>{
       const removedKey = item.clientKey;
@@ -763,6 +901,77 @@ el("addHotellBtn").addEventListener("click", ()=>{
   state.hotellopphold.push({ id:null, clientKey:newClientKey(), fields:{ sortering: state.hotellopphold.length } });
   renderHotell();
 });
+
+/* ---------- "Velg fra hotelloversikt" ----------
+   Henter generell hotellinfo (navn/sted/standard/beskrivelse) + hotellets
+   bilder inn i et NYTT hotellopphold. Turspesifikke felt (datoer, netter,
+   romtype, pris, tilgjengelighet) forhåndsutfylles bevisst ikke - kun det
+   som er generelt for hotellet, alt sammen fritekst-kopier som er fritt
+   redigerbare etterpå (ingen levende sync mot hoteller-tabellen). Samme
+   søk-i-dropdown-mønster som skolesøket i Grunninfo. */
+function renderHotellOversiktDropdown(query){
+  const dd = el("hotellOversiktDropdown");
+  const q = query.trim().toLowerCase();
+  if(!q){ dd.style.display = "none"; dd.innerHTML = ""; return; }
+  const matches = hotellOversikt.filter(h=>{
+    const hay = [h.navn, h.by, h.land].filter(Boolean).join(" ").toLowerCase();
+    return hay.includes(q);
+  }).slice(0,30);
+  if(!matches.length){
+    dd.innerHTML = '<div class="hotell-opt" style="cursor:default;">Ingen treff</div>';
+    dd.style.display = "block";
+    return;
+  }
+  dd.innerHTML = matches.map(h=>{
+    const sted = [h.by, h.land].filter(Boolean).join(", ");
+    return `<div class="hotell-opt" data-id="${h.id}">${escapeHtml(h.navn)}${sted?`<div class="hotell-opt-sub">${escapeHtml(sted)}</div>`:""}</div>`;
+  }).join("");
+  dd.style.display = "block";
+  dd.querySelectorAll(".hotell-opt[data-id]").forEach(row=>{
+    row.addEventListener("mousedown", (e)=>{
+      e.preventDefault();
+      velgHotellFraOversikt(row.dataset.id);
+    });
+  });
+}
+function velgHotellFraOversikt(id){
+  const h = hotellOversikt.find(x=>x.id===id);
+  if(!h) return;
+  const clientKey = newClientKey();
+  const sted = [h.by, h.land].filter(Boolean).join(", ");
+  state.hotellopphold.push({
+    id:null, clientKey,
+    fields:{
+      sortering: state.hotellopphold.length,
+      hotellnavn: h.navn || null,
+      sted: sted || null,
+      standard: h.standard || null,
+      beskrivelse: h.beskrivelse || null,
+      hotell_id: h.id,
+    },
+  });
+  hotellBilderOversikt.filter(b=>b.hotell_id===id).forEach(b=>{
+    state.bilder.push({
+      id:null, clientKey:newClientKey(),
+      fields:{ kategori:"Hotell", bilde_url:b.bilde_url, alt_tekst:b.alt_tekst||null, sortering: state.bilder.length },
+      hotellopphold_client_key: clientKey, dagsprogram_client_key: null,
+    });
+  });
+  el("hotellOversiktSok").value = "";
+  el("hotellOversiktDropdown").style.display = "none";
+  el("hotellOversiktWrap").style.display = "none";
+  renderHotell();
+  renderBilder();
+}
+el("velgHotellBtn").addEventListener("click", ()=>{
+  const wrap = el("hotellOversiktWrap");
+  const show = wrap.style.display === "none";
+  wrap.style.display = show ? "block" : "none";
+  if(show) el("hotellOversiktSok").focus();
+});
+el("hotellOversiktSok").addEventListener("input", (e)=> renderHotellOversiktDropdown(e.target.value));
+el("hotellOversiktSok").addEventListener("focus", (e)=>{ if(e.target.value.trim()) renderHotellOversiktDropdown(e.target.value); });
+el("hotellOversiktSok").addEventListener("blur", ()=> setTimeout(()=>{ el("hotellOversiktDropdown").style.display="none"; }, 150));
 
 /* ---------- Rendering: Program (dagsprogram) ---------- */
 

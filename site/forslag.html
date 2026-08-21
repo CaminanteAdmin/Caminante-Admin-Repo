@@ -90,12 +90,15 @@
     letter-spacing:0.03em;
   }
   table{ width:100%; border-collapse:collapse; font-size:13px; }
+  /* v2: tabellhode-bakgrunn og radhover er nå hvit/nøytral (var(--surface-1)/
+     var(--page)) i stedet for blåtonet (var(--card-bg)) - Vidar ønsket hvit
+     bakgrunn overalt i Forslag. --card-border står fortsatt som kant. */
   thead th{
     text-align:left;
     font-weight:600;
     color:var(--ink-secondary);
     padding:10px 10px;
-    background:var(--card-bg);
+    background:var(--surface-1);
     border-bottom:1px solid var(--card-border);
     cursor:pointer;
     white-space:nowrap;
@@ -107,7 +110,7 @@
   thead th .arrow{ font-size:10px; color:var(--ink-muted); margin-left:3px; }
   tbody td{ padding:11px 10px; border-bottom:1px solid var(--hairline); vertical-align:middle; white-space:nowrap; }
   tbody tr{ cursor:pointer; }
-  tbody tr:hover{ background:var(--card-bg); }
+  tbody tr:hover{ background:var(--page); }
   .forslag-nr{ font-variant-numeric:tabular-nums; color:var(--ink-muted); font-size:12px; }
   .forslag-tittel{ font-weight:600; }
   .forslag-sub{ font-size:11.5px; color:var(--ink-muted); }

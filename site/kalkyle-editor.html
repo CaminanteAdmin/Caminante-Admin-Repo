@@ -1647,6 +1647,15 @@ function gatherHotel(prefix, idx, moduleKey, isM1){
   ['enkelt','dobbel','trippel','fire'].forEach(t=>{
     hotel.pris[t] = moneyValue(prefix, `hotel${idx}_${t}_pris`, moduleKey);
   });
+  // v: Forslag-integrasjon (bygHotellopphold) trenger å vite hvilke romtyper
+  // som FAKTISK har en eksplisitt pris satt av brukeren, for å kunne
+  // automatisk huke av "Andre romtyper" der. Må fanges FØR
+  // enkeltrom-fallbacken rett under (som ellers ville gjort at enkeltrom
+  // alltid så ut som priset, siden den arver dobbeltromprisen).
+  hotel.prisSatt = {
+    enkelt: hotel.pris.enkelt>0, dobbel: hotel.pris.dobbel>0,
+    trippel: hotel.pris.trippel>0, fire: hotel.pris.fire>0,
+  };
   // Enkeltrom skjules bak "Andre romtyper" som standard - hvis ingen egen
   // enkeltrompris er fylt inn, bruk dobbeltromprisen som utgangspunkt.
   if(!(hotel.pris.enkelt>0)) hotel.pris.enkelt = hotel.pris.dobbel;
@@ -2473,19 +2482,36 @@ const MATPLAN_TEKST = {
   halvpensjon: 'Halvpensjon inkludert',
   helpensjon: 'Helpensjon inkludert',
 };
+// v: "Romtype" i Forslaget er ikke lenger ett fritekstfelt, men Standard
+// romtype + avkrysningsbare Andre romtyper (se forslag-editor.html sin
+// renderRomtypeAndre()). Ved overføring fra kalkyle settes Standard romtype
+// til hotellets valgte "Standard romtype" i kalkylen (h.standard), og Andre
+// romtyper hukes AUTOMATISK av for enhver romtype (utenom selve standarden)
+// som har fått en eksplisitt pris i kalkylen (h.prisSatt, fanget i
+// gatherHotel() FØR enkeltrom-fallbacken - se der for hvorfor rekkefølgen
+// betyr noe). Egendefinerte romtyper finnes ikke i kalkylen, så det feltet
+// er alltid tomt ved overføring.
 function bygHotellopphold(gm1){
   return (gm1.hotels||[])
     .filter(h=>h.netter>0)
-    .map((h,i)=>({
-      sortering: i,
-      sted: h.sted || null,
-      fra_dato: null, til_dato: null,
-      netter: h.netter,
-      hotellnavn: h.navn || null,
-      standard: ROOM_TYPE_LABELS[h.standard] || h.standard || null,
-      romtype: ROOM_TYPE_LABELS[h.standard] || h.standard || null,
-      maltider: MATPLAN_TEKST[h.matPlan] || null,
-    }));
+    .map((h,i)=>{
+      const romtypeStandard = ROOM_TYPE_LABELS[h.standard] || h.standard || 'Dobbeltrom';
+      const romtypeAndre = ['enkelt','dobbel','trippel','fire']
+        .filter(t => t!==h.standard && h.prisSatt && h.prisSatt[t])
+        .map(t => ROOM_TYPE_LABELS[t]);
+      return {
+        sortering: i,
+        sted: h.sted || null,
+        fra_dato: null, til_dato: null,
+        netter: h.netter,
+        hotellnavn: h.navn || null,
+        standard: ROOM_TYPE_LABELS[h.standard] || h.standard || null,
+        romtype_standard: romtypeStandard,
+        romtype_andre: romtypeAndre,
+        romtype_egendefinert: [],
+        maltider: MATPLAN_TEKST[h.matPlan] || null,
+      };
+    });
 }
 
 // v: Flyinformasjon-fanen i Forslag har nå en fast Utreise/Retur/Intern-
