@@ -420,16 +420,26 @@
     margin:16px auto 0;
     padding:0 24px;
   }
-  .kalkyle-bar{
+  /* v44: "boksen" er ikke lenger én stor rektangulær bakgrunn (.kalkyle-bar
+     hadde tidligere background/border/padding selv) - venstre og høyre
+     kolonne har nå HVER SIN blå kortbakgrunn, og med align-items:start får
+     hver kolonne kun den høyden dens eget innhold trenger. Venstre kolonne
+     er normalt mye lengre enn høyre (Turdetaljer/valuta fortsetter under),
+     så silhuetten av de to kortene sammen leser som én boks "i vinkel", slik
+     Vidar ønsket, i stedet for én stor rektangulær boks med tomrom nederst
+     til høyre. */
+  .kalkyle-bar{ /* ren wrapper igjen, ingen egen bakgrunn */ }
+  .kalkyle-meta-grid{
+    display:grid;
+    grid-template-columns:minmax(340px,480px) minmax(260px,380px);
+    gap:20px;
+    align-items:start;
+  }
+  .kalkyle-meta-left, .kalkyle-meta-right{
     background:var(--card-bg);
     border:1px solid var(--card-border);
     border-radius:10px;
     padding:16px 18px;
-  }
-  .kalkyle-meta-grid{
-    display:grid;
-    grid-template-columns:minmax(340px,480px) 1fr;
-    gap:20px;
   }
   @media (max-width:900px){
     .kalkyle-meta-grid{ grid-template-columns:1fr; }
@@ -497,9 +507,9 @@
 
 <div class="kalkyle-bar-wrap">
 <div class="kalkyle-bar" id="kalkyleBar">
-  <div class="card-title">Reiseinformasjon</div>
   <div class="kalkyle-meta-grid">
     <div class="kalkyle-meta-left">
+      <div class="card-title">Reiseinformasjon</div>
       <div class="field">
         <label for="meta_navn">Kundenavn</label>
         <div style="position:relative;">
@@ -531,6 +541,18 @@
       </div>
       <div class="hint" id="tilbudSoonHint" style="display:none;margin-top:6px;">Denne snarveien er ikke bygget ferdig ennå – bruk «Opprett forslag fra kalkyle», så kan du gå videre til Tilbud derfra.</div>
       <div class="kalkyle-status" id="kalkyleStatus">Laster…</div>
+      <!-- v44: "Beregnet pris per deltaker" er flyttet opp hit fra
+           resultatkolonnen (se renderModule1()), rett under knappene, for å
+           fylle plassen som ellers sto tom under den korte høyrekolonnen.
+           Selve verdien oppdateres fortsatt av renderModule1() (id
+           m1_beregnet_pris_verdi), ikke bygget om fra bunnen av som før. -->
+      <div class="card-title" style="margin-top:16px;">Beregnet pris per deltaker</div>
+      <div class="stat-row" style="margin-bottom:0;">
+        <div class="stat-tile hero">
+          <div class="label">Pris per betalende</div>
+          <div class="value" id="m1_beregnet_pris_verdi">–</div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -831,7 +853,7 @@ function priceCardM1(prefix){
 function rateRow(p, rt, moduleKey){
   return `
     <div class="rate-row">
-      <span class="rt-label">${rt.label} (${rt.personer} pers.)</span>
+      <span class="rt-label">${rt.label}</span>
       <input type="number" id="${p}${rt.key}_pris" value="0" min="0" step="50" oninput="recalcAll()" placeholder="kr/natt">
       <select id="${p}${rt.key}_pris_cur" oninput="recalcAll()" onchange="recalcAll()">${currencyOptions(moduleKey)}</select>
     </div>`;
@@ -904,18 +926,18 @@ function hotelBlock(prefix, idx, isM1, moduleKey, canRemove){
         </div>
         ${standardSelect}
       </div>
-      ${forslagFeltSection}
       <div class="hint" style="margin:10px 0 4px;">Pris per rom/natt</div>
       <div class="rate-card">
         ${rateRow(p, dobbelType, moduleKey)}
         <details style="margin-top:4px;">
-          <summary style="cursor:pointer;font-size:12px;color:var(--ink-2);">Flere romtyper (enkelt/trippel/fire)</summary>
+          <summary style="cursor:pointer;font-size:12px;color:var(--ink-2);">Pris andre romtyper</summary>
           <div style="margin-top:8px;">
             ${otherTypes.map(rt=>rateRow(p, rt, moduleKey)).join('')}
           </div>
         </details>
       </div>
       ${roomCountSection}
+      ${forslagFeltSection}
     </div>`;
 }
 
@@ -1585,7 +1607,7 @@ function gatherHotel(prefix, idx, moduleKey, isM1){
   ['enkelt','dobbel','trippel','fire'].forEach(t=>{
     hotel.pris[t] = moneyValue(prefix, `hotel${idx}_${t}_pris`, moduleKey);
   });
-  // Enkeltrom skjules bak "Flere romtyper" som standard - hvis ingen egen
+  // Enkeltrom skjules bak "Andre romtyper" som standard - hvis ingen egen
   // enkeltrompris er fylt inn, bruk dobbeltromprisen som utgangspunkt.
   if(!(hotel.pris.enkelt>0)) hotel.pris.enkelt = hotel.pris.dobbel;
   if(isM1){
@@ -1973,20 +1995,16 @@ function renderModule1(res, raw){
   // per deltaker" for å skille tydeligere fra "Kundepris per deltaker".
   // v20: "Minimum antall betalende" (break-even) fjernet igjen etter ønske
   // fra Vidar (var Claudes eget forslag i v17, ikke noe Vidar hadde bedt om).
-  html += `<div class="dual-col">
-    <div class="card">
-      <div class="card-title">Beregnet pris per deltaker</div>
-      <div class="stat-row">
-        <div class="stat-tile hero">
-          <div class="label">Pris per betalende</div>
-          <div class="value">${kr(res.prisOpprinnelig)}</div>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Kostnadsfordeling</div>
-      ${res.perPerson ? costPieChart(pieCategoriesM1(res.perPerson)) : '<div class="hint">Ingen kostnader å vise ennå.</div>'}
-    </div>
+  // v44: "Beregnet pris per deltaker" er flyttet opp i Reiseinformasjon-
+  // boksen (statisk markup, id m1_beregnet_pris_verdi rett under knappene) -
+  // rendres ikke lenger her. Kostnadsfordeling står nå alene, som et vanlig
+  // enkelt kort i stedet for venstre halvdel av et .dual-col-par.
+  const beregnetPrisEl = el(p+'beregnet_pris_verdi');
+  if(beregnetPrisEl) beregnetPrisEl.textContent = kr(res.prisOpprinnelig);
+
+  html += `<div class="card">
+    <div class="card-title">Kostnadsfordeling</div>
+    ${res.perPerson ? costPieChart(pieCategoriesM1(res.perPerson)) : '<div class="hint">Ingen kostnader å vise ennå.</div>'}
   </div>`;
 
   window._lastRes = window._lastRes || {};
