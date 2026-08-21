@@ -595,6 +595,14 @@ function el(id){ return document.getElementById(id); }
 function num(id, def){ const e=el(id); if(!e) return def; const v=parseFloat(e.value); return isNaN(v)?def:v; }
 function strVal(id, def){ const e=el(id); return e ? (e.value||def) : def; }
 function isChecked(id){ const e=el(id); return e ? e.checked : false; }
+// v43: leser hvilken matplan-radio som er valgt for et gitt hotell
+// (hp = f.eks. "m1_hotel1_"). Defaulter til 'frokost' hvis feltene av en
+// eller annen grunn ikke finnes ennå i DOM-en (f.eks. midt i en rebuild).
+function matPlanValue(hp){
+  const opts = ['ingen','frokost','halvpensjon','helpensjon'];
+  for(const opt of opts){ if(isChecked(hp+'matplan_'+opt)) return opt; }
+  return 'frokost';
+}
 
 const nf = new Intl.NumberFormat('nb-NO', {maximumFractionDigits:0});
 function kr(v){ return (v===null || v===undefined || isNaN(v)) ? '–' : nf.format(Math.round(v)) + ' kr'; }
@@ -631,7 +639,11 @@ function snapshotValues(rootId){
   if(!root) return vals;
   root.querySelectorAll('input, select').forEach(elx=>{
     if(!elx.id) return;
-    vals[elx.id] = (elx.type==='checkbox') ? elx.checked : elx.value;
+    // v43: radioknapper (f.eks. matplan-valget på hotell) må fanges på
+    // .checked akkurat som checkbox - ellers fanges kun den statiske
+    // value-attributten, som ikke sier noe om hvilken radio i gruppen som
+    // faktisk er valgt, og valget mistes stille ved neste strukturelle rebuild.
+    vals[elx.id] = (elx.type==='checkbox' || elx.type==='radio') ? elx.checked : elx.value;
   });
   return vals;
 }
@@ -640,7 +652,7 @@ function restoreValues(rootId, vals){
   if(!root) return;
   root.querySelectorAll('input, select').forEach(elx=>{
     if(!elx.id || !Object.prototype.hasOwnProperty.call(vals, elx.id)) return;
-    if(elx.type==='checkbox') elx.checked = vals[elx.id];
+    if(elx.type==='checkbox' || elx.type==='radio') elx.checked = vals[elx.id];
     else elx.value = vals[elx.id];
   });
 }
@@ -849,21 +861,34 @@ function hotelBlock(prefix, idx, isM1, moduleKey, canRemove){
       </details>`;
   }
 
-  /* Forslag-integrasjon (additivt, påvirker ikke prisberegningen): "inkludert
-     frokost" brukes kun til å fylle ut Forslag automatisk når man trykker
-     "Opprett forslag fra kalkyle" - leses ikke av pureCalc1. Kun i Modul 1,
-     som er den eneste modulen som kobles til Forslag. v42: fritekstfeltet
-     "Måltider" er erstattet med en avkrysning "Inkludert frokost", huket av
-     som standard (frokost er som regel alltid inkludert i gruppetilbud) - se
-     gatherHotel()/bygHotellopphold()/bygInkludertFraKalkyle() for hvordan
-     verdien brukes videre. "Sted / by"-feltet er fjernet igjen på samme
-     ønske fra Vidar - h.sted er nå alltid tomt, håndtert med samme
-     fallback (`|| null`/ternary) som før i bygHotellopphold()/
-     bygInkludertFraKalkyle(), ingen andre endringer nødvendig der. */
+  /* Forslag-integrasjon (additivt, påvirker ikke prisberegningen): matplanen
+     brukes kun til å fylle ut Forslag automatisk når man trykker "Opprett
+     forslag fra kalkyle" - leses ikke av pureCalc1. Kun i Modul 1, som er den
+     eneste modulen som kobles til Forslag. v42: fritekstfeltet "Måltider" ble
+     erstattet med en avkrysning "Inkludert frokost". v43: avkrysningen er nå
+     utvidet til fire gjensidig utelukkende radioknapper ("Ingen måltider" /
+     "Inkludert frokost" [standard] / "Inkludert halvpensjon" / "Inkludert
+     helpensjon") - se matPlanValue()/gatherHotel()/bygHotellopphold()/
+     bygInkludertFraKalkyle() for hvordan verdien brukes videre, og
+     refreshMatSkjulteRader() for hvordan valget skjuler rader i Mat-kortet
+     lenger nede. "Sted / by"-feltet er fjernet igjen på samme ønske fra
+     Vidar - h.sted er nå alltid tomt, håndtert med samme fallback
+     (`|| null`/ternary) som før i bygHotellopphold()/bygInkludertFraKalkyle(),
+     ingen andre endringer nødvendig der. */
+  const MATPLAN_OPTIONS = [
+    {key:'ingen', label:'Ingen måltider'},
+    {key:'frokost', label:'Inkludert frokost'},
+    {key:'halvpensjon', label:'Inkludert halvpensjon'},
+    {key:'helpensjon', label:'Inkludert helpensjon'},
+  ];
   const forslagFeltSection = isM1 ? `
-      <div class="checkbox-row" style="margin-top:8px;">
-        <input type="checkbox" id="${p}frokost_inkludert" checked oninput="recalcAll()">
-        <label for="${p}frokost_inkludert">Inkludert frokost</label>
+      <div class="field" style="margin-top:8px;">
+        <label>Måltider inkludert i overnattingen</label>
+        ${MATPLAN_OPTIONS.map(opt=>`
+        <div class="checkbox-row">
+          <input type="radio" name="${p}matplan" id="${p}matplan_${opt.key}" value="${opt.key}" ${opt.key==='frokost' ? 'checked' : ''} oninput="recalcAll()">
+          <label for="${p}matplan_${opt.key}">${opt.label}</label>
+        </div>`).join('')}
       </div>` : '';
 
   return `
@@ -1089,6 +1114,76 @@ function refreshMatDagerOptions(){
   });
 }
 
+/* v43: matplan-radioene på hvert hotell ("Ingen måltider" / "Inkludert
+   frokost" / "Inkludert halvpensjon" / "Inkludert helpensjon") avgjør om de
+   tilsvarende radene i Mat-kortet lenger nede kan skjules, siden måltidet da
+   allerede er dekket av overnattingen. Med flere hotell i samme kalkyle (opp
+   til 3, kun Modul 1) brukes en forsiktig "alle aktive hotell må dekke
+   måltidet"-regel: hvis ett hotell IKKE dekker f.eks. lunsj, holdes
+   Lunsj-raden synlig, slik at kostnaden for det hotellet fortsatt kan
+   registreres. Merk (nevnt til Vidar, ikke bygget som egen logikk): valgt
+   literal ordlyd fra ønsket betyr at "Inkludert halvpensjon" kun skjuler
+   Frokost-raden (ikke Middag), selv om halvpensjon tradisjonelt også
+   inkluderer middag - dette kan justeres senere om det viser seg upraktisk. */
+const MATPLAN_DEKNING = {
+  ingen:       {frokost:false, lunsj:false, middag:false},
+  frokost:     {frokost:true,  lunsj:false, middag:false},
+  halvpensjon: {frokost:true,  lunsj:false, middag:false},
+  helpensjon:  {frokost:true,  lunsj:true,  middag:true},
+};
+function matPlanDekning(prefix, moduleKey){
+  const count = (state[moduleKey] && state[moduleKey].hotelCount) || 0;
+  const aktivePlaner = [];
+  for(let i=1;i<=count;i++){
+    const hp = `${prefix}hotel${i}_`;
+    const netterEl = el(hp+'netter');
+    if(!netterEl) continue;
+    const netter = parseFloat(netterEl.value)||0;
+    if(netter<=0) continue;
+    aktivePlaner.push(matPlanValue(hp));
+  }
+  if(!aktivePlaner.length) return {frokost:false, lunsj:false, middag:false};
+  return {
+    frokost: aktivePlaner.every(plan=>MATPLAN_DEKNING[plan].frokost),
+    lunsj: aktivePlaner.every(plan=>MATPLAN_DEKNING[plan].lunsj),
+    middag: aktivePlaner.every(plan=>MATPLAN_DEKNING[plan].middag),
+  };
+}
+function refreshMatSkjulteRader(){
+  const prefix = 'm1_';
+  const dekning = matPlanDekning(prefix, 'm1');
+  const meals = [
+    {key:'frokost', label:'Frokost'},
+    {key:'lunsj', label:'Lunsj'},
+    {key:'middag', label:'Middag'},
+  ];
+  const skjulteLabels = [];
+  meals.forEach(m=>{
+    const row = el(prefix+'mat_'+m.key+'_row');
+    if(!row) return;
+    const skjul = !!dekning[m.key];
+    row.style.display = skjul ? 'none' : '';
+    if(skjul){
+      skjulteLabels.push(m.label);
+      // Nullstill "Antall dager" for skjulte rader, slik at kostnaden ikke
+      // telles med i tillegg til det hotellet allerede dekker, selv om
+      // feltet fortsatt har en gammel verdi liggende fra før raden ble skjult.
+      const dagerEl = el(prefix+'mat_'+m.key+'_dager');
+      if(dagerEl && dagerEl.value !== '0') dagerEl.value = '0';
+    }
+  });
+  const hint = el(prefix+'mat_dekket_hint');
+  if(hint){
+    if(skjulteLabels.length){
+      hint.style.display = '';
+      hint.textContent = `${skjulteLabels.join(', ')} er allerede inkludert i overnattingen og trenger derfor ikke registreres her.`;
+    } else {
+      hint.style.display = 'none';
+      hint.textContent = '';
+    }
+  }
+}
+
 function matCard(prefix, moduleKey){
   // v35: hver måltidslinje (frokost/lunsj/middag) har fått en egen "Antall
   // dager"-boks, slik at f.eks. 3 middager på en 7-dagers tur kan registreres
@@ -1104,27 +1199,28 @@ function matCard(prefix, moduleKey){
   return `
     <div class="card">
       <div class="card-title">Mat (per person)</div>
-      <div class="row2">
+      <div class="row2" id="${prefix}mat_frokost_row">
         ${moneyField(prefix+'mat_frokost','Frokost/dag',{step:10, moduleKey, curWidth:70})}
         <div class="field">
           <label for="${prefix}mat_frokost_dager">Antall dager</label>
           <select id="${prefix}mat_frokost_dager" oninput="recalcAll()" onchange="recalcAll()">${matDagerOptionsHtml(maxDager, curFrokost)}</select>
         </div>
       </div>
-      <div class="row2">
+      <div class="row2" id="${prefix}mat_lunsj_row">
         ${moneyField(prefix+'mat_lunsj','Lunsj/dag',{step:10, moduleKey, curWidth:70})}
         <div class="field">
           <label for="${prefix}mat_lunsj_dager">Antall dager</label>
           <select id="${prefix}mat_lunsj_dager" oninput="recalcAll()" onchange="recalcAll()">${matDagerOptionsHtml(maxDager, curLunsj)}</select>
         </div>
       </div>
-      <div class="row2">
+      <div class="row2" id="${prefix}mat_middag_row">
         ${moneyField(prefix+'mat_middag','Middag/dag',{step:10, moduleKey, curWidth:70})}
         <div class="field">
           <label for="${prefix}mat_middag_dager">Antall dager</label>
           <select id="${prefix}mat_middag_dager" oninput="recalcAll()" onchange="recalcAll()">${matDagerOptionsHtml(maxDager, curMiddag)}</select>
         </div>
       </div>
+      <div class="hint" id="${prefix}mat_dekket_hint" style="display:none;margin-top:-4px;margin-bottom:10px;"></div>
       ${moneyField(prefix+'mat_ekstra','Ekstra tillegg mat per person',{step:10, moduleKey, curWidth:70})}
     </div>`;
 }
@@ -1501,10 +1597,12 @@ function gatherHotel(prefix, idx, moduleKey, isM1){
     // kun av "Opprett forslag fra kalkyle"). v42: "sted" er fjernet (feltet
     // finnes ikke lenger i skjemaet), h.sted er derfor alltid tomt - beholdt
     // som felt (ikke fjernet fra objektet) siden bygHotellopphold()/
-    // bygInkludertFraKalkyle() fortsatt leser det trygt med fallback.
+    // bygInkludertFraKalkyle() fortsatt leser det trygt med fallback. v43:
+    // enkelt-avkrysningen "frokostInkludert" er erstattet med "matPlan" (en
+    // av 'ingen'/'frokost'/'halvpensjon'/'helpensjon'), se matPlanValue().
     hotel.navn = strVal(hp+'navn','');
     hotel.sted = '';
-    hotel.frokostInkludert = isChecked(hp+'frokost_inkludert');
+    hotel.matPlan = matPlanValue(hp);
   }
   return hotel;
 }
@@ -2005,6 +2103,10 @@ function renderModule1(res, raw){
 /* ---------- Recalc ---------- */
 function recalcAll(){
   try{
+    // v43: må kjøres FØR gatherModule1(), slik at ev. nullstilling av
+    // skjulte mat-rader (se refreshMatSkjulteRader()) rekker å slå inn i
+    // samme beregningsrunde, i stedet for å henge igjen til neste oninput.
+    refreshMatSkjulteRader();
     const raw1 = gatherModule1();
     const res1 = pureCalc1(raw1);
     renderModule1(res1, raw1);
@@ -2258,6 +2360,14 @@ async function updateForslagLinkDisplay(){
 
 const ROOM_TYPE_LABELS = Object.fromEntries(ROOM_TYPES.map(rt=>[rt.key, rt.label]));
 
+// v43: matPlan -> tekst i "måltider"-databasekolonnen (fritekst, samme
+// kolonne som ble brukt før v42-avkrysningen).
+const MATPLAN_TEKST = {
+  ingen: null,
+  frokost: 'Frokost inkludert',
+  halvpensjon: 'Halvpensjon inkludert',
+  helpensjon: 'Helpensjon inkludert',
+};
 function bygHotellopphold(gm1){
   return (gm1.hotels||[])
     .filter(h=>h.netter>0)
@@ -2269,10 +2379,7 @@ function bygHotellopphold(gm1){
       hotellnavn: h.navn || null,
       standard: ROOM_TYPE_LABELS[h.standard] || h.standard || null,
       romtype: ROOM_TYPE_LABELS[h.standard] || h.standard || null,
-      // v42: fritekst-"måltider" erstattet med avkrysningen "Inkludert
-      // frokost" - samme databasekolonne (`maltider`, fritekst) gjenbrukes,
-      // men fylles nå ut fra avkrysningen i stedet for fritekst.
-      maltider: h.frokostInkludert ? 'Frokost inkludert' : null,
+      maltider: MATPLAN_TEKST[h.matPlan] || null,
     }));
 }
 
@@ -2298,8 +2405,14 @@ function bygTransportrader(gm1){
 
 function bygInkludertFraKalkyle(gm1){
   const linjer = [];
+  const MATPLAN_INLINE = {
+    ingen: '',
+    frokost: ' (frokost inkludert)',
+    halvpensjon: ' (halvpensjon inkludert)',
+    helpensjon: ' (helpensjon inkludert)',
+  };
   (gm1.hotels||[]).filter(h=>h.netter>0).forEach(h=>{
-    const maltiderTxt = h.frokostInkludert ? ` (frokost inkludert)` : '';
+    const maltiderTxt = MATPLAN_INLINE[h.matPlan] || '';
     const navn = h.navn ? h.navn : 'hotell';
     linjer.push(`${h.netter} ${h.netter===1?'natt':'netter'} ${navn}${maltiderTxt}`.trim());
   });
