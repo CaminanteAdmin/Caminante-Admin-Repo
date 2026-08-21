@@ -415,37 +415,37 @@
     font-size:13px;
     color:var(--ink-2);
   }
+  .kalkyle-bar-wrap{
+    max-width:1320px;
+    margin:16px auto 0;
+    padding:0 24px;
+  }
   .kalkyle-bar{
-    background:var(--surface-1);
-    border-bottom:1px solid var(--border);
-    padding:14px 24px;
-    display:flex;
-    flex-wrap:wrap;
-    gap:16px;
-    align-items:flex-end;
+    background:var(--card-bg);
+    border:1px solid var(--card-border);
+    border-radius:10px;
+    padding:16px 18px;
   }
-  .kalkyle-meta{
+  .kalkyle-meta-grid{
     display:grid;
-    grid-template-columns:repeat(4, minmax(140px,1fr));
-    gap:10px;
-    flex:1 1 100%;
+    grid-template-columns:minmax(340px,480px) 1fr;
+    gap:20px;
   }
-  .kalkyle-meta .field{ margin-bottom:0; }
+  .kalkyle-meta-grid .field{ margin-bottom:0; }
+  @media (max-width:900px){
+    .kalkyle-meta-grid{ grid-template-columns:1fr; }
+  }
   .kalkyle-actions{
     display:flex;
     gap:8px;
     flex-wrap:wrap;
     align-items:center;
-    flex:1 1 auto;
+    margin-top:14px;
   }
   .kalkyle-status{
-    flex:1 1 auto;
     font-size:12px;
     color:var(--ink-muted);
-    text-align:right;
-  }
-  @media (max-width:900px){
-    .kalkyle-meta{ grid-template-columns:1fr 1fr; }
+    margin-top:6px;
   }
   .ovl-open{ position:fixed; inset:0; background:rgba(11,11,11,0.30); display:none; z-index:30; }
   .ovl-open.open{ display:block; }
@@ -496,8 +496,10 @@
   </div>
 </header>
 
+<div class="kalkyle-bar-wrap">
 <div class="kalkyle-bar" id="kalkyleBar">
-  <div class="kalkyle-meta">
+  <div class="card-title">Reiseinformasjon</div>
+  <div class="kalkyle-meta-grid">
     <div class="field">
       <label for="meta_navn">Kundenavn</label>
       <div style="position:relative;">
@@ -507,6 +509,7 @@
       </div>
       <div class="save-hint" id="skoleLink" style="margin-top:4px; font-size:10px;"></div>
       <div class="save-hint" id="forslagLink" style="margin-top:2px; font-size:10px;"></div>
+      <div class="hint" style="margin-top:6px;">Skriv fritt, eller begynn å skrive et skolenavn for å koble kalkylen til en skole.</div>
     </div>
     <div class="field">
       <label for="meta_start">Reisedato / -periode</label>
@@ -515,13 +518,15 @@
         <input type="date" id="meta_slutt" title="Til dato (valgfritt)">
       </div>
     </div>
-    <div class="hint" style="grid-column:1 / 3; margin-top:-2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Skriv fritt, eller begynn å skrive et skolenavn for å koble kalkylen til en skole.</div>
   </div>
   <div class="kalkyle-actions">
     <a class="btn small" href="priskalkulator.html" style="text-decoration:none;display:inline-flex;align-items:center;">← Tilbake til oversikten</a>
     <button class="btn small" id="btnOpprettForslag" title="Oppretter et nytt reiseforslag basert på denne kalkylen">Opprett forslag fra kalkyle</button>
+    <button class="btn small" id="btnOpprettTilbud" title="Kommer snart – bruk «Opprett forslag fra kalkyle» i mellomtiden">Opprett tilbud fra kalkyle</button>
   </div>
+  <div class="hint" id="tilbudSoonHint" style="display:none;margin-top:6px;">Denne snarveien er ikke bygget ferdig ennå – bruk «Opprett forslag fra kalkyle», så kan du gå videre til Tilbud derfra.</div>
   <div class="kalkyle-status" id="kalkyleStatus">Laster…</div>
+</div>
 </div>
 
 <main>
@@ -1007,7 +1012,7 @@ function valutaRows(prefix, moduleKey){
 function reiseinformasjonCard(prefix, moduleKey, isM1){
   return `
     <div class="card">
-      <div class="card-title">Reiseinformasjon</div>
+      <div class="card-title">Turdetaljer</div>
       ${textField(prefix+'navn','Reisemål')}
       ${numberField(prefix+'dager','Antall dager',{value:6})}
       ${isM1 ? `
@@ -2313,6 +2318,14 @@ async function opprettForslagFraKalkyle(){
   await loadSkoleOptions();
 
   el('btnOpprettForslag').addEventListener('click', opprettForslagFraKalkyle);
+
+  // v39: "Opprett tilbud fra kalkyle" - placeholder-knapp, ikke koblet til
+  // noen funksjonalitet ennå (avtalt med Vidar: legges til visuelt nå, bygges
+  // ferdig senere). Viser en kort forklarende hint-tekst ved klikk i stedet
+  // for å gjøre noe.
+  el('btnOpprettTilbud').addEventListener('click', ()=>{
+    el('tilbudSoonHint').style.display = 'block';
+  });
 
   el('meta_navn').addEventListener('input', (e)=>{
     // Fritekst som ikke (lenger) matcher et valgt skolenavn nøyaktig -> koblingen

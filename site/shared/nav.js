@@ -18,10 +18,10 @@
 
   const CAM_NAV_ITEMS = [
     { label: "Oversikt",       href: "index.html" },
+    { label: "Priskalkulator", href: "priskalkulator.html" },
     { label: "Forslag & Tilbud", href: "forslag.html" },
     { label: "Reiser",         disabled: true },
     { label: "Påmeldinger",    disabled: true },
-    { label: "Priskalkulator", href: "priskalkulator.html" },
     { label: "Hoteller",       href: "hoteller.html" },
     { label: "Skoleoversikt",  href: "skoler.html" },
     { label: "Kunder",         disabled: true },

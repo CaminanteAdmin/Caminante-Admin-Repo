@@ -19,6 +19,8 @@
     --good:#0ca30c;
     --critical:#d03b3b;
     --warning:#fab219;
+    --card-bg:#eaf2fb;
+    --card-border:#a9c9ec;
   }
   @media (prefers-color-scheme: dark){
     :root{
@@ -35,6 +37,8 @@
       --good:#0ca30c;
       --critical:#e66767;
       --warning:#fab219;
+      --card-bg:#16202c;
+      --card-border:#3d6094;
     }
   }
   *{box-sizing:border-box;}
@@ -98,13 +102,10 @@
   .hero{
     display:flex;
     align-items:center;
-    justify-content:space-between;
     flex-wrap:wrap;
     gap:16px;
     padding:22px 0 16px;
   }
-  .hero-text h2{ margin:0 0 4px; font-size:16px; }
-  .hero-text p{ margin:0; font-size:13px; color:var(--ink-muted); }
   .toolbar{
     display:flex;
     flex-wrap:wrap;
@@ -125,7 +126,7 @@
   .count-pill{ font-size:12.5px; color:var(--ink-muted); margin-left:auto; }
   .list-panel{
     background:var(--surface-1);
-    border:1px solid var(--border);
+    border:1px solid var(--card-border);
     border-radius:10px;
     padding:14px;
     overflow-x:auto;
@@ -136,12 +137,15 @@
     font-weight:600;
     color:var(--ink-2);
     padding:8px;
-    border-bottom:1px solid var(--border);
+    background:var(--card-bg);
+    border-bottom:1px solid var(--card-border);
     white-space:nowrap;
   }
+  thead th:first-child{ border-top-left-radius:6px; }
+  thead th:last-child{ border-top-right-radius:6px; }
   tbody td{ padding:9px 8px; border-bottom:1px solid var(--border); vertical-align:middle; white-space:nowrap; }
   tbody tr.row-clickable{ cursor:pointer; }
-  tbody tr.row-clickable:hover{ background:var(--page); }
+  tbody tr.row-clickable:hover{ background:var(--card-bg); }
   .navn-cell{ font-weight:600; }
   .num-cell{ font-variant-numeric:tabular-nums; }
   .row-actions{ display:flex; gap:6px; }
@@ -163,10 +167,6 @@
 
 <main>
   <div class="hero">
-    <div class="hero-text">
-      <h2>Kalkyler</h2>
-      <p>Alle prisberegninger for gruppereiser samlet ett sted. Kalkyler lagres automatisk mens du jobber.</p>
-    </div>
     <button class="btn primary big" id="btnOpprettKalkyle">+ Opprett ny kalkyle</button>
   </div>
 
@@ -182,11 +182,11 @@
         <thead>
           <tr>
             <th>Kundenavn</th>
-            <th>Reisemål</th>
+            <th>Reise</th>
             <th>Antall deltakere</th>
-            <th>Kundepris (per deltaker)</th>
-            <th>Total omsetning</th>
-            <th>Total fortjeneste</th>
+            <th>Kundepris</th>
+            <th>Omsetning</th>
+            <th>Fortjeneste</th>
             <th>Sist endret</th>
             <th></th>
           </tr>
@@ -222,13 +222,46 @@ function fmtSistEndret(d){
   return dt.toLocaleDateString('nb-NO',{year:'numeric',month:'short',day:'numeric'}) + ' kl. ' + dt.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'});
 }
 
+/* Reisemål + reisedato slås sammen til én "Reise"-kolonne i oversikten,
+   f.eks. "Marrakech, 12.-15. okt 2027". reise_start_dato/reise_slutt_dato er
+   rene dato-strenger (YYYY-MM-DD) fra <input type="date"> i editoren -
+   parses manuelt (ikke new Date()) for å unngå tidssone-forskyvning. */
+const MONTHS_SHORT = ['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'];
+function parseIsoDate(s){
+  if(!s) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if(!m) return null;
+  return { y:parseInt(m[1],10), mo:parseInt(m[2],10)-1, d:parseInt(m[3],10) };
+}
+function fmtReiseDato(startStr, sluttStr){
+  const start = parseIsoDate(startStr);
+  const slutt = parseIsoDate(sluttStr);
+  if(!start && !slutt) return '';
+  if(start && slutt){
+    if(start.y===slutt.y && start.mo===slutt.mo){
+      return `${start.d}.-${slutt.d}. ${MONTHS_SHORT[start.mo]} ${start.y}`;
+    }
+    if(start.y===slutt.y){
+      return `${start.d}. ${MONTHS_SHORT[start.mo]}–${slutt.d}. ${MONTHS_SHORT[slutt.mo]} ${start.y}`;
+    }
+    return `${start.d}. ${MONTHS_SHORT[start.mo]} ${start.y}–${slutt.d}. ${MONTHS_SHORT[slutt.mo]} ${slutt.y}`;
+  }
+  const only = start || slutt;
+  return `${only.d}. ${MONTHS_SHORT[only.mo]} ${only.y}`;
+}
+function fmtReiseKolonne(reisemaal, startStr, sluttStr){
+  const dato = fmtReiseDato(startStr, sluttStr);
+  if(reisemaal && dato) return `${reisemaal}, ${dato}`;
+  return reisemaal || dato || '';
+}
+
 let currentUserId = null;
 let kalkylerListe = [];
 let searchQuery = '';
 
 async function loadKalkyler(){
   const { data, error } = await window.sb.from('kalkyler')
-    .select('id,navn,skole_id,kalkyle_data,sist_endret')
+    .select('id,navn,skole_id,kalkyle_data,sist_endret,reise_start_dato,reise_slutt_dato')
     .order('sist_endret', { ascending:false });
   if(error){
     document.getElementById('loadMsg').textContent = 'Kunne ikke laste kalkyler: ' + error.message;
@@ -242,9 +275,11 @@ async function loadKalkyler(){
   kalkylerListe = (data||[]).map(row=>{
     const counts = (row.kalkyle_data && row.kalkyle_data.counts) || {};
     const values = (row.kalkyle_data && row.kalkyle_data.values) || {};
+    const reisemaal = values.m1_navn || '';
     return {
       ...row,
-      reisemaal: values.m1_navn || '',
+      reisemaal,
+      reiseKolonne: fmtReiseKolonne(reisemaal, row.reise_start_dato, row.reise_slutt_dato),
       antall: counts.anslattVisning ?? null,
       kundepris: counts.kundeprisVisning ?? null,
       totalOms: counts.totalOmsVisning ?? null,
@@ -270,7 +305,7 @@ function renderList(){
     tr.className = 'row-clickable';
     tr.innerHTML = `
       <td class="navn-cell">${escapeHtml(k.navn || 'Uten navn')}</td>
-      <td>${escapeHtml(k.reisemaal)}</td>
+      <td>${escapeHtml(k.reiseKolonne)}</td>
       <td class="num-cell">${k.antall ?? '–'}</td>
       <td class="num-cell">${k.kundepris!=null ? kr(k.kundepris) : '–'}</td>
       <td class="num-cell">${k.totalOms!=null ? kr(k.totalOms) : '–'}</td>
