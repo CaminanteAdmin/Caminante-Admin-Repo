@@ -523,7 +523,7 @@ function renderKalkyleInfo(){
   const info = el("kalkyleInfo");
   const drift = el("kalkyleDrift");
   if(!f.kalkyle_id){ info.innerHTML = ""; drift.style.display = "none"; return; }
-  info.innerHTML = `🧮 Koblet til kalkyle: <a href="priskalkulator.html?kalkyle=${encodeURIComponent(f.kalkyle_id)}">Åpne kalkyle →</a>`;
+  info.innerHTML = `🧮 Koblet til kalkyle: <a href="kalkyle-editor.html?kalkyle=${encodeURIComponent(f.kalkyle_id)}">Åpne kalkyle →</a>`;
   window.sb.from("kalkyler").select("sist_endret").eq("id", f.kalkyle_id).single().then(({data})=>{
     if(!data) return;
     const stale = f.kalkyle_sist_endret_ved_kobling && new Date(data.sist_endret) > new Date(f.kalkyle_sist_endret_ved_kobling);

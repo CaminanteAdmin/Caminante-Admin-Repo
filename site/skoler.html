@@ -437,7 +437,7 @@ async function loadAllData(){
       window.sb.from("kontakter").select("*"),
       window.sb.from("kommentarer").select("*").order("opprettet_dato", { ascending:false }),
       window.sb.from("profiles").select("id, navn"),
-      window.sb.from("kalkyler").select("id,navn,kunde_gruppe,reisemaal,sist_endret,skole_id").not("skole_id","is",null).order("sist_endret", { ascending:false }),
+      window.sb.from("kalkyler").select("id,navn,kalkyle_data,sist_endret,skole_id").not("skole_id","is",null).order("sist_endret", { ascending:false }),
     ]);
   if(e1 || e2 || e3 || e4){
     document.getElementById("loadMsg").textContent = "Kunne ikke laste data fra databasen. Sjekk Supabase-oppsettet (shared/supabase-client.js) og prøv igjen.";
@@ -709,9 +709,9 @@ function renderProfile(id){
       <h3>3. Lagrede kalkyler</h3>
       <div id="kalkylerWrap">
         ${(s.kalkyler && s.kalkyler.length) ? s.kalkyler.map(k => `
-          <a class="kalkyle-item" href="priskalkulator.html?kalkyle=${encodeURIComponent(k.id)}" style="display:block; text-decoration:none; color:inherit; border:1px solid var(--hairline); border-radius:6px; padding:8px 10px; margin-bottom:6px;">
+          <a class="kalkyle-item" href="kalkyle-editor.html?kalkyle=${encodeURIComponent(k.id)}" style="display:block; text-decoration:none; color:inherit; border:1px solid var(--hairline); border-radius:6px; padding:8px 10px; margin-bottom:6px;">
             <div style="font-weight:600; font-size:13px;">${escapeHtml(k.navn)}</div>
-            <div style="font-size:12px; color:var(--ink-muted);">${escapeHtml(k.reisemaal||"")}${k.reisemaal?" · ":""}sist endret ${new Date(k.sist_endret).toLocaleDateString("nb-NO")}</div>
+            <div style="font-size:12px; color:var(--ink-muted);">${escapeHtml((k.kalkyle_data && k.kalkyle_data.values && k.kalkyle_data.values.m1_navn) || "")}${(k.kalkyle_data && k.kalkyle_data.values && k.kalkyle_data.values.m1_navn) ? " · " : ""}sist endret ${new Date(k.sist_endret).toLocaleDateString("nb-NO")}</div>
           </a>
         `).join("") : `<div class="save-hint">Ingen kalkyler koblet til denne skolen ennå.</div>`}
       </div>
