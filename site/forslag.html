@@ -19,6 +19,10 @@
     --card-bg:#eaf2fb;
     --card-border:#a9c9ec;
   }
+  /* v3: siden bak listepanelet skal være hvit (se forslag-editor.html for
+     full begrunnelse) - overstyrer body-bakgrunnen lokalt, uendret i
+     shared/style.css. */
+  body{ background:var(--surface-1); }
   .toolbar{
     display:flex;
     flex-wrap:wrap;
@@ -90,15 +94,15 @@
     letter-spacing:0.03em;
   }
   table{ width:100%; border-collapse:collapse; font-size:13px; }
-  /* v2: tabellhode-bakgrunn og radhover er nå hvit/nøytral (var(--surface-1)/
-     var(--page)) i stedet for blåtonet (var(--card-bg)) - Vidar ønsket hvit
-     bakgrunn overalt i Forslag. --card-border står fortsatt som kant. */
+  /* v3: tabellhode-bakgrunn og radhover er blåtonet (var(--card-bg)) igjen -
+     v2s hvite variant var en misforståelse av ønsket om hvit SIDE-bakgrunn
+     (se body{} over), ikke at selve "kortet" skulle miste sin blåfarge. */
   thead th{
     text-align:left;
     font-weight:600;
     color:var(--ink-secondary);
     padding:10px 10px;
-    background:var(--surface-1);
+    background:var(--card-bg);
     border-bottom:1px solid var(--card-border);
     cursor:pointer;
     white-space:nowrap;
@@ -110,7 +114,7 @@
   thead th .arrow{ font-size:10px; color:var(--ink-muted); margin-left:3px; }
   tbody td{ padding:11px 10px; border-bottom:1px solid var(--hairline); vertical-align:middle; white-space:nowrap; }
   tbody tr{ cursor:pointer; }
-  tbody tr:hover{ background:var(--page); }
+  tbody tr:hover{ background:var(--card-bg); }
   .forslag-nr{ font-variant-numeric:tabular-nums; color:var(--ink-muted); font-size:12px; }
   .forslag-tittel{ font-weight:600; }
   .forslag-sub{ font-size:11.5px; color:var(--ink-muted); }

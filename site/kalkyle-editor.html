@@ -531,10 +531,11 @@
       <div class="col-right">
         <div class="kalkyle-actions">
           <a class="btn small" href="priskalkulator.html" style="text-decoration:none;display:inline-flex;align-items:center;">← Tilbake til oversikten</a>
+          <!-- v10: "Opprett tilbud fra kalkyle"-placeholderen er fjernet -
+               Tilbud-flyten går nå via Forslag (se "Gå til forslag"/"Opprett
+               forslag fra kalkyle" over) i stedet for en egen snarvei her. -->
           <button class="btn small" id="btnOpprettForslag" title="Oppretter et nytt reiseforslag basert på denne kalkylen">Opprett forslag fra kalkyle</button>
-          <button class="btn small" id="btnOpprettTilbud" title="Kommer snart – bruk «Opprett forslag fra kalkyle» i mellomtiden">Opprett tilbud fra kalkyle</button>
         </div>
-        <div class="hint" id="tilbudSoonHint" style="display:none;margin-top:6px;">Denne snarveien er ikke bygget ferdig ennå – bruk «Opprett forslag fra kalkyle», så kan du gå videre til Tilbud derfra.</div>
         <div class="kalkyle-status" id="kalkyleStatus" style="margin-bottom:12px;">Laster…</div>
         <div class="results" id="m1_results"></div>
       </div>
@@ -2457,7 +2458,7 @@ function updateForslagButtonState(){
   const btn = el('btnOpprettForslag');
   if(!btn) return;
   if(linkedForslagId){
-    btn.textContent = 'Tilbake til forslag';
+    btn.textContent = 'Gå til forslag';
     btn.title = 'Åpner forslaget som allerede er opprettet fra denne kalkylen';
   } else {
     btn.textContent = 'Opprett forslag fra kalkyle';
@@ -2641,14 +2642,6 @@ async function opprettForslagFraKalkyle(){
     } else {
       opprettForslagFraKalkyle();
     }
-  });
-
-  // v39: "Opprett tilbud fra kalkyle" - placeholder-knapp, ikke koblet til
-  // noen funksjonalitet ennå (avtalt med Vidar: legges til visuelt nå, bygges
-  // ferdig senere). Viser en kort forklarende hint-tekst ved klikk i stedet
-  // for å gjøre noe.
-  el('btnOpprettTilbud').addEventListener('click', ()=>{
-    el('tilbudSoonHint').style.display = 'block';
   });
 
   el('meta_navn').addEventListener('input', (e)=>{

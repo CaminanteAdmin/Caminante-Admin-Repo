@@ -19,6 +19,15 @@
     --card-bg:#eaf2fb;
     --card-border:#a9c9ec;
   }
+  /* v4: Vidar presiserte at det er SIDEN bak de blå kortene som skal være
+     hvit (den var grålig via shared/style.css sin body{background:var(--page)},
+     #f4f3ef) - ikke selve kortene, som feilaktig ble gjort hvite i forrige
+     runde. Overstyrer body-bakgrunnen lokalt her (ikke i shared/style.css,
+     som fortsatt brukes uendret av andre sider) til samme lyse hvitfarge som
+     feltene inni kortene (--surface-1). var(--page) brukes fortsatt andre
+     steder i denne filen (hover-tilstander, bilde-plassholdere) som en
+     bevisst gråtone atskilt fra både hvit side og blå kort - uendret. */
+  body{ background:var(--surface-1); }
   .editor-header{
     background:var(--surface-1);
     border-bottom:1px solid var(--hairline);
@@ -131,12 +140,12 @@
 
   /* v1: hovedinnholdet i hver fane samles i én stor .card - samme visuelle
      språk som kortene i kalkyle-editor.html (10px hjørner, generøs padding,
-     uppercase korttittel). v3: kort-BAKGRUNNEN er nå hvit (var(--surface-1)),
-     ikke lenger blåtonet (var(--card-bg), som var v1) - Vidar ønsket hvit
-     bakgrunn overalt i Forslag. Den blåtonede kant-fargen (--card-border)
-     står fortsatt, som eneste visuelle avgrensning av kortet mot siden. */
+     uppercase korttittel), blåtonet bakgrunn (var(--card-bg)). v3 gjorde
+     kort-bakgrunnen hvit ved en misforståelse av et ønske om hvit SIDE-
+     bakgrunn - reversert i v4 (se body{} over): det er --card-bg som gir
+     kortene deres blå identitet, --card-border er kanten rundt. */
   .card{
-    background:var(--surface-1);
+    background:var(--card-bg);
     border:1px solid var(--card-border);
     border-radius:10px;
     padding:18px 20px;
@@ -217,7 +226,7 @@
     text-align:center;
     margin-top:16px;
   }
-  .add-item-btn:hover{ background:var(--page); border-color:var(--blue); }
+  .add-item-btn:hover{ background:rgba(255,255,255,0.5); border-color:var(--blue); }
 
   .list-editor{ display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
   .list-editor-row{ display:flex; gap:6px; align-items:center; }
@@ -370,7 +379,10 @@
       <div class="item-list" id="internList"></div>
       <button class="add-item-btn" id="addInternBtn">+ Legg til flight</button>
     </div>
-    <button class="add-item-btn" id="addInternSectionBtn">+ Legg til intern flight</button>
+    <!-- v4: ekstra luft under denne knappen (margin-bottom, i tillegg til
+         add-item-btn sin vanlige margin-top) - den lå for tett inntil
+         Retur-kortet under. -->
+    <button class="add-item-btn" id="addInternSectionBtn" style="margin-bottom:18px;">+ Legg til intern flight</button>
     <div class="card">
       <div class="card-title">Retur</div>
       <div class="item-list" id="returList"></div>
@@ -378,22 +390,16 @@
     </div>
   </div>
 
-  <!-- ===== Hotellopphold ===== -->
+  <!-- ===== Hotellopphold =====
+       v4: "Velg fra hotelloversikt" er flyttet fra én global knapp øverst i
+       fanen til å ligge UNDER HVERT ENKELT hotell (se renderHotell()) - å
+       velge et hotell der erstatter nå feltene i akkurat den blokken, i
+       stedet for å legge til et nytt hotellopphold nederst i listen. Hotell 1
+       opprettes automatisk med reisedatoene forhåndsutfylt når fanen åpnes
+       uten lagrede hotellopphold (samme mønster som Flyinformasjon). -->
   <div class="tab-panel" data-tab="hotell">
     <div class="card">
       <div class="card-title">Hotellopphold</div>
-      <!-- v: "Velg fra hotelloversikt" - henter generell hotellinfo (og
-           bilder) fra Hoteller-verktøyet inn i et nytt hotellopphold.
-           Turspesifikke felt (datoer/netter/romtype/pris/tilgjengelighet)
-           forhåndsutfylles bevisst IKKE - kun det som er generelt for
-           hotellet. Alt er fritekst-kopier som kan redigeres videre. -->
-      <div style="position:relative; margin-bottom:16px;">
-        <button type="button" class="add-item-btn" id="velgHotellBtn" style="margin-top:0;">Velg fra hotelloversikt</button>
-        <div id="hotellOversiktWrap" style="display:none; position:relative; margin-top:8px;">
-          <input type="text" id="hotellOversiktSok" placeholder="Søk hotellnavn eller by…" autocomplete="off">
-          <div id="hotellOversiktDropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:240px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
-        </div>
-      </div>
       <div class="item-list" id="hotellList"></div>
       <button class="add-item-btn" id="addHotellBtn">+ Legg til hotellopphold</button>
     </div>
@@ -580,8 +586,11 @@ async function loadForslag(id){
   // rader i en av kategoriene ennå, legges én tom flight til her (kun i
   // minnet - lagres først når brukeren faktisk trykker Lagre), forhåndsutfylt
   // med reisens fra-/til-dato hvis satt. Intern flight er fortsatt et rent
-  // valgfritt tillegg og får ingen automatisk oppføring.
-  const harUtreise = state.transport.some(t => (t.fields.kategori||"utreise") === "utreise");
+  // valgfritt tillegg og får ingen automatisk oppføring. v4: sjekker kun
+  // EKSPLISITT kategori (ingen fallback) - gamle rader uten kategori teller
+  // ikke som en eksisterende Utreise, se flightsInKategori()-kommentaren
+  // over for hvorfor.
+  const harUtreise = state.transport.some(t => t.fields.kategori === "utreise");
   const harRetur = state.transport.some(t => t.fields.kategori === "retur");
   if(!harUtreise){
     const dato = f.fra_dato ? f.fra_dato + "T00:00" : null;
@@ -590,6 +599,18 @@ async function loadForslag(id){
   if(!harRetur){
     const dato = f.til_dato ? f.til_dato + "T00:00" : null;
     state.transport.push({ id:null, clientKey:newClientKey(), fields:{ kategori:"retur", sortering: state.transport.length, avreise_tidspunkt: dato, ankomst_tidspunkt: dato } });
+  }
+
+  // v4: Hotellopphold-fanen skal alltid vise minst ett hotell (Hotell 1) -
+  // samme prinsipp som Utreise/Retur over. Har forslaget ingen lagrede
+  // hotellopphold ennå, opprettes ett i minnet med fra-/til-dato
+  // forhåndsutfylt fra reisens datoer (Grunninfo) - fritt redigerbart,
+  // f.eks. hvis hotelloppholdet ikke dekker hele reisen.
+  if(!state.hotellopphold.length){
+    state.hotellopphold.push({
+      id:null, clientKey:newClientKey(),
+      fields:{ sortering:0, fra_dato: f.fra_dato||null, til_dato: f.til_dato||null },
+    });
   }
 
   const hotellIdSet = new Set(state.hotellopphold.map(h=>h.id));
@@ -701,18 +722,21 @@ async function oppdaterPrisFraKalkyle(){
    v: Erstatter det gamle frie segment-listen (type/retning/fra/til osv.)
    med tre faste kategorier lagret i forslag_transport.kategori
    ("utreise"/"retur"/"intern"), hver med én eller flere "Flight N"-
-   oppføringer. Gamle rader (fra før denne endringen) mangler kategori i
-   databasen - de behandles som "utreise" som fallback (KATEGORI_FALLBACK
-   under) slik at ingenting forsvinner fra UI-et, men rute/flightnr/selskap
-   vises tomt siden de gamle radene aldri hadde disse feltene utfylt (de
-   gamle kolonnene fra_sted/til_sted/avgangstid osv. ligger fortsatt urørt i
-   databasen, bare ikke lenger vist her). Selve lagringsmekanismen
-   (syncChildTable) er uendret - den jobber generisk på item.fields uansett
-   hvilke kolonnenavn som brukes. */
-const KATEGORI_FALLBACK = "utreise";
-
+   oppføringer. v4-RETTELSE: gamle rader (fra før denne endringen) mangler
+   kategori i databasen, og ble tidligere vist med fallback som "Utreise" -
+   det viste seg å være feil, siden den gamle Transport-fanen kunne
+   inneholde HELT ANDRE ting enn fly (buss, lokale guider osv.), som da
+   feilaktig ble vist som "Flight 1/2/3". Rader uten eksplisitt kategori
+   vises derfor IKKE lenger i noen av de tre seksjonene her - de forblir
+   urørt i state.transport (og dermed i databasen ved lagring, siden
+   syncChildTable jobber på hele state.transport-arrayet uansett hva som
+   vises), bare ikke synlige i denne fanen. Det betyr at Utreise/Retur
+   fremstår tomme for eldre forslag helt til brukeren legger til en ny
+   flight (som da får en eksplisitt kategori) - identisk oppførsel for
+   begge retninger, i stedet for at gamle, ikke-fly-rader dukket opp kun
+   under Utreise. */
 function flightsInKategori(kategori){
-  return state.transport.filter(item => (item.fields.kategori || KATEGORI_FALLBACK) === kategori);
+  return state.transport.filter(item => item.fields.kategori === kategori);
 }
 
 function renderFlySection(kategori, containerId, placeholder){
@@ -840,6 +864,10 @@ function renderRomtypeAndre(container, f){
 let _romtypeUidCounter = 0;
 function item_uid(el){ if(!el.dataset.uid) el.dataset.uid = String(_romtypeUidCounter++); return el.dataset.uid; }
 
+// v4: maks antall hotellopphold - Vidar ba om en øvre grense "om vi trenger
+// en", satt til 9 (i praksis mer enn nok for enhver reise).
+const HOTELL_MAKS = 9;
+
 function renderHotell(){
   const wrap = el("hotellList");
   wrap.innerHTML = "";
@@ -849,8 +877,19 @@ function renderHotell(){
     card.className = "item-block";
     card.innerHTML = `
       <div class="item-head">
-        <span class="item-title">${escapeHtml(f.sted) || "Hotell " + (idx+1)}</span>
+        <span class="item-title">Hotell ${idx+1}</span>
         <button class="item-remove" data-idx="${idx}">Fjern</button>
+      </div>
+      <!-- v4: "Velg fra hotelloversikt" ligger nå under HVER hotellblokk -
+           velger man et hotell her, ERSTATTES feltene i denne blokken
+           (se velgHotellFraOversiktInn()), det legges ikke til et nytt
+           hotellopphold. -->
+      <div style="position:relative; margin-bottom:14px;">
+        <button type="button" class="add-item-btn h-velg-fra-oversikt-btn" style="margin-top:0;">Velg fra hotelloversikt</button>
+        <div class="h-oversikt-wrap" style="display:none; position:relative; margin-top:8px;">
+          <input type="text" class="h-oversikt-sok" placeholder="Søk hotellnavn eller by…" autocomplete="off">
+          <div class="h-oversikt-dropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:240px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
+        </div>
       </div>
       <div class="field-grid">
         <label>Hotellnavn</label><input class="h-navn" value="${escapeHtml(f.hotellnavn)}">
@@ -887,7 +926,6 @@ function renderHotell(){
       f.romtype_standard = nyStandard;
       renderRomtypeAndre(romtypeWrap, f);
     });
-    card.querySelector(".h-sted").addEventListener("change", ()=> renderHotell());
     card.querySelector(".item-remove").addEventListener("click", ()=>{
       const removedKey = item.clientKey;
       state.hotellopphold.splice(idx,1);
@@ -895,22 +933,45 @@ function renderHotell(){
       renderHotell();
       renderBilder();
     });
+
+    // "Velg fra hotelloversikt" for akkurat denne blokken.
+    const velgBtn = card.querySelector(".h-velg-fra-oversikt-btn");
+    const oversiktWrap = card.querySelector(".h-oversikt-wrap");
+    const oversiktSok = card.querySelector(".h-oversikt-sok");
+    const oversiktDropdown = card.querySelector(".h-oversikt-dropdown");
+    velgBtn.addEventListener("click", ()=>{
+      const show = oversiktWrap.style.display === "none";
+      oversiktWrap.style.display = show ? "block" : "none";
+      if(show) oversiktSok.focus();
+    });
+    oversiktSok.addEventListener("input", e=> renderHotellOversiktDropdown(oversiktDropdown, e.target.value, item));
+    oversiktSok.addEventListener("focus", e=>{ if(e.target.value.trim()) renderHotellOversiktDropdown(oversiktDropdown, e.target.value, item); });
+    oversiktSok.addEventListener("blur", ()=> setTimeout(()=>{ oversiktDropdown.style.display = "none"; }, 150));
   });
+  el("addHotellBtn").style.display = state.hotellopphold.length >= HOTELL_MAKS ? "none" : "block";
 }
 el("addHotellBtn").addEventListener("click", ()=>{
-  state.hotellopphold.push({ id:null, clientKey:newClientKey(), fields:{ sortering: state.hotellopphold.length } });
+  if(state.hotellopphold.length >= HOTELL_MAKS) return;
+  // v4: nye hotell (Hotell 2, 3, ...) får samme reisedato-forslag som
+  // Hotell 1 - et fornuftig utgangspunkt, fritt redigerbart.
+  state.hotellopphold.push({
+    id:null, clientKey:newClientKey(),
+    fields:{ sortering: state.hotellopphold.length, fra_dato: state.forslag.fra_dato||null, til_dato: state.forslag.til_dato||null },
+  });
   renderHotell();
 });
 
 /* ---------- "Velg fra hotelloversikt" ----------
    Henter generell hotellinfo (navn/sted/standard/beskrivelse) + hotellets
-   bilder inn i et NYTT hotellopphold. Turspesifikke felt (datoer, netter,
-   romtype, pris, tilgjengelighet) forhåndsutfylles bevisst ikke - kun det
-   som er generelt for hotellet, alt sammen fritekst-kopier som er fritt
-   redigerbare etterpå (ingen levende sync mot hoteller-tabellen). Samme
-   søk-i-dropdown-mønster som skolesøket i Grunninfo. */
-function renderHotellOversiktDropdown(query){
-  const dd = el("hotellOversiktDropdown");
+   bilder inn i det hotelloppholdet (item) knappen ligger under - ERSTATTER
+   feltene i den blokken, legger ikke til et nytt hotellopphold. Turspesifikke
+   felt (datoer, netter, romtype, pris, tilgjengelighet) røres bevisst ikke -
+   kun det som er generelt for hotellet overskrives. Alt er fritekst-kopier
+   som er fritt redigerbare etterpå (ingen levende sync mot hoteller-
+   tabellen). Samme søk-i-dropdown-mønster som skolesøket i Grunninfo, men nå
+   med dropdown-elementet og søkefeltet sendt inn som parametre siden det
+   finnes ett sett per hotellblokk i stedet for ett globalt. */
+function renderHotellOversiktDropdown(dd, query, item){
   const q = query.trim().toLowerCase();
   if(!q){ dd.style.display = "none"; dd.innerHTML = ""; return; }
   const matches = hotellOversikt.filter(h=>{
@@ -930,48 +991,37 @@ function renderHotellOversiktDropdown(query){
   dd.querySelectorAll(".hotell-opt[data-id]").forEach(row=>{
     row.addEventListener("mousedown", (e)=>{
       e.preventDefault();
-      velgHotellFraOversikt(row.dataset.id);
+      velgHotellFraOversiktInn(item, row.dataset.id);
     });
   });
 }
-function velgHotellFraOversikt(id){
+function velgHotellFraOversiktInn(item, id){
   const h = hotellOversikt.find(x=>x.id===id);
   if(!h) return;
-  const clientKey = newClientKey();
+  const f = item.fields;
   const sted = [h.by, h.land].filter(Boolean).join(", ");
-  state.hotellopphold.push({
-    id:null, clientKey,
-    fields:{
-      sortering: state.hotellopphold.length,
-      hotellnavn: h.navn || null,
-      sted: sted || null,
-      standard: h.standard || null,
-      beskrivelse: h.beskrivelse || null,
-      hotell_id: h.id,
-    },
-  });
+  f.hotellnavn = h.navn || null;
+  f.sted = sted || null;
+  f.standard = h.standard || null;
+  f.beskrivelse = h.beskrivelse || null;
+  f.hotell_id = h.id;
+  // Bytter man hotell i en blokk som allerede har bilder fra et tidligere
+  // valgt hotell, erstattes disse også - de hørte til det GAMLE hotellet og
+  // ville ellers vist feil bilder under det nye hotellnavnet. Bilder lastet
+  // opp manuelt for dette hotelloppholdet forsvinner dermed også ved bytte;
+  // vurdert som riktig oppførsel siden "erstatte hotellet" naturlig
+  // inkluderer bildene, men verdt å huske om det viser seg upraktisk.
+  state.bilder = state.bilder.filter(b => b.hotellopphold_client_key !== item.clientKey);
   hotellBilderOversikt.filter(b=>b.hotell_id===id).forEach(b=>{
     state.bilder.push({
       id:null, clientKey:newClientKey(),
       fields:{ kategori:"Hotell", bilde_url:b.bilde_url, alt_tekst:b.alt_tekst||null, sortering: state.bilder.length },
-      hotellopphold_client_key: clientKey, dagsprogram_client_key: null,
+      hotellopphold_client_key: item.clientKey, dagsprogram_client_key: null,
     });
   });
-  el("hotellOversiktSok").value = "";
-  el("hotellOversiktDropdown").style.display = "none";
-  el("hotellOversiktWrap").style.display = "none";
   renderHotell();
   renderBilder();
 }
-el("velgHotellBtn").addEventListener("click", ()=>{
-  const wrap = el("hotellOversiktWrap");
-  const show = wrap.style.display === "none";
-  wrap.style.display = show ? "block" : "none";
-  if(show) el("hotellOversiktSok").focus();
-});
-el("hotellOversiktSok").addEventListener("input", (e)=> renderHotellOversiktDropdown(e.target.value));
-el("hotellOversiktSok").addEventListener("focus", (e)=>{ if(e.target.value.trim()) renderHotellOversiktDropdown(e.target.value); });
-el("hotellOversiktSok").addEventListener("blur", ()=> setTimeout(()=>{ el("hotellOversiktDropdown").style.display="none"; }, 150));
 
 /* ---------- Rendering: Program (dagsprogram) ---------- */
 
