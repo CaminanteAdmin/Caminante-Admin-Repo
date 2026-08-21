@@ -2206,6 +2206,11 @@ let currentKalkyleId = null;
 let currentKalkyleSistEndret = null;
 let currentUserId = null;
 let currentSkoleId = null;
+// v9 (forslag-integrasjon): id-en til et allerede opprettet Forslag koblet
+// til denne kalkylen, om noe - satt av updateForslagLinkDisplay(), lest av
+// knappen "Opprett forslag fra kalkyle"/"Tilbake til forslag" (se
+// updateForslagButtonState() og klikk-lytteren i initKalkyleBar()).
+let linkedForslagId = null;
 const skoleIdByName = new Map();
 const skoleNameById = new Map();
 let skoleOptions = []; // [{id, navn}], brukes til egen prefiks-basert søkeliste (ikke nettleserens innebygde datalist-filtrering)
@@ -2412,16 +2417,43 @@ async function openKalkyleById(id){
 
 async function updateForslagLinkDisplay(){
   const linkEl = el('forslagLink');
-  if(!linkEl) return;
-  if(!currentKalkyleId){ linkEl.innerHTML = ''; return; }
+  linkedForslagId = null;
+  if(!currentKalkyleId){
+    if(linkEl) linkEl.innerHTML = '';
+    updateForslagButtonState();
+    return;
+  }
   const { data, error } = await window.sb.from('forslag')
     .select('id,tittel')
     .eq('kalkyle_id', currentKalkyleId)
     .order('opprettet_dato', { ascending:false })
     .limit(1);
-  if(error || !data || !data.length){ linkEl.innerHTML = ''; return; }
+  if(error || !data || !data.length){
+    if(linkEl) linkEl.innerHTML = '';
+    updateForslagButtonState();
+    return;
+  }
   const f = data[0];
-  linkEl.innerHTML = `📄 <a href="forslag-editor.html?id=${encodeURIComponent(f.id)}">${(f.tittel||'Forslag').replace(/</g,'&lt;')} →</a>`;
+  linkedForslagId = f.id;
+  if(linkEl) linkEl.innerHTML = `📄 <a href="forslag-editor.html?id=${encodeURIComponent(f.id)}">${(f.tittel||'Forslag').replace(/</g,'&lt;')} →</a>`;
+  updateForslagButtonState();
+}
+/* v9: "Opprett forslag fra kalkyle"-knappen skal ikke lage et duplikat-
+   forslag hver gang man kommer tilbake til en kalkyle som allerede har fått
+   et forslag - den blir da "Tilbake til forslag" og åpner det eksisterende
+   forslaget direkte i stedet. Kalt fra updateForslagLinkDisplay() (kjøres
+   ved åpning av kalkylen OG etter hver autolagring), slik at knappen alltid
+   stemmer med databasens faktiske tilstand. */
+function updateForslagButtonState(){
+  const btn = el('btnOpprettForslag');
+  if(!btn) return;
+  if(linkedForslagId){
+    btn.textContent = 'Tilbake til forslag';
+    btn.title = 'Åpner forslaget som allerede er opprettet fra denne kalkylen';
+  } else {
+    btn.textContent = 'Opprett forslag fra kalkyle';
+    btn.title = 'Oppretter et nytt reiseforslag basert på denne kalkylen';
+  }
 }
 
 /* Forslag-integrasjon, utvidet versjon: "Priskalkulatoren er i størst mulig
@@ -2567,7 +2599,13 @@ async function opprettForslagFraKalkyle(){
 
   await loadSkoleOptions();
 
-  el('btnOpprettForslag').addEventListener('click', opprettForslagFraKalkyle);
+  el('btnOpprettForslag').addEventListener('click', ()=>{
+    if(linkedForslagId){
+      window.location.href = `forslag-editor.html?id=${encodeURIComponent(linkedForslagId)}`;
+    } else {
+      opprettForslagFraKalkyle();
+    }
+  });
 
   // v39: "Opprett tilbud fra kalkyle" - placeholder-knapp, ikke koblet til
   // noen funksjonalitet ennå (avtalt med Vidar: legges til visuelt nå, bygges

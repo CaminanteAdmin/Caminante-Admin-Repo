@@ -6,6 +6,19 @@
 <title>Forslag – Caminante Admin</title>
 <link rel="stylesheet" href="shared/style.css">
 <style>
+  /* v1: samme designprinsipp som Priskalkulatoren (priskalkulator.html /
+     kalkyle-editor.html) - lokale ekstra-tokens for større, blåtonede
+     bokser (se .card/.item-block under), lagt til her og i forslag.html i
+     stedet for i shared/style.css, som fortsatt brukes uendret av
+     skoler.html/hoteller.html/kalender.html/index.html. --blue/--blue-dark
+     er en lysere, mer synlig primærblå enn shared sin --accent, brukt på
+     samme måte som i kalkulatoren (primærknapper + kort). */
+  :root{
+    --blue:#2a78d6;
+    --blue-dark:#184f95;
+    --card-bg:#eaf2fb;
+    --card-border:#a9c9ec;
+  }
   .editor-header{
     background:var(--surface-1);
     border-bottom:1px solid var(--hairline);
@@ -57,8 +70,8 @@
     white-space:nowrap;
   }
   .editor-header button:hover{ background:var(--page); }
-  .editor-header button.primary{ background:var(--accent); color:#fff; border-color:var(--accent); }
-  .editor-header button.primary:hover{ background:#123d75; }
+  .editor-header button.primary{ background:var(--blue); color:#fff; border-color:var(--blue); }
+  .editor-header button.primary:hover{ background:var(--blue-dark); }
   .editor-header button.danger{ color:#b04a4a; }
   .editor-header button.danger:hover{ background:#fbeaea; border-color:#d03b3b; }
   .save-status{ font-size:11.5px; color:var(--ink-muted); margin-top:4px; }
@@ -111,54 +124,80 @@
     white-space:nowrap;
   }
   .tab-btn:hover{ color:var(--ink-primary); }
-  .tab-btn.active{ color:var(--accent); border-bottom-color:var(--accent); }
+  .tab-btn.active{ color:var(--blue); border-bottom-color:var(--blue); }
 
-  .tab-panel{ display:none; padding:20px 24px 60px; max-width:820px; }
+  .tab-panel{ display:none; padding:20px 24px 60px; max-width:880px; }
   .tab-panel.active{ display:block; }
+
+  /* v1: hovedinnholdet i hver fane samles nå i én stor, blåtonet .card -
+     samme visuelle språk som kortene i kalkyle-editor.html (blå bakgrunn,
+     10px hjørner, generøs padding, uppercase korttittel). Felt/input-
+     bakgrunnen er lys (var(--page)) slik at feltene "letter seg" tydelig
+     mot den blå bunnen, akkurat som i kalkulatoren. */
+  .card{
+    background:var(--card-bg);
+    border:1px solid var(--card-border);
+    border-radius:10px;
+    padding:18px 20px;
+    margin-bottom:18px;
+  }
+  .card-title{
+    font-size:13px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    color:var(--ink-secondary);
+    margin:0 0 14px;
+  }
+  .card:last-child{ margin-bottom:0; }
 
   .field-grid{
     display:grid;
-    grid-template-columns:160px 1fr;
-    row-gap:12px;
-    column-gap:14px;
+    grid-template-columns:170px 1fr;
+    row-gap:14px;
+    column-gap:16px;
     font-size:13px;
     align-items:start;
   }
-  .field-grid label{ color:var(--ink-muted); padding-top:6px; }
+  .field-grid label{ color:var(--ink-secondary); padding-top:8px; }
   .field-grid input, .field-grid select, .field-grid textarea{
-    border:1px solid var(--hairline);
+    border:1px solid var(--card-border);
     border-radius:6px;
-    padding:6px 8px;
+    padding:8px 10px;
     font-size:13px;
     font-family:inherit;
     color:var(--ink-primary);
+    background:var(--page);
     width:100%;
     box-sizing:border-box;
   }
   .field-grid textarea{ min-height:70px; resize:vertical; }
   .field-hint{ font-size:11px; color:var(--ink-muted); margin-top:3px; }
 
-  .item-card{
-    border:1px solid var(--hairline);
-    border-radius:var(--radius);
-    padding:14px 16px;
-    margin-bottom:12px;
-    background:var(--surface-1);
+  /* Enkeltposter i en liste (transportsegment, hotellopphold, dag) ligger nå
+     som avsnitt INNI én felles .card per fane, atskilt med en stiplet linje
+     - samme mønster som "Hotell 2" osv. under hverandre i kalkulatorens
+     Overnatting-kort, i stedet for hver sin frittstående boks. */
+  .item-list .item-block{
+    border-top:1px dashed var(--card-border);
+    padding-top:16px;
+    margin-top:16px;
   }
-  .item-card .item-head{
+  .item-list .item-block:first-child{ border-top:none; padding-top:0; margin-top:0; }
+  .item-block .item-head{
     display:flex;
     justify-content:space-between;
     align-items:center;
     margin-bottom:10px;
   }
-  .item-card .item-title{ font-size:12.5px; font-weight:650; color:var(--ink-secondary); text-transform:uppercase; letter-spacing:0.02em; }
+  .item-block .item-title{ font-size:12.5px; font-weight:650; color:var(--ink-secondary); text-transform:uppercase; letter-spacing:0.02em; }
   .item-remove{
     border:none; background:none; color:#b04a4a; font-size:12px; cursor:pointer; padding:2px 4px;
   }
   .item-remove:hover{ text-decoration:underline; }
   .add-item-btn{
-    padding:8px 14px;
-    border:1px dashed var(--hairline);
+    padding:9px 14px;
+    border:1px dashed var(--card-border);
     border-radius:8px;
     background:none;
     color:var(--ink-secondary);
@@ -166,32 +205,35 @@
     cursor:pointer;
     width:100%;
     text-align:center;
+    margin-top:16px;
   }
-  .add-item-btn:hover{ background:var(--page); border-color:var(--ink-muted); }
+  .add-item-btn:hover{ background:rgba(255,255,255,0.5); border-color:var(--blue); }
 
-  .list-editor{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+  .list-editor{ display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
   .list-editor-row{ display:flex; gap:6px; align-items:center; }
   .list-editor-row input{
     flex:1;
-    border:1px solid var(--hairline);
+    border:1px solid var(--card-border);
     border-radius:6px;
-    padding:6px 8px;
+    padding:8px 10px;
     font-size:13px;
     font-family:inherit;
+    background:var(--page);
   }
   .list-editor-row button{
     border:none; background:none; color:#b04a4a; font-size:14px; cursor:pointer; padding:2px 6px;
   }
 
-  .img-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; margin-bottom:14px; }
-  .img-card{ border:1px solid var(--hairline); border-radius:8px; overflow:hidden; background:var(--surface-1); }
-  .img-card img{ width:100%; height:100px; object-fit:cover; display:block; background:var(--page); }
+  .img-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; margin-bottom:0; }
+  .img-card{ border:1px solid var(--card-border); border-radius:8px; overflow:hidden; background:var(--page); }
+  .img-card img{ width:100%; height:100px; object-fit:cover; display:block; background:var(--surface-1); }
   .img-card .img-body{ padding:8px; }
   .img-card select, .img-card input{
     width:100%; font-size:11px; padding:3px 5px; border:1px solid var(--hairline); border-radius:5px; margin-bottom:5px; font-family:inherit;
+    background:var(--surface-1);
   }
   .img-card .img-remove{ font-size:11px; color:#b04a4a; background:none; border:none; cursor:pointer; padding:0; }
-  .upload-hint{ font-size:11.5px; color:var(--ink-muted); margin-bottom:10px; }
+  .upload-hint{ font-size:11.5px; color:var(--ink-muted); margin-bottom:14px; }
 
   .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
 </style>
@@ -243,115 +285,139 @@
 
   <!-- ===== Grunninfo ===== -->
   <div class="tab-panel active" data-tab="grunninfo">
-    <div class="field-grid">
-      <label for="g-destinasjon">Destinasjon / reiseidé</label><input type="text" id="g-destinasjon">
-      <label for="g-kundetype">Kundetype</label>
-      <select id="g-kundetype">
-        <option value="Firma">Firma</option>
-        <option value="Skole">Skole</option>
-        <option value="Forening">Forening</option>
-        <option value="Annen gruppe">Annen gruppe</option>
-      </select>
-      <label for="g-kunde">Kunde</label>
-      <div>
-        <div id="g-skole-wrap" style="display:none; position:relative;">
-          <input type="text" id="g-skole-sok" placeholder="Søk skolenavn…" autocomplete="off">
-          <div id="g-skole-dropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--hairline); border-radius:6px; max-height:200px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
+    <div class="card">
+      <div class="field-grid">
+        <label for="g-destinasjon">Destinasjon / reiseidé</label><input type="text" id="g-destinasjon">
+        <label for="g-kundetype">Kundetype</label>
+        <select id="g-kundetype">
+          <option value="Firma">Firma</option>
+          <option value="Skole">Skole</option>
+          <option value="Forening">Forening</option>
+          <option value="Annen gruppe">Annen gruppe</option>
+        </select>
+        <label for="g-kunde">Kunde</label>
+        <div>
+          <div id="g-skole-wrap" style="display:none; position:relative;">
+            <input type="text" id="g-skole-sok" placeholder="Søk skolenavn…" autocomplete="off">
+            <div id="g-skole-dropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:200px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
+          </div>
+          <input type="text" id="g-kunde-navn" placeholder="Kundenavn (fritekst)">
         </div>
-        <input type="text" id="g-kunde-navn" placeholder="Kundenavn (fritekst)">
+        <label for="g-kontaktperson">Kontaktperson</label><input type="text" id="g-kontaktperson">
+        <label for="g-ansvarlig">Ansvarlig hos Caminante</label><select id="g-ansvarlig"></select>
+        <label for="g-antall">Antall reisende</label><input type="number" id="g-antall" min="0">
+        <label>Fra- / til-dato</label>
+        <div style="display:flex; gap:8px;">
+          <input type="date" id="g-fra" style="flex:1;">
+          <input type="date" id="g-til" style="flex:1;">
+        </div>
+        <label for="g-periode">Periode (hvis ikke eksakte datoer)</label><input type="text" id="g-periode" placeholder="F.eks. Ultimo mars 2027">
+        <label for="g-avreisested">Avreisested</label><input type="text" id="g-avreisested">
+        <label for="g-notater">Interne notater</label><textarea id="g-notater"></textarea>
       </div>
-      <label for="g-kontaktperson">Kontaktperson</label><input type="text" id="g-kontaktperson">
-      <label for="g-ansvarlig">Ansvarlig hos Caminante</label><select id="g-ansvarlig"></select>
-      <label for="g-antall">Antall reisende</label><input type="number" id="g-antall" min="0">
-      <label>Fra- / til-dato</label>
-      <div style="display:flex; gap:8px;">
-        <input type="date" id="g-fra" style="flex:1;">
-        <input type="date" id="g-til" style="flex:1;">
-      </div>
-      <label for="g-periode">Periode (hvis ikke eksakte datoer)</label><input type="text" id="g-periode" placeholder="F.eks. Ultimo mars 2027">
-      <label for="g-avreisested">Avreisested</label><input type="text" id="g-avreisested">
-      <label for="g-notater">Interne notater</label><textarea id="g-notater"></textarea>
     </div>
   </div>
 
   <!-- ===== Transport ===== -->
   <div class="tab-panel" data-tab="transport">
-    <div id="transportList"></div>
-    <button class="add-item-btn" id="addTransportBtn">+ Legg til transportsegment</button>
+    <div class="card">
+      <div class="card-title">Transportsegmenter</div>
+      <div class="item-list" id="transportList"></div>
+      <button class="add-item-btn" id="addTransportBtn">+ Legg til transportsegment</button>
+    </div>
   </div>
 
   <!-- ===== Hotellopphold ===== -->
   <div class="tab-panel" data-tab="hotell">
-    <div id="hotellList"></div>
-    <button class="add-item-btn" id="addHotellBtn">+ Legg til hotellopphold</button>
+    <div class="card">
+      <div class="card-title">Hotellopphold</div>
+      <div class="item-list" id="hotellList"></div>
+      <button class="add-item-btn" id="addHotellBtn">+ Legg til hotellopphold</button>
+    </div>
   </div>
 
   <!-- ===== Program ===== -->
   <div class="tab-panel" data-tab="program">
-    <div class="field-grid" style="margin-bottom:18px;">
-      <label for="p-intro">Kort introduksjon</label><textarea id="p-intro"></textarea>
+    <div class="card">
+      <div class="card-title">Introduksjon</div>
+      <div class="field-grid">
+        <label for="p-intro">Kort introduksjon</label><textarea id="p-intro"></textarea>
+      </div>
     </div>
-    <div id="dagList"></div>
-    <button class="add-item-btn" id="addDagBtn">+ Legg til dag</button>
+    <div class="card">
+      <div class="card-title">Dagsprogram</div>
+      <div class="item-list" id="dagList"></div>
+      <button class="add-item-btn" id="addDagBtn">+ Legg til dag</button>
+    </div>
   </div>
 
   <!-- ===== Pris ===== -->
   <div class="tab-panel" data-tab="pris">
-    <div class="field-grid">
-      <label for="pr-per-person">Pris per person</label><input type="number" id="pr-per-person" step="1">
-      <label for="pr-fra">Vis som fra-pris</label>
-      <div><input type="checkbox" id="pr-fra" style="width:auto;"> <span class="field-hint">Presenteres da som «fra kr …,-» i PDF</span></div>
-      <label for="pr-antall">Antall personer prisen er basert på</label><input type="number" id="pr-antall" min="0">
-      <label for="pr-enkeltrom">Enkeltromstillegg</label><input type="number" id="pr-enkeltrom" step="1">
-      <label for="pr-valuta">Valuta</label><input type="text" id="pr-valuta" value="NOK">
-      <label for="pr-kursgrunnlag">Kursgrunnlag</label><input type="text" id="pr-kursgrunnlag" placeholder="F.eks. EUR-kurs 11,5">
-      <label for="pr-forklaring">Forklaring på prisgrunnlaget</label><textarea id="pr-forklaring" placeholder="Vises i PDF, kort og kundevennlig"></textarea>
-      <label for="pr-intern">Intern kommentar</label><textarea id="pr-intern" placeholder="Vises IKKE i PDF - kun til internt bruk"></textarea>
+    <div class="card">
+      <div class="field-grid">
+        <label for="pr-per-person">Pris per person</label><input type="number" id="pr-per-person" step="1">
+        <label for="pr-fra">Vis som fra-pris</label>
+        <div><input type="checkbox" id="pr-fra" style="width:auto;"> <span class="field-hint">Presenteres da som «fra kr …,-» i PDF</span></div>
+        <label for="pr-antall">Antall personer prisen er basert på</label><input type="number" id="pr-antall" min="0">
+        <label for="pr-enkeltrom">Enkeltromstillegg</label><input type="number" id="pr-enkeltrom" step="1">
+        <label for="pr-valuta">Valuta</label><input type="text" id="pr-valuta" value="NOK">
+        <label for="pr-kursgrunnlag">Kursgrunnlag</label><input type="text" id="pr-kursgrunnlag" placeholder="F.eks. EUR-kurs 11,5">
+        <label for="pr-forklaring">Forklaring på prisgrunnlaget</label><textarea id="pr-forklaring" placeholder="Vises i PDF, kort og kundevennlig"></textarea>
+        <label for="pr-intern">Intern kommentar</label><textarea id="pr-intern" placeholder="Vises IKKE i PDF - kun til internt bruk"></textarea>
+      </div>
     </div>
   </div>
 
   <!-- ===== Inkludert / ikke inkludert ===== -->
   <div class="tab-panel" data-tab="inkludert">
-    <h3 style="font-size:12.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-secondary); margin:0 0 10px;">Inkludert</h3>
-    <div class="list-editor" id="inkludertList"></div>
-    <button class="add-item-btn" id="addInkludertBtn" style="margin-bottom:24px;">+ Legg til punkt</button>
-
-    <h3 style="font-size:12.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-secondary); margin:0 0 10px;">Ikke inkludert</h3>
-    <div class="list-editor" id="ikkeInkludertList"></div>
-    <button class="add-item-btn" id="addIkkeInkludertBtn">+ Legg til punkt</button>
+    <div class="card">
+      <div class="card-title">Inkludert</div>
+      <div class="list-editor" id="inkludertList"></div>
+      <button class="add-item-btn" id="addInkludertBtn">+ Legg til punkt</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Ikke inkludert</div>
+      <div class="list-editor" id="ikkeInkludertList"></div>
+      <button class="add-item-btn" id="addIkkeInkludertBtn">+ Legg til punkt</button>
+    </div>
   </div>
 
   <!-- ===== Presentasjon ===== -->
   <div class="tab-panel" data-tab="presentasjon">
-    <div class="field-grid">
-      <label for="pres-ingress">Kort ingress</label><textarea id="pres-ingress"></textarea>
-      <label for="pres-reisemal">Om reisemålet</label><textarea id="pres-reisemal"></textarea>
-      <label for="pres-hotell">Om hotellet/hotellene</label><textarea id="pres-hotell"></textarea>
-      <label for="pres-muligheter">Muligheter / opplevelser</label><textarea id="pres-muligheter"></textarea>
-      <label for="pres-hvorfor">Hvorfor reisen kan passe kunden</label><textarea id="pres-hvorfor"></textarea>
+    <div class="card">
+      <div class="field-grid">
+        <label for="pres-ingress">Kort ingress</label><textarea id="pres-ingress"></textarea>
+        <label for="pres-reisemal">Om reisemålet</label><textarea id="pres-reisemal"></textarea>
+        <label for="pres-hotell">Om hotellet/hotellene</label><textarea id="pres-hotell"></textarea>
+        <label for="pres-muligheter">Muligheter / opplevelser</label><textarea id="pres-muligheter"></textarea>
+        <label for="pres-hvorfor">Hvorfor reisen kan passe kunden</label><textarea id="pres-hvorfor"></textarea>
+      </div>
     </div>
   </div>
 
   <!-- ===== Forbehold ===== -->
   <div class="tab-panel" data-tab="forbehold">
-    <div class="field-grid">
-      <label for="fb-tekst">Forbeholdstekst</label><textarea id="fb-tekst" style="min-height:140px;"></textarea>
+    <div class="card">
+      <div class="field-grid">
+        <label for="fb-tekst">Forbeholdstekst</label><textarea id="fb-tekst" style="min-height:140px;"></textarea>
+      </div>
+      <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan overstyres fritt per forslag.</div>
     </div>
-    <div class="field-hint">Standardteksten er forhåndsutfylt og kan overstyres fritt per forslag.</div>
   </div>
 
   <!-- ===== Bilder ===== -->
   <div class="tab-panel" data-tab="bilder">
-    <div class="field-grid" style="margin-bottom:18px;">
-      <label>Hovedbilde</label>
-      <div>
-        <div id="hovedbildePreview" style="margin-bottom:8px;"></div>
-        <input type="file" id="hovedbildeFile" accept="image/*">
-      </div>
+    <div class="card">
+      <div class="card-title">Hovedbilde</div>
+      <div id="hovedbildePreview" style="margin-bottom:8px;"></div>
+      <input type="file" id="hovedbildeFile" accept="image/*">
     </div>
-    <div class="upload-hint">Andre bilder (destinasjon, hotell, program) – last opp og velg kategori. Bilder knyttet til et hotellopphold eller en dag i programmet kan velges under.</div>
-    <div class="img-grid" id="bildeGrid"></div>
-    <input type="file" id="nyttBildeFile" accept="image/*">
+    <div class="card">
+      <div class="card-title">Andre bilder</div>
+      <div class="upload-hint">Destinasjon, hotell, program – last opp og velg kategori. Bilder knyttet til et hotellopphold eller en dag i programmet kan velges under.</div>
+      <div class="img-grid" id="bildeGrid"></div>
+      <input type="file" id="nyttBildeFile" accept="image/*" style="margin-top:14px;">
+    </div>
   </div>
 
 </div>
@@ -554,7 +620,7 @@ function renderTransport(){
   state.transport.forEach((item, idx)=>{
     const f = item.fields;
     const card = document.createElement("div");
-    card.className = "item-card";
+    card.className = "item-block";
     card.innerHTML = `
       <div class="item-head">
         <span class="item-title">Segment ${idx+1}</span>
@@ -611,7 +677,7 @@ function renderHotell(){
   state.hotellopphold.forEach((item, idx)=>{
     const f = item.fields;
     const card = document.createElement("div");
-    card.className = "item-card";
+    card.className = "item-block";
     card.innerHTML = `
       <div class="item-head">
         <span class="item-title">${escapeHtml(f.sted) || "Hotellopphold " + (idx+1)}</span>
@@ -665,7 +731,7 @@ function renderProgram(){
   state.dagsprogram.forEach((item, idx)=>{
     const f = item.fields;
     const card = document.createElement("div");
-    card.className = "item-card";
+    card.className = "item-block";
     card.innerHTML = `
       <div class="item-head">
         <span class="item-title">Dag ${f.dagnummer || idx+1}${f.overskrift ? " – " + escapeHtml(f.overskrift) : ""}</span>

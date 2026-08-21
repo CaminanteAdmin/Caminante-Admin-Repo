@@ -6,6 +6,19 @@
 <title>Forslag &amp; tilbud – Caminante Admin</title>
 <link rel="stylesheet" href="shared/style.css">
 <style>
+  /* v1: samme designprinsipp som Priskalkulatoren (priskalkulator.html /
+     kalkyle-editor.html) - lokale ekstra-tokens for større, blåtonede
+     bokser, lagt til her (og i forslag-editor.html) i stedet for i
+     shared/style.css, som fortsatt brukes uendret av skoler.html/
+     hoteller.html/kalender.html/index.html. --blue/--blue-dark er en
+     lysere, mer synlig primærblå enn shared sin --accent, brukt på samme
+     måte som i kalkulatoren (primærknapper + kort). */
+  :root{
+    --blue:#2a78d6;
+    --blue-dark:#184f95;
+    --card-bg:#eaf2fb;
+    --card-border:#a9c9ec;
+  }
   .toolbar{
     display:flex;
     flex-wrap:wrap;
@@ -46,30 +59,32 @@
     cursor:pointer;
   }
   .toolbar button.action.primary{
-    background:var(--accent);
+    background:var(--blue);
     color:#fff;
-    border-color:var(--accent);
+    border-color:var(--blue);
   }
   .toolbar button:hover{ background:var(--page); }
-  .toolbar button.action.primary:hover{ background:#123d75; }
+  .toolbar button.action.primary:hover{ background:var(--blue-dark); }
   .count-pill{
     font-size:12.5px;
     color:var(--ink-muted);
     margin-left:auto;
     padding-left:8px;
   }
-  .main{ padding:16px 24px 32px; }
+  .main{ padding:20px 24px 32px; }
+  /* v1: samme kortstil som Priskalkulatorens oversiktsside - blå kant/
+     tabelltopp/hover i stedet for nøytral grå, litt større padding. */
   .list-panel{
     background:var(--surface-1);
-    border:1px solid var(--hairline);
-    border-radius:var(--radius);
-    padding:14px;
+    border:1px solid var(--card-border);
+    border-radius:10px;
+    padding:16px;
     overflow-x:auto;
   }
   .list-panel h2{
     font-size:13px;
     font-weight:650;
-    margin:0 0 10px;
+    margin:0 0 12px;
     color:var(--ink-secondary);
     text-transform:uppercase;
     letter-spacing:0.03em;
@@ -79,17 +94,20 @@
     text-align:left;
     font-weight:600;
     color:var(--ink-secondary);
-    padding:8px 8px;
-    border-bottom:1px solid var(--hairline);
+    padding:10px 10px;
+    background:var(--card-bg);
+    border-bottom:1px solid var(--card-border);
     cursor:pointer;
     white-space:nowrap;
     user-select:none;
   }
+  thead th:first-child{ border-top-left-radius:6px; }
+  thead th:last-child{ border-top-right-radius:6px; }
   thead th:hover{ color:var(--ink-primary); }
   thead th .arrow{ font-size:10px; color:var(--ink-muted); margin-left:3px; }
-  tbody td{ padding:8px 8px; border-bottom:1px solid var(--hairline); vertical-align:middle; white-space:nowrap; }
+  tbody td{ padding:11px 10px; border-bottom:1px solid var(--hairline); vertical-align:middle; white-space:nowrap; }
   tbody tr{ cursor:pointer; }
-  tbody tr:hover{ background:var(--page); }
+  tbody tr:hover{ background:var(--card-bg); }
   .forslag-nr{ font-variant-numeric:tabular-nums; color:var(--ink-muted); font-size:12px; }
   .forslag-tittel{ font-weight:600; }
   .forslag-sub{ font-size:11.5px; color:var(--ink-muted); }
