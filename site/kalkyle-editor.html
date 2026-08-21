@@ -167,6 +167,14 @@
     font-size:14px;
     font-family:inherit;
   }
+  /* v46: "Antall dager" ser slik ut når feltet er låst fordi verdien er
+     beregnet automatisk fra reisedato - skal synes tydelig at feltet ikke er
+     ment å skrives i akkurat nå (se syncDagerFraDatoer()). */
+  input[type=number]:disabled{
+    background:var(--grid);
+    color:var(--ink-muted);
+    cursor:not-allowed;
+  }
   .input-group select{
     width:110px;
     flex:0 0 auto;
@@ -416,46 +424,21 @@
     font-size:13px;
     color:var(--ink-2);
   }
-  /* v45: hele siden er nå ÉN sammenhengende topilar-grid (gjenbruker
-     .workspace, se lenger opp) - ingen egen "toppbar" lenger. Venstre
-     kolonne: Reiseinformasjon-kortet (.meta-left) etterfulgt direkte av
-     #m1_inputs-kortene. Høyre kolonne: Reisedato/knapper-kortet
-     (.meta-right) etterfulgt direkte av #m1_results-kortene. Siden
-     .workspace har align-items:start, får hver kolonne kun den høyden dens
-     eget innhold trenger, og et kort lenger nede i en kort kolonne flyter
-     rett opp under - ingen tomrom.
-     .meta-left/.meta-right skal i tillegg se ut som ÉN sammenhengende boks
-     der de møtes øverst (ønsket fra Vidar: ingen synlig "hvit" sømm mellom
-     Reiseinformasjon og Reisedato/knapper). Løsning: .meta-left beholder
-     sin vanlige kant (border-right) i FULL høyde, som ethvert annet kort -
-     denne linjen blir automatisk synlig der venstre kolonne fortsetter
-     alene, uansett hvor høy .meta-right faktisk blir (ingen fastsatt
-     piksel-høyde nødvendig). .meta-right legges 1px over kanten
-     (margin-left:-21px + høyere z-index) og DEKKER dermed kanten helt der
-     de to boksene faktisk ligger side om side øverst - sømløst der begge
-     finnes, tydelig strek der bare venstre boks fortsetter. Høyre hjørner
-     på .meta-left må være helt firkantet (ellers stikker det avrundede
-     hjørnet, arvet fra .card, synlig opp over høyre boks sin rette kant). */
-  .meta-left{
-    position:relative; z-index:1;
-    border-top-right-radius:0; border-bottom-right-radius:0;
-  }
-  .meta-right{
-    position:relative; z-index:2;
-    margin-left:-21px;
-    padding-left:39px; /* 18px vanlig padding + 21px for å dekke gapet + kanten */
-    border-top-left-radius:0; border-bottom-left-radius:0;
-    border-left:none;
-  }
-  @media (max-width:900px){
-    .meta-right{ margin-left:0; padding-left:18px; border-left:1px solid var(--card-border); border-radius:10px; }
-  }
+  /* v46: droppet igjen (etter tilbakemelding) - hverken "vinkel"-formen eller
+     den sømløse overlapp-boksen fra v45 er lenger i bruk. Reiseinformasjon
+     er nå bare et helt vanlig .card i venstre kolonne. Knapperaden
+     ("Tilbake til oversikten" osv.) og lagringsstatusen ligger IKKE lenger i
+     noen boks - de står direkte på sidens bakgrunn, øverst i høyre kolonne,
+     over "Beregnet pris per deltaker"/"Kostnadsfordeling" (se #m1_results).
+     .workspace (se lenger opp) har fortsatt align-items:start, slik at hver
+     kolonne kun tar den høyden dens eget innhold trenger, og kortene under
+     en kort høyrekolonne-topp flyter rett opp under - denne effekten trengte
+     aldri selve "vinkel"-boksen, bare den kontinuerlige to-kolonners flyten. */
   .kalkyle-actions{
     display:flex;
     gap:8px;
     flex-wrap:wrap;
     align-items:center;
-    margin-top:14px;
   }
   .kalkyle-status{
     font-size:12px;
@@ -514,16 +497,17 @@
 <main>
 
   <section id="module1">
-    <!-- v45: hele siden er nå ÉN sammenhengende .workspace-grid (se CSS) - ingen
-         egen "toppbar" lenger. Venstre kolonne: Reiseinformasjon-kortet
-         (.meta-left) etterfulgt direkte av #m1_inputs-kortene. Høyre kolonne:
-         Reisedato/knapper-kortet (.meta-right) etterfulgt direkte av
-         #m1_results-kortene (inkl. "Beregnet pris per deltaker", som er
-         tilbake sammen med "Kostnadsfordeling" der den alltid har vært - se
-         renderModule1()). -->
+    <!-- v46: droppet den sømløse "vinkel"-boksen fra v45 igjen, etter
+         tilbakemelding. Venstre kolonne: Reiseinformasjon er nå bare et helt
+         vanlig .card, etterfulgt direkte av #m1_inputs-kortene. Reisedato
+         flyttet inn i Reiseinformasjon-kortet (rendres av turdetaljerFields(),
+         rett under Reisemål - se #m1_turdetaljer). Høyre kolonne: knapperaden
+         og lagringsstatusen ligger IKKE lenger i noen boks - de står direkte
+         på sidens bakgrunn øverst, etterfulgt av #m1_results-kortene (inkl.
+         "Beregnet pris per deltaker" sammen med "Kostnadsfordeling", som før). -->
     <div class="workspace">
       <div class="col-left">
-        <div class="card meta-left">
+        <div class="card">
           <div class="card-title">Reiseinformasjon</div>
           <div class="field">
             <label for="meta_navn">Kundenavn</label>
@@ -536,33 +520,22 @@
             <div class="save-hint" id="forslagLink" style="margin-top:2px; font-size:10px;"></div>
             <div class="hint" style="margin-top:6px;">Skriv fritt, eller begynn å skrive et skolenavn for å koble kalkylen til en skole.</div>
           </div>
-          <!-- v41: Turdetaljer (Reisemål, Antall dager, Antall deltakere/reiseledere,
-               valuta) rendres inn her av buildModule1()/turdetaljerFields() - rett
-               under Kundenavn og hjelpeteksten, som del av samme Reiseinformasjon-boks. -->
+          <!-- v41: Turdetaljer (Reisemål, Reisedato, Antall dager, Antall
+               deltakere/reiseledere, valuta) rendres inn her av
+               buildModule1()/turdetaljerFields() - rett under Kundenavn og
+               hjelpeteksten, som del av samme Reiseinformasjon-boks. -->
           <div id="m1_turdetaljer"></div>
         </div>
         <div class="inputs" id="m1_inputs"></div>
       </div>
       <div class="col-right">
-        <div class="card meta-right">
-          <div class="field">
-            <label for="meta_start">Reisedato / -periode</label>
-            <!-- v45: datofeltene er komprimert til en fast, kompakt bredde i
-                 stedet for å strekke seg over hele kortets bredde - fulgte
-                 tidligere ikke bredden på knapperaden under. -->
-            <div style="display:flex;gap:6px;">
-              <input type="date" id="meta_start" title="Fra dato" style="width:140px;flex:none;">
-              <input type="date" id="meta_slutt" title="Til dato (valgfritt)" style="width:140px;flex:none;">
-            </div>
-          </div>
-          <div class="kalkyle-actions">
-            <a class="btn small" href="priskalkulator.html" style="text-decoration:none;display:inline-flex;align-items:center;">← Tilbake til oversikten</a>
-            <button class="btn small" id="btnOpprettForslag" title="Oppretter et nytt reiseforslag basert på denne kalkylen">Opprett forslag fra kalkyle</button>
-            <button class="btn small" id="btnOpprettTilbud" title="Kommer snart – bruk «Opprett forslag fra kalkyle» i mellomtiden">Opprett tilbud fra kalkyle</button>
-          </div>
-          <div class="hint" id="tilbudSoonHint" style="display:none;margin-top:6px;">Denne snarveien er ikke bygget ferdig ennå – bruk «Opprett forslag fra kalkyle», så kan du gå videre til Tilbud derfra.</div>
-          <div class="kalkyle-status" id="kalkyleStatus">Laster…</div>
+        <div class="kalkyle-actions">
+          <a class="btn small" href="priskalkulator.html" style="text-decoration:none;display:inline-flex;align-items:center;">← Tilbake til oversikten</a>
+          <button class="btn small" id="btnOpprettForslag" title="Oppretter et nytt reiseforslag basert på denne kalkylen">Opprett forslag fra kalkyle</button>
+          <button class="btn small" id="btnOpprettTilbud" title="Kommer snart – bruk «Opprett forslag fra kalkyle» i mellomtiden">Opprett tilbud fra kalkyle</button>
         </div>
+        <div class="hint" id="tilbudSoonHint" style="display:none;margin-top:6px;">Denne snarveien er ikke bygget ferdig ennå – bruk «Opprett forslag fra kalkyle», så kan du gå videre til Tilbud derfra.</div>
+        <div class="kalkyle-status" id="kalkyleStatus" style="margin-bottom:12px;">Laster…</div>
         <div class="results" id="m1_results"></div>
       </div>
     </div>
@@ -1076,7 +1049,31 @@ function valutaRows(prefix, moduleKey){
 function turdetaljerFields(prefix, moduleKey, isM1){
   return `
       ${textField(prefix+'navn','Reisemål')}
-      ${numberField(prefix+'dager','Antall dager',{value:6, extraOninput:'refreshMatDagerOptions();'})}
+      ${isM1 ? `
+      <div class="field">
+        <label for="meta_start">Reisedato / -periode</label>
+        <!-- v46: flyttet ned hit fra den tidligere "meta-right"-boksen, som nå
+             er avviklet - ligger under Reisemål og over Antall dager. Datofeltene
+             bruker inline oninput (ikke addEventListener) siden dette kortet
+             bygges på nytt av buildModule1() ved hver +/- rad e.l. - en
+             addEventListener-lytter ville forsvunnet ved en slik ombygging. -->
+        <div style="display:flex;gap:6px;">
+          <input type="date" id="meta_start" title="Fra dato" style="width:140px;flex:none;" oninput="scheduleAutosave();syncDagerFraDatoer();">
+          <input type="date" id="meta_slutt" title="Til dato (valgfritt)" style="width:140px;flex:none;" oninput="scheduleAutosave();syncDagerFraDatoer();">
+        </div>
+      </div>` : ''}
+      ${isM1 ? `
+      <div class="field">
+        <label for="${prefix}dager">Antall dager</label>
+        <input type="number" id="${prefix}dager" value="6" min="0" step="1" oninput="recalcAll();refreshMatDagerOptions();">
+        <!-- v46: "Antall dager" er nå normalt et RESULTAT av valgte reisedatoer
+             (inkludert start- og sluttdato, f.eks. 10.-13. februar = 4 dager) -
+             feltet låses (disabled) og fylles ut automatisk av
+             syncDagerFraDatoer() når begge datoer er satt og gyldige. Mangler
+             en av datoene (eller er sluttdato før startdato), forblir feltet
+             åpent for manuell utfylling, som før. -->
+        <div class="hint" id="${prefix}dager_kilde_hint" style="margin-top:3px;"></div>
+      </div>` : numberField(prefix+'dager','Antall dager',{value:6, extraOninput:'refreshMatDagerOptions();'})}
       ${isM1 ? `
       <div class="row2" style="margin-top:10px;">
         ${numberField(prefix+'anslatt','Antall deltakere',{value:40})}
@@ -1135,6 +1132,43 @@ function refreshMatDagerOptions(){
     const current = parseInt(selEl.value,10)||0;
     selEl.innerHTML = matDagerOptionsHtml(maxDager, Math.min(current, maxDager));
   });
+}
+
+/* v46: "Antall dager" var tidligere den eneste "masteren" og endret seg
+   aldri automatisk. Nå er reisedatoene masteren når begge er satt: antall
+   dager regnes ut inkludert BÅDE start- og sluttdato (10.-13. februar blir
+   4 dager). computeDagerFraDatoer() parses datostrengene som UTC for å
+   unngå av-en-dag-feil rundt sommertid/vintertid. Returnerer null (ikke et
+   tall) når en av datoene mangler, er ugyldige, eller sluttdato er før
+   startdato - da er "Antall dager" fortsatt et vanlig, redigerbart felt. */
+function computeDagerFraDatoer(){
+  const s = strVal('meta_start','');
+  const e = strVal('meta_slutt','');
+  if(!s || !e) return null;
+  const sd = new Date(s+'T00:00:00Z');
+  const ed = new Date(e+'T00:00:00Z');
+  if(isNaN(sd.getTime()) || isNaN(ed.getTime())) return null;
+  const diffDays = Math.round((ed.getTime() - sd.getTime()) / 86400000);
+  if(diffDays < 0) return null;
+  return diffDays + 1;
+}
+/* Kaller denne når datoene endres, og hver gang #m1_turdetaljer bygges om
+   (buildModule1()) - slik at "Antall dager" og dens låste/åpne tilstand
+   alltid stemmer med de faktiske datoverdiene som står i feltene akkurat nå. */
+function syncDagerFraDatoer(){
+  const dagerEl = el('m1_dager');
+  if(!dagerEl) return;
+  const hintEl = el('m1_dager_kilde_hint');
+  const beregnet = computeDagerFraDatoer();
+  if(beregnet !== null){
+    dagerEl.value = beregnet;
+    dagerEl.disabled = true;
+    if(hintEl) hintEl.textContent = `Beregnet automatisk fra reisedato: ${beregnet} dager (inkl. start- og sluttdato).`;
+  } else {
+    dagerEl.disabled = false;
+    if(hintEl) hintEl.textContent = 'Fylles ut automatisk når begge reisedatoer er valgt - kan også skrives inn manuelt.';
+  }
+  refreshMatDagerOptions();
 }
 
 /* v43: matplan-radioene på hvert hotell ("Ingen måltider" / "Inkludert
@@ -1328,6 +1362,11 @@ function buildModule1(preserve){
   if(el('m1_turdetaljer')){
     el('m1_turdetaljer').innerHTML = turdetaljerFields(p,'m1',true);
     if(preserve) restoreValues('m1_turdetaljer', savedTurdetaljer);
+    // v46: gjenoppretting av verdier (over) setter .value direkte og trigger
+    // ikke oninput - kjør derfor synkroniseringen eksplisitt, slik at "Antall
+    // dager" sin verdi/låste tilstand stemmer med de (eventuelt nettopp
+    // gjenopprettede) reisedatoene FØR matCard() lenger ned leser m1_dager.
+    syncDagerFraDatoer();
   }
   const saved = (preserve && el('m1_inputs')) ? snapshotValues('m1_inputs') : {};
   el('m1_inputs').innerHTML = `
@@ -2351,8 +2390,16 @@ async function openKalkyleById(id){
   if(error){ setKalkyleStatus('Fant ikke kalkylen: ' + error.message); autosaveSuppressed = false; return; }
   currentKalkyleId = data.id;
   currentKalkyleSistEndret = data.sist_endret;
-  fillMeta(data);
+  // v46: loadCalculatorData() kaller buildModule1(false), som bygger om
+  // #m1_turdetaljer helt fra bunnen - meta_start/meta_slutt ligger nå INNI
+  // dette kortet, så de må fylles ut ETTER ombyggingen, ellers overskriver
+  // ombyggingen datoene fillMeta() akkurat satte. syncDagerFraDatoer() kjøres
+  // til slutt slik at "Antall dager" beregnes/låses riktig ut fra de faktiske
+  // lagrede datoene, ikke bare den (tomme) tilstanden fra selve ombyggingen.
   loadCalculatorData(data.kalkyle_data);
+  fillMeta(data);
+  syncDagerFraDatoer();
+  recalcAll();
   autosaveSuppressed = false;
   setKalkyleStatus('Sist lagret ' + new Date(data.sist_endret).toLocaleString('nb-NO'));
   updateForslagLinkDisplay();
@@ -2543,8 +2590,12 @@ async function opprettForslagFraKalkyle(){
   });
   el('meta_navn').addEventListener('focus', (e)=>{ if(e.target.value.trim() && !currentSkoleId) renderSkoleDropdown(e.target.value); });
   el('meta_navn').addEventListener('blur', ()=> hideSkoleDropdown());
-  el('meta_start').addEventListener('input', scheduleAutosave);
-  el('meta_slutt').addEventListener('input', scheduleAutosave);
+  // v46: meta_start/meta_slutt fikk tidligere sin autosave-lytter her (ved
+  // init), men de to feltene ligger nå INNI #m1_turdetaljer, som bygges om av
+  // buildModule1() ved flere anledninger (f.eks. "+ Legg til hotell") - en
+  // addEventListener knyttet her ville forsvunnet ved neste ombygging. Autosave
+  // og synkronisering av "Antall dager" er derfor koblet inn med inline
+  // oninput-attributter direkte i turdetaljerFields() i stedet.
   el('metaSkoleClear').addEventListener('click', ()=>{
     // Fjerner kun koblingen til skolen - navnet som allerede står i feltet
     // beholdes, siden det nå også er kalkylens fritekstnavn.
