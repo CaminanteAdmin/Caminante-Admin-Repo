@@ -132,8 +132,9 @@
   /* v1: hovedinnholdet i hver fane samles nå i én stor, blåtonet .card -
      samme visuelle språk som kortene i kalkyle-editor.html (blå bakgrunn,
      10px hjørner, generøs padding, uppercase korttittel). Felt/input-
-     bakgrunnen er lys (var(--page)) slik at feltene "letter seg" tydelig
-     mot den blå bunnen, akkurat som i kalkulatoren. */
+     bakgrunnen er HVIT (var(--surface-1), rettet i v2 - var(--page) leste
+     som gråtonet mot den blå bunnen) slik at feltene "letter seg" tydelig,
+     akkurat som i kalkulatoren. */
   .card{
     background:var(--card-bg);
     border:1px solid var(--card-border);
@@ -150,6 +151,9 @@
     margin:0 0 14px;
   }
   .card:last-child{ margin-bottom:0; }
+  /* v2: feltene skal være HVITE (var(--surface-1)), ikke gråtonet
+     (var(--page), som var forrige forsøk) - samme hvitfarge som feltene i
+     kalkyle-editor.html sin blå .card. */
 
   .field-grid{
     display:grid;
@@ -167,7 +171,7 @@
     font-size:13px;
     font-family:inherit;
     color:var(--ink-primary);
-    background:var(--page);
+    background:var(--surface-1);
     width:100%;
     box-sizing:border-box;
   }
@@ -218,15 +222,15 @@
     padding:8px 10px;
     font-size:13px;
     font-family:inherit;
-    background:var(--page);
+    background:var(--surface-1);
   }
   .list-editor-row button{
     border:none; background:none; color:#b04a4a; font-size:14px; cursor:pointer; padding:2px 6px;
   }
 
   .img-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; margin-bottom:0; }
-  .img-card{ border:1px solid var(--card-border); border-radius:8px; overflow:hidden; background:var(--page); }
-  .img-card img{ width:100%; height:100px; object-fit:cover; display:block; background:var(--surface-1); }
+  .img-card{ border:1px solid var(--card-border); border-radius:8px; overflow:hidden; background:var(--surface-1); }
+  .img-card img{ width:100%; height:100px; object-fit:cover; display:block; background:var(--page); }
   .img-card .img-body{ padding:8px; }
   .img-card select, .img-card input{
     width:100%; font-size:11px; padding:3px 5px; border:1px solid var(--hairline); border-radius:5px; margin-bottom:5px; font-family:inherit;
@@ -273,7 +277,7 @@
 
   <div class="tab-nav" id="tabNav">
     <button class="tab-btn active" data-tab="grunninfo">Grunninfo</button>
-    <button class="tab-btn" data-tab="transport">Transport</button>
+    <button class="tab-btn" data-tab="transport">Flyinformasjon</button>
     <button class="tab-btn" data-tab="hotell">Hotellopphold</button>
     <button class="tab-btn" data-tab="program">Program</button>
     <button class="tab-btn" data-tab="pris">Pris</button>
@@ -287,14 +291,8 @@
   <div class="tab-panel active" data-tab="grunninfo">
     <div class="card">
       <div class="field-grid">
-        <label for="g-destinasjon">Destinasjon / reiseidé</label><input type="text" id="g-destinasjon">
-        <label for="g-kundetype">Kundetype</label>
-        <select id="g-kundetype">
-          <option value="Firma">Firma</option>
-          <option value="Skole">Skole</option>
-          <option value="Forening">Forening</option>
-          <option value="Annen gruppe">Annen gruppe</option>
-        </select>
+        <!-- v: Kunde flyttet øverst i Grunninfo, foran Destinasjon/Kundetype,
+             etter ønske om at kundenavn skal stå øverst på siden. -->
         <label for="g-kunde">Kunde</label>
         <div>
           <div id="g-skole-wrap" style="display:none; position:relative;">
@@ -303,6 +301,14 @@
           </div>
           <input type="text" id="g-kunde-navn" placeholder="Kundenavn (fritekst)">
         </div>
+        <label for="g-destinasjon">Destinasjon / reiseidé</label><input type="text" id="g-destinasjon">
+        <label for="g-kundetype">Kundetype</label>
+        <select id="g-kundetype">
+          <option value="Firma">Firma</option>
+          <option value="Skole">Skole</option>
+          <option value="Forening">Forening</option>
+          <option value="Annen gruppe">Annen gruppe</option>
+        </select>
         <label for="g-kontaktperson">Kontaktperson</label><input type="text" id="g-kontaktperson">
         <label for="g-ansvarlig">Ansvarlig hos Caminante</label><select id="g-ansvarlig"></select>
         <label for="g-antall">Antall reisende</label><input type="number" id="g-antall" min="0">
@@ -312,19 +318,38 @@
           <input type="date" id="g-til" style="flex:1;">
         </div>
         <label for="g-periode">Periode (hvis ikke eksakte datoer)</label><input type="text" id="g-periode" placeholder="F.eks. Ultimo mars 2027">
-        <label for="g-avreisested">Avreisested</label><input type="text" id="g-avreisested">
+        <!-- v: label endret fra "Avreisested" til "Avreiseflyplass" - id/felt
+             (g-avreisested / avreisested) uendret, kun visningstekst. -->
+        <label for="g-avreisested">Avreiseflyplass</label><input type="text" id="g-avreisested">
         <label for="g-notater">Interne notater</label><textarea id="g-notater"></textarea>
       </div>
     </div>
   </div>
 
-  <!-- ===== Transport ===== -->
+  <!-- ===== Flyinformasjon =====
+       v: Erstatter det gamle generiske "Transport"-segmentet (fritt antall
+       segmenter med type/retning/fra/til osv.) med en fast struktur: Utreise
+       og Retur (alltid synlige, med én eller flere "Flight N"-oppføringer
+       hver), pluss en valgfri "Intern flight"-seksjon nederst for sjeldne
+       tilfeller (f.eks. en intern flygning mellom to reisemål, som senere kan
+       plasseres mellom ut- og hjemreise i PDF-en). -->
   <div class="tab-panel" data-tab="transport">
     <div class="card">
-      <div class="card-title">Transportsegmenter</div>
-      <div class="item-list" id="transportList"></div>
-      <button class="add-item-btn" id="addTransportBtn">+ Legg til transportsegment</button>
+      <div class="card-title">Utreise</div>
+      <div class="item-list" id="utreiseList"></div>
+      <button class="add-item-btn" id="addUtreiseBtn">+ Legg til flight</button>
     </div>
+    <div class="card">
+      <div class="card-title">Retur</div>
+      <div class="item-list" id="returList"></div>
+      <button class="add-item-btn" id="addReturBtn">+ Legg til flight</button>
+    </div>
+    <div class="card" id="internCard" style="display:none;">
+      <div class="card-title">Intern flight</div>
+      <div class="item-list" id="internList"></div>
+      <button class="add-item-btn" id="addInternBtn">+ Legg til flight</button>
+    </div>
+    <button class="add-item-btn" id="addInternSectionBtn">+ Legg til intern flight</button>
   </div>
 
   <!-- ===== Hotellopphold ===== -->
@@ -436,7 +461,6 @@
 
 const STATUSER = ["Utkast","Sendt","Kunde interessert","Gått videre til tilbud","Avslått","Arkivert"];
 const KUNDETYPER = ["Firma","Skole","Forening","Annen gruppe"];
-const TRANSPORTTYPER = ["Fly","Buss","Tog","Ferge","Annet"];
 const BILDEKATEGORIER = ["Hovedbilde","Destinasjon","Hotell","Program"];
 
 let forslagId = null;
@@ -612,62 +636,80 @@ async function oppdaterPrisFraKalkyle(){
   el("saveStatus").textContent = "Pris hentet fra kalkylen – husk å lagre.";
 }
 
-/* ---------- Rendering: Transport ---------- */
+/* ---------- Rendering: Flyinformasjon ----------
+   v: Erstatter det gamle frie segment-listen (type/retning/fra/til osv.)
+   med tre faste kategorier lagret i forslag_transport.kategori
+   ("utreise"/"retur"/"intern"), hver med én eller flere "Flight N"-
+   oppføringer. Gamle rader (fra før denne endringen) mangler kategori i
+   databasen - de behandles som "utreise" som fallback (KATEGORI_FALLBACK
+   under) slik at ingenting forsvinner fra UI-et, men rute/flightnr/selskap
+   vises tomt siden de gamle radene aldri hadde disse feltene utfylt (de
+   gamle kolonnene fra_sted/til_sted/avgangstid osv. ligger fortsatt urørt i
+   databasen, bare ikke lenger vist her). Selve lagringsmekanismen
+   (syncChildTable) er uendret - den jobber generisk på item.fields uansett
+   hvilke kolonnenavn som brukes. */
+const KATEGORI_FALLBACK = "utreise";
 
-function renderTransport(){
-  const wrap = el("transportList");
+function flightsInKategori(kategori){
+  return state.transport.filter(item => (item.fields.kategori || KATEGORI_FALLBACK) === kategori);
+}
+
+function renderFlySection(kategori, containerId, placeholder){
+  const wrap = el(containerId);
   wrap.innerHTML = "";
-  state.transport.forEach((item, idx)=>{
+  const items = flightsInKategori(kategori);
+  items.forEach((item, idx)=>{
     const f = item.fields;
+    const flightLabel = `Flight ${idx+1}`;
     const card = document.createElement("div");
     card.className = "item-block";
     card.innerHTML = `
       <div class="item-head">
-        <span class="item-title">Segment ${idx+1}</span>
-        <button class="item-remove" data-idx="${idx}">Fjern</button>
+        <span class="item-title">${flightLabel}</span>
+        <button class="item-remove">Fjern</button>
       </div>
       <div class="field-grid">
-        <label>Type</label>
-        <select class="t-type">${TRANSPORTTYPER.map(t=>`<option value="${t}" ${t===(f.transporttype||"Fly")?"selected":""}>${t}</option>`).join("")}</select>
-        <label>Retning</label><input class="t-retning" value="${escapeHtml(f.retning)}" placeholder="Utreise / Hjemreise">
-        <label>Dato</label><input type="date" class="t-dato" value="${f.dato||""}">
-        <label>Selskap</label><input class="t-selskap" value="${escapeHtml(f.selskap)}" placeholder="Flyselskap / operatør">
-        <label>Fra</label><input class="t-fra" value="${escapeHtml(f.fra_sted)}">
-        <label>Til</label><input class="t-til" value="${escapeHtml(f.til_sted)}">
-        <label>Avgangstid</label><input class="t-avgang" value="${escapeHtml(f.avgangstid)}">
-        <label>Ankomsttid</label><input class="t-ankomst" value="${escapeHtml(f.ankomsttid)}">
-        <label>Mellomlanding</label><input class="t-mellomlanding" value="${escapeHtml(f.mellomlanding)}" placeholder="Direkte, eller f.eks. Istanbul 1t 40min">
-        <label>Bagasje</label><input class="t-bagasje" value="${escapeHtml(f.bagasje_info)}">
-        <label>Flightinfo</label><input class="t-flightinfo" value="${escapeHtml(f.flightinfo)}">
-        <label>Intern prisreferanse</label><input class="t-pris" value="${escapeHtml(f.prisreferanse)}">
+        <label>Avreise</label><input type="datetime-local" class="fl-avreise" value="${f.avreise_tidspunkt ? f.avreise_tidspunkt.slice(0,16) : ""}">
+        <label>Ankomst</label><input type="datetime-local" class="fl-ankomst" value="${f.ankomst_tidspunkt ? f.ankomst_tidspunkt.slice(0,16) : ""}">
+        <label>${flightLabel}</label><input class="fl-rute" value="${escapeHtml(f.beskrivelse)}" placeholder="${placeholder}">
+        <label>Flightnr</label><input class="fl-nr" value="${escapeHtml(f.flightnr)}" placeholder="F.eks. SK1234">
+        <label>Selskap</label><input class="fl-selskap" value="${escapeHtml(f.selskap)}" placeholder="Flyselskap / operatør">
       </div>
     `;
     wrap.appendChild(card);
-    const bind = (cls, field, parser)=>{
-      card.querySelector(cls).addEventListener("change", e=>{ f[field] = parser ? parser(e.target.value) : (e.target.value||null); });
+    const bind = (cls, field)=>{
+      card.querySelector(cls).addEventListener("change", e=>{ f[field] = e.target.value || null; });
     };
-    bind(".t-type","transporttype");
-    bind(".t-retning","retning");
-    bind(".t-dato","dato");
-    bind(".t-selskap","selskap");
-    bind(".t-fra","fra_sted");
-    bind(".t-til","til_sted");
-    bind(".t-avgang","avgangstid");
-    bind(".t-ankomst","ankomsttid");
-    bind(".t-mellomlanding","mellomlanding");
-    bind(".t-bagasje","bagasje_info");
-    bind(".t-flightinfo","flightinfo");
-    bind(".t-pris","prisreferanse");
+    bind(".fl-avreise","avreise_tidspunkt");
+    bind(".fl-ankomst","ankomst_tidspunkt");
+    bind(".fl-rute","beskrivelse");
+    bind(".fl-nr","flightnr");
+    bind(".fl-selskap","selskap");
     card.querySelector(".item-remove").addEventListener("click", ()=>{
-      state.transport.splice(idx,1);
+      const realIdx = state.transport.indexOf(item);
+      if(realIdx > -1) state.transport.splice(realIdx, 1);
       renderTransport();
     });
   });
 }
-el("addTransportBtn").addEventListener("click", ()=>{
-  state.transport.push({ id:null, clientKey:newClientKey(), fields:{ transporttype:"Fly", sortering: state.transport.length } });
+
+function addFlight(kategori){
+  state.transport.push({ id:null, clientKey:newClientKey(), fields:{ kategori, sortering: state.transport.length } });
   renderTransport();
-});
+}
+
+function renderTransport(){
+  renderFlySection("utreise", "utreiseList", "Oslo - Barcelona");
+  renderFlySection("retur", "returList", "Barcelona - Oslo");
+  renderFlySection("intern", "internList", "F.eks. New York - Chicago");
+  const internCount = flightsInKategori("intern").length;
+  el("internCard").style.display = internCount > 0 ? "block" : "none";
+  el("addInternSectionBtn").style.display = internCount > 0 ? "none" : "block";
+}
+el("addUtreiseBtn").addEventListener("click", ()=> addFlight("utreise"));
+el("addReturBtn").addEventListener("click", ()=> addFlight("retur"));
+el("addInternBtn").addEventListener("click", ()=> addFlight("intern"));
+el("addInternSectionBtn").addEventListener("click", ()=> addFlight("intern"));
 
 /* ---------- Rendering: Hotellopphold ---------- */
 

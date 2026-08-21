@@ -2488,20 +2488,23 @@ function bygHotellopphold(gm1){
     }));
 }
 
+// v: Flyinformasjon-fanen i Forslag har nå en fast Utreise/Retur/Intern-
+// struktur (kolonnen "kategori") i stedet for frie segmenter, og kalkylen
+// har ikke nok detaljer (dato/tid/flightnr) til å vite hvilken retning eller
+// hvor mange fly-oppføringer det egentlig blir. Som praktisk standardverdi
+// legges alle fly-linjer fra kalkylen inn som et utkast under "Utreise", med
+// bare rute-teksten (navn) forhåndsutfylt - dato/tid/flightnr/selskap og en
+// eventuell Retur-flight må fylles inn manuelt i Forslaget etterpå.
+// Buss-linjer (gm1.transport) overføres IKKE lenger som egne transportrader
+// (Flyinformasjon-fanen er nå fly-spesifikk) - de vises fortsatt som
+// tekstlinjer under "Inkludert i prisen" via bygInkludertFraKalkyle(), som før.
 function bygTransportrader(gm1){
   const rader = [];
   let sortering = 0;
   (gm1.flyItems||[]).forEach(item=>{
     rader.push({
       sortering: sortering++,
-      transporttype: 'Fly',
-      beskrivelse: item.navn || null,
-    });
-  });
-  (gm1.transport||[]).forEach(item=>{
-    rader.push({
-      sortering: sortering++,
-      transporttype: 'Buss',
+      kategori: 'utreise',
       beskrivelse: item.navn || null,
     });
   });
@@ -2555,6 +2558,13 @@ async function opprettForslagFraKalkyle(){
     destinasjon,
     kundetype: currentSkoleId ? 'Skole' : 'Annen gruppe',
     skole_id: currentSkoleId || null,
+    // v: kunde_navn ble tidligere ikke satt her i det hele tatt - "Kundenavn"
+    // fra kalkylen (meta_navn - samme felt brukes både som fritekst
+    // kundenavn og for skolesøk, se el('meta_navn').value=s.navn ved valg av
+    // skole) ble aldri overført til forslaget. meta_navn holder alltid
+    // riktig visningstekst uansett om det er fritekst eller en valgt skole,
+    // så feltet kan settes direkte uten å sjekke currentSkoleId.
+    kunde_navn: strVal('meta_navn','') || null,
     ansvarlig: currentUserId,
     fra_dato: strVal('meta_start','') || null,
     til_dato: strVal('meta_slutt','') || null,

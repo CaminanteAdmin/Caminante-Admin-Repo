@@ -122,6 +122,29 @@
   }
   .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
   .empty-msg{ padding:20px 8px; color:var(--ink-muted); font-size:13px; }
+
+  /* v2: Dupliser/Slett per rad - samme mønster som Priskalkulatorens
+     oversikt (priskalkulator.html), men som ikon-knapper (kopiere-ikon /
+     slette-ikon) i stedet for tekstknapper, siden det tar mindre plass i en
+     tabellrad. */
+  .row-actions{ display:flex; gap:6px; justify-content:flex-end; }
+  .icon-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:28px;
+    height:28px;
+    border:1px solid var(--hairline);
+    border-radius:7px;
+    background:var(--surface-1);
+    color:var(--ink-secondary);
+    cursor:pointer;
+    padding:0;
+  }
+  .icon-btn:hover{ background:var(--page); }
+  .icon-btn.danger{ color:#b04a4a; }
+  .icon-btn.danger:hover{ background:#fbeaea; border-color:#d03b3b; }
+  .icon-btn svg{ width:15px; height:15px; display:block; }
 </style>
 </head>
 <body>
@@ -160,6 +183,7 @@
           <th data-key="ansvarlig_navn">Ansvarlig <span class="arrow"></span></th>
           <th data-key="status">Status <span class="arrow"></span></th>
           <th data-key="sist_endret">Sist endret <span class="arrow"></span></th>
+          <th style="width:1%;"></th>
         </tr>
       </thead>
       <tbody id="listBody"></tbody>
@@ -310,12 +334,27 @@ function renderList(){
       <td>${escapeHtml(f.ansvarlig_navn)}</td>
       <td>${statusChip(f.status)}</td>
       <td>${escapeHtml(fmtSistEndret(f.sist_endret))}</td>
+      <td class="row-actions">
+        <button class="icon-btn" data-action="dupliser" data-id="${f.id}" title="Dupliser forslag">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6.5" y="6.5" width="10" height="10" rx="1.8"/><path d="M3.5 13V4.8A1.3 1.3 0 0 1 4.8 3.5h8.2"/></svg>
+        </button>
+        <button class="icon-btn danger" data-action="slett" data-id="${f.id}" title="Slett forslag">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4.6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V6M6.2 6l.6 9.3a1 1 0 0 0 1 .95h4.4a1 1 0 0 0 1-.95L14 6"/></svg>
+        </button>
+      </td>
     `;
     tr.addEventListener("click", ()=>{ window.location.href = `forslag-editor.html?id=${encodeURIComponent(f.id)}`; });
     body.appendChild(tr);
   });
   document.getElementById("emptyMsg").style.display = list.length === 0 ? "block" : "none";
   document.getElementById("countPill").textContent = `${list.length} av ${forslagListe.length} forslag vises`;
+
+  body.querySelectorAll('button[data-action="dupliser"]').forEach(btn=>{
+    btn.addEventListener("click", (e)=>{ e.stopPropagation(); dupliserForslag(btn.dataset.id); });
+  });
+  body.querySelectorAll('button[data-action="slett"]').forEach(btn=>{
+    btn.addEventListener("click", (e)=>{ e.stopPropagation(); slettForslagRad(btn.dataset.id); });
+  });
 }
 
 /* ---------- Nytt forslag ---------- */
@@ -327,6 +366,64 @@ async function createForslag(){
   }).select().single();
   if(error){ alert("Kunne ikke opprette forslag: " + error.message); return; }
   window.location.href = `forslag-editor.html?id=${encodeURIComponent(data.id)}`;
+}
+
+/* ---------- Dupliser / slett (v2) ----------
+   Samme mønster som Priskalkulatorens dupliserKalkyle()/slettKalkyle()
+   (priskalkulator.html), men et Forslag har data spredt over flere
+   undertabeller (i motsetning til kalkylens ene JSONB-blob) - dupliseringen
+   kopierer derfor forslag_transport/forslag_hotellopphold/
+   forslag_dagsprogram i tillegg til hovedraden. */
+
+async function dupliserForslag(id){
+  const kilde = forslagListe.find(f=>f.id===id);
+  if(!kilde) return;
+  const { data: full, error: readErr } = await window.sb.from("forslag").select("*").eq("id", id).single();
+  if(readErr || !full){ alert("Kunne ikke lese forslaget: " + (readErr ? readErr.message : "")); return; }
+
+  // id/forslagsnummer/lopenummer/opprettet_dato/sist_endret genereres på
+  // nytt av databasen ved insert - tas bevisst ikke med i kopien.
+  const { id:_id, forslagsnummer:_nr, lopenummer:_lnr, opprettet_dato:_od, sist_endret:_se, ...rest } = full;
+  const payload = {
+    ...rest,
+    tittel: (full.tittel || "Uten tittel") + " (kopi)",
+    status: "Utkast",
+    opprettet_av: currentUserId,
+    // Kopien kobles bevisst IKKE til samme kalkyle: kalkyle-editorens
+    // "Tilbake til forslag"-knapp viser kun det NYESTE forslaget for en gitt
+    // kalkyle, og en duplisert kopi er typisk ment som en egen variant
+    // (annen kunde/forhandling), ikke en fortsettelse av samme kobling.
+    kalkyle_id: null,
+    kalkyle_sist_endret_ved_kobling: null,
+  };
+  const { data, error } = await window.sb.from("forslag").insert(payload).select().single();
+  if(error){ alert("Kunne ikke duplisere: " + error.message); return; }
+
+  const [{ data: transportRows }, { data: hotellRows }, { data: dagRows }] = await Promise.all([
+    window.sb.from("forslag_transport").select("*").eq("forslag_id", id),
+    window.sb.from("forslag_hotellopphold").select("*").eq("forslag_id", id),
+    window.sb.from("forslag_dagsprogram").select("*").eq("forslag_id", id),
+  ]);
+  const stripId = (row)=>{ const { id:_rid, created_at:_ca, ...r } = row; return { ...r, forslag_id: data.id }; };
+  const childInserts = [];
+  if(transportRows && transportRows.length) childInserts.push(window.sb.from("forslag_transport").insert(transportRows.map(stripId)));
+  if(hotellRows && hotellRows.length) childInserts.push(window.sb.from("forslag_hotellopphold").insert(hotellRows.map(stripId)));
+  if(dagRows && dagRows.length) childInserts.push(window.sb.from("forslag_dagsprogram").insert(dagRows.map(stripId)));
+  if(childInserts.length) await Promise.all(childInserts);
+  // Merk: bilder (forslag_bilder) kopieres bevisst IKKE - filene ligger i
+  // Storage, og å kopiere raden uten å kopiere selve filen ville latt to
+  // forslag dele samme underliggende bilde-opphav/URL.
+
+  window.location.href = `forslag-editor.html?id=${encodeURIComponent(data.id)}`;
+}
+
+async function slettForslagRad(id){
+  const kilde = forslagListe.find(f=>f.id===id);
+  if(!confirm(`Slette forslaget "${(kilde && kilde.tittel) || "Uten navn"}" permanent, inkludert transport, hotellopphold, program og bilder?`)) return;
+  const { error } = await window.sb.from("forslag").delete().eq("id", id);
+  if(error){ alert("Kunne ikke slette: " + error.message); return; }
+  forslagListe = forslagListe.filter(f=>f.id!==id);
+  renderList();
 }
 
 /* ---------- Verktøylinje ---------- */
