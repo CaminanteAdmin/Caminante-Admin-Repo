@@ -498,14 +498,14 @@
 
 <div class="kalkyle-bar" id="kalkyleBar">
   <div class="kalkyle-meta">
-    <div class="field"><label for="meta_navn">Navn</label><input type="text" id="meta_navn" placeholder="F.eks. Marrakech 2027"></div>
     <div class="field">
-      <label for="meta_skole">Koble til kunde (valgfritt)</label>
+      <label for="meta_navn">Navn / kunde</label>
       <div style="position:relative;">
-        <input type="text" id="meta_skole" placeholder="Søk skolenavn…" autocomplete="off" style="width:100%; box-sizing:border-box; padding-right:24px;">
-        <button type="button" id="metaSkoleClear" title="Fjern kobling" style="display:none; position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none; cursor:pointer; font-size:13px; color:var(--ink-muted); line-height:1; padding:3px 5px;">✕</button>
+        <input type="text" id="meta_navn" placeholder="F.eks. Marrakech 2027, eller søk skolenavn…" autocomplete="off" style="width:100%; box-sizing:border-box; padding-right:24px;">
+        <button type="button" id="metaSkoleClear" title="Fjern kobling til skole" style="display:none; position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none; cursor:pointer; font-size:13px; color:var(--ink-muted); line-height:1; padding:3px 5px;">✕</button>
         <div id="skoleDropdown" style="display:none; position:absolute; z-index:20; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--border); border-radius:6px; max-height:220px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
       </div>
+      <div class="hint" style="margin-top:4px;">Skriv fritt, eller begynn å skrive et skolenavn for å koble kalkylen til en skole.</div>
       <div class="save-hint" id="skoleLink" style="margin-top:4px; font-size:10px;"></div>
       <div class="save-hint" id="forslagLink" style="margin-top:2px; font-size:10px;"></div>
     </div>
@@ -1067,12 +1067,28 @@ function flyCard(prefix, moduleKey){
 }
 
 function matCard(prefix, moduleKey){
+  // v35: hver måltidslinje (frokost/lunsj/middag) har fått en egen "Antall
+  // dager"-boks, slik at f.eks. 3 middager på en 7-dagers tur kan registreres
+  // uten å fordele kostnaden ut på alle dagene. Gjelder bevisst IKKE "Ekstra
+  // tillegg mat per person", som fortsatt er ett flatt beløp. Standardverdi er
+  // 0 dager for nye kalkyler - eldre, allerede lagrede kalkyler som mangler
+  // dette feltet i sin lagrede snapshot, fylles automatisk med full reiselengde
+  // ved åpning (se loadCalculatorData), slik at de ikke stille mister matkostnaden.
   return `
     <div class="card">
       <div class="card-title">Mat (per person)</div>
-      ${moneyField(prefix+'mat_frokost','Frokost/dag',{step:10, moduleKey, curWidth:70})}
-      ${moneyField(prefix+'mat_lunsj','Lunsj/dag',{step:10, moduleKey, curWidth:70})}
-      ${moneyField(prefix+'mat_middag','Middag/dag',{step:10, moduleKey, curWidth:70})}
+      <div class="row2">
+        ${moneyField(prefix+'mat_frokost','Frokost/dag',{step:10, moduleKey, curWidth:70})}
+        ${numberField(prefix+'mat_frokost_dager','Antall dager',{value:0, hint:'Maks antall reisedager'})}
+      </div>
+      <div class="row2">
+        ${moneyField(prefix+'mat_lunsj','Lunsj/dag',{step:10, moduleKey, curWidth:70})}
+        ${numberField(prefix+'mat_lunsj_dager','Antall dager',{value:0, hint:'Maks antall reisedager'})}
+      </div>
+      <div class="row2">
+        ${moneyField(prefix+'mat_middag','Middag/dag',{step:10, moduleKey, curWidth:70})}
+        ${numberField(prefix+'mat_middag_dager','Antall dager',{value:0, hint:'Maks antall reisedager'})}
+      </div>
       ${moneyField(prefix+'mat_ekstra','Ekstra tillegg mat per person',{step:10, moduleKey, curWidth:70})}
     </div>`;
 }
@@ -1097,6 +1113,10 @@ function reiselederCardM1(p){
       <div id="${p}rlperson_${i}" class="row2" style="display:none;">
         ${moneyField(p+'rl_honorar_'+i, 'Honorar per dag – reiseleder '+i, {moduleKey:'m1', value:0})}
         ${moneyField(p+'rl_andre_'+i, 'Andre kostnader – reiseleder '+i, {moduleKey:'m1', value:0})}
+      </div>
+      <div id="${p}rlperson2_${i}" class="row2" style="display:none;">
+        ${moneyField(p+'rl_kjoregodtgjorelse_'+i, 'Kjøregodtgjørelse – reiseleder '+i, {moduleKey:'m1', value:0})}
+        ${moneyField(p+'rl_parkering_'+i, 'Parkering – reiseleder '+i, {moduleKey:'m1', value:0})}
       </div>`;
   }
   // v27: én "Totalkostnader reiseleder N"-linje per registrert reiseleder,
@@ -1287,7 +1307,10 @@ function pureCalc1(p){
   });
   const nightMismatch = p.netterFraDato>0 && sumNetter>0 && sumNetter!==p.netterFraDato;
 
-  const matPerPerson = (p.matFrokost+p.matLunsj+p.matMiddag)*p.dager + p.matEkstra;
+  // v35: hvert måltid ganges nå med sitt EGET antall dager (matFrokostDager
+  // osv.), ikke lenger automatisk med hele reiselengden - se matCard/
+  // gatherModule1 for feltene og bakoverkompatibilitet for eldre kalkyler.
+  const matPerPerson = p.matFrokost*(p.matFrokostDager||0) + p.matLunsj*(p.matLunsjDager||0) + p.matMiddag*(p.matMiddagDager||0) + p.matEkstra;
   const aktivitetSum = p.aktiviteter.reduce((s,a)=>s+(a.belop||0),0);
   const andreFasteSum = p.andreFasteKostnader.reduce((s,a)=>s+(a.belop||0),0);
   const transportSum = p.transport.reduce((s,a)=>s+(a.belop||0),0);
@@ -1304,7 +1327,7 @@ function pureCalc1(p){
   // andre kostnader legges til kun for de reiselederne som faktisk har felt.
   let totalRLKostnad = rlFellesPerPerson * antallReiseledere;
   (p.reiseledere||[]).forEach(rl=>{
-    totalRLKostnad += (rl.honorarDag||0)*p.dager + (rl.andre||0);
+    totalRLKostnad += (rl.honorarDag||0)*p.dager + (rl.andre||0) + (rl.kjoregodtgjorelse||0) + (rl.parkering||0);
   });
 
   const Kfast = transportSum + andreFasteSum + totalRomkost + totalRLKostnad;
@@ -1543,6 +1566,11 @@ function gatherModule1(){
     flyItems,
     matFrokost: moneyValue(p,'mat_frokost','m1'), matLunsj: moneyValue(p,'mat_lunsj','m1'),
     matMiddag: moneyValue(p,'mat_middag','m1'), matEkstra: moneyValue(p,'mat_ekstra','m1'),
+    // v35: "Antall dager" per måltid, klippet til [0, dager] slik at man ikke
+    // kan angi flere måltider enn reisen faktisk har dager.
+    matFrokostDager: Math.max(0, Math.min(num(p+'mat_frokost_dager',0)||0, dager)),
+    matLunsjDager: Math.max(0, Math.min(num(p+'mat_lunsj_dager',0)||0, dager)),
+    matMiddagDager: Math.max(0, Math.min(num(p+'mat_middag_dager',0)||0, dager)),
     aktiviteter: gatherList(p,'akt', state.m1.aktCount, 'm1'),
     transport: gatherList(p,'transport', state.m1.transportCount, 'm1'),
     andreFasteKostnader: gatherList(p,'fast', state.m1.fastCount, 'm1'),
@@ -1562,7 +1590,9 @@ function gatherReiseledere(prefix, moduleKey, antallReiseledere){
   for(let i=1;i<=n;i++){
     list.push({
       honorarDag: moneyValue(prefix, `rl_honorar_${i}`, moduleKey),
-      andre: moneyValue(prefix, `rl_andre_${i}`, moduleKey)
+      andre: moneyValue(prefix, `rl_andre_${i}`, moduleKey),
+      kjoregodtgjorelse: moneyValue(prefix, `rl_kjoregodtgjorelse_${i}`, moduleKey),
+      parkering: moneyValue(prefix, `rl_parkering_${i}`, moduleKey)
     });
   }
   return list;
@@ -1770,11 +1800,13 @@ function renderModule1(res, raw){
   for(let i=1;i<=MAX_REISELEDERE;i++){
     const row = el(p+'rlperson_'+i);
     if(row) row.style.display = i<=antallRL ? '' : 'none';
+    const row2 = el(p+'rlperson2_'+i);
+    if(row2) row2.style.display = i<=antallRL ? '' : 'none';
     const totalRow = el(p+'rltotal_'+i);
     if(totalRow) totalRow.style.display = i<=antallRL ? '' : 'none';
     if(i<=antallRL){
-      const rl = (raw.reiseledere && raw.reiseledere[i-1]) || {honorarDag:0, andre:0};
-      const total = rlSum + (rl.honorarDag||0)*(raw.dager||0) + (rl.andre||0);
+      const rl = (raw.reiseledere && raw.reiseledere[i-1]) || {honorarDag:0, andre:0, kjoregodtgjorelse:0, parkering:0};
+      const total = rlSum + (rl.honorarDag||0)*(raw.dager||0) + (rl.andre||0) + (rl.kjoregodtgjorelse||0) + (rl.parkering||0);
       const totalEl = el(p+'rltotal_'+i+'_val');
       if(totalEl) totalEl.textContent = kr(total);
     }
@@ -1972,7 +2004,7 @@ function hideSkoleDropdown(){
 
 function selectSkole(s){
   currentSkoleId = s.id;
-  el('meta_skole').value = s.navn;
+  el('meta_navn').value = s.navn;
   hideSkoleDropdown();
   updateSkoleLinkDisplay();
 }
@@ -2032,7 +2064,22 @@ function loadCalculatorData(data){
   state.m1 = { ...counts, valutaer: [...(counts.valutaer||['EUR'])] };
   touchedNetter.m1 = { ...((data && data.touchedNetter) || {}) };
   buildModule1(false);
-  restoreValues('m1_inputs', (data && data.values) || {});
+  const vals = (data && data.values) || {};
+  restoreValues('m1_inputs', vals);
+  // v35 bakoverkompatibilitet: "Antall dager per måltid" fantes ikke da eldre
+  // kalkyler ble lagret, og feltets nye HTML-standard er 0. Uten denne
+  // backfillen ville matkostnaden stille bli 0 kr for enhver tidligere lagret
+  // kalkyle som åpnes på nytt. Vi fyller derfor inn hele reiselengden (samme
+  // sum som den gamle, implisitte "hver dag"-beregningen ga) for de tre
+  // måltidsfeltene, men KUN når feltet faktisk mangler i den lagrede
+  // snapshotten - er det først lagret (også som bevisst 0), respekteres det.
+  const dagerVal = num('m1_dager',0)||0;
+  ['m1_mat_frokost_dager','m1_mat_lunsj_dager','m1_mat_middag_dager'].forEach(id=>{
+    if(!Object.prototype.hasOwnProperty.call(vals, id)){
+      const fld = el(id);
+      if(fld) fld.value = dagerVal;
+    }
+  });
   recalcAll();
 }
 
@@ -2051,11 +2098,10 @@ function fillMeta(row){
   el('meta_start').value = row.reise_start_dato || '';
   el('meta_slutt').value = row.reise_slutt_dato || '';
   currentSkoleId = row.skole_id || null;
-  el('meta_skole').value = currentSkoleId ? (skoleNameById.get(currentSkoleId) || '') : '';
   updateSkoleLinkDisplay();
 }
 function clearMeta(){
-  ['meta_navn','meta_start','meta_slutt','meta_skole'].forEach(id=>{ if(el(id)) el(id).value=''; });
+  ['meta_navn','meta_start','meta_slutt'].forEach(id=>{ if(el(id)) el(id).value=''; });
   currentSkoleId = null;
   updateSkoleLinkDisplay();
 }
@@ -2300,19 +2346,21 @@ function closeOpenPanel(){
   el('ovlOpen').addEventListener('click', closeOpenPanel);
   el('openSearch').addEventListener('input', (e)=> loadKalkyleList(e.target.value));
 
-  el('meta_skole').addEventListener('input', (e)=>{
-    // Fritekst som ikke (lenger) matcher et valgt navn nøyaktig -> koblingen fjernes
-    // helt til brukeren faktisk klikker et forslag i listen.
+  el('meta_navn').addEventListener('input', (e)=>{
+    // Fritekst som ikke (lenger) matcher et valgt skolenavn nøyaktig -> koblingen
+    // fjernes helt til brukeren faktisk klikker et forslag i listen. Selve teksten
+    // i feltet berøres ikke - man kan fortsette å skrive et rent fritekstnavn.
     if(currentSkoleId && skoleNameById.get(currentSkoleId) !== e.target.value){
       currentSkoleId = null;
       updateSkoleLinkDisplay();
     }
     renderSkoleDropdown(e.target.value);
   });
-  el('meta_skole').addEventListener('focus', (e)=>{ if(e.target.value.trim()) renderSkoleDropdown(e.target.value); });
-  el('meta_skole').addEventListener('blur', ()=> hideSkoleDropdown());
+  el('meta_navn').addEventListener('focus', (e)=>{ if(e.target.value.trim() && !currentSkoleId) renderSkoleDropdown(e.target.value); });
+  el('meta_navn').addEventListener('blur', ()=> hideSkoleDropdown());
   el('metaSkoleClear').addEventListener('click', ()=>{
-    el('meta_skole').value = '';
+    // Fjerner kun koblingen til skolen - navnet som allerede står i feltet
+    // beholdes, siden det nå også er kalkylens fritekstnavn.
     currentSkoleId = null;
     hideSkoleDropdown();
     updateSkoleLinkDisplay();
@@ -2329,7 +2377,7 @@ function closeOpenPanel(){
     newKalkyle();
     currentSkoleId = nySkoleId;
     const navn = params.get('nySkoleNavn') || skoleNameById.get(nySkoleId) || '';
-    el('meta_skole').value = navn;
+    el('meta_navn').value = navn;
     updateSkoleLinkDisplay();
     setKalkyleStatus('Ny kalkyle, koblet til ' + navn + '.');
   } else {
