@@ -849,20 +849,21 @@ function hotelBlock(prefix, idx, isM1, moduleKey, canRemove){
       </details>`;
   }
 
-  /* Forslag-integrasjon (additivt, påvirker ikke prisberegningen): sted og
-     måltider brukes kun til å fylle ut Forslag automatisk når man trykker
+  /* Forslag-integrasjon (additivt, påvirker ikke prisberegningen): "inkludert
+     frokost" brukes kun til å fylle ut Forslag automatisk når man trykker
      "Opprett forslag fra kalkyle" - leses ikke av pureCalc1. Kun i Modul 1,
-     som er den eneste modulen som kobles til Forslag. */
+     som er den eneste modulen som kobles til Forslag. v42: fritekstfeltet
+     "Måltider" er erstattet med en avkrysning "Inkludert frokost", huket av
+     som standard (frokost er som regel alltid inkludert i gruppetilbud) - se
+     gatherHotel()/bygHotellopphold()/bygInkludertFraKalkyle() for hvordan
+     verdien brukes videre. "Sted / by"-feltet er fjernet igjen på samme
+     ønske fra Vidar - h.sted er nå alltid tomt, håndtert med samme
+     fallback (`|| null`/ternary) som før i bygHotellopphold()/
+     bygInkludertFraKalkyle(), ingen andre endringer nødvendig der. */
   const forslagFeltSection = isM1 ? `
-      <div class="row2" style="margin-top:8px;">
-        <div class="field">
-          <label for="${p}sted">Sted / by (til Forslag)</label>
-          <input type="text" id="${p}sted" placeholder="f.eks. Roma" oninput="recalcAll()">
-        </div>
-        <div class="field">
-          <label for="${p}maltider">Måltider (til Forslag)</label>
-          <input type="text" id="${p}maltider" placeholder="f.eks. Frokost inkludert" oninput="recalcAll()">
-        </div>
+      <div class="checkbox-row" style="margin-top:8px;">
+        <input type="checkbox" id="${p}frokost_inkludert" checked oninput="recalcAll()">
+        <label for="${p}frokost_inkludert">Inkludert frokost</label>
       </div>` : '';
 
   return `
@@ -1497,10 +1498,13 @@ function gatherHotel(prefix, idx, moduleKey, isM1){
       hotel.antall[t] = num(hp+t+'_antall',0)||0;
     });
     // Forslag-integrasjon (additivt - brukes ikke av pureCalc1/prisberegningen,
-    // kun av "Opprett forslag fra kalkyle"):
+    // kun av "Opprett forslag fra kalkyle"). v42: "sted" er fjernet (feltet
+    // finnes ikke lenger i skjemaet), h.sted er derfor alltid tomt - beholdt
+    // som felt (ikke fjernet fra objektet) siden bygHotellopphold()/
+    // bygInkludertFraKalkyle() fortsatt leser det trygt med fallback.
     hotel.navn = strVal(hp+'navn','');
-    hotel.sted = strVal(hp+'sted','');
-    hotel.maltider = strVal(hp+'maltider','');
+    hotel.sted = '';
+    hotel.frokostInkludert = isChecked(hp+'frokost_inkludert');
   }
   return hotel;
 }
@@ -2265,7 +2269,10 @@ function bygHotellopphold(gm1){
       hotellnavn: h.navn || null,
       standard: ROOM_TYPE_LABELS[h.standard] || h.standard || null,
       romtype: ROOM_TYPE_LABELS[h.standard] || h.standard || null,
-      maltider: h.maltider || null,
+      // v42: fritekst-"måltider" erstattet med avkrysningen "Inkludert
+      // frokost" - samme databasekolonne (`maltider`, fritekst) gjenbrukes,
+      // men fylles nå ut fra avkrysningen i stedet for fritekst.
+      maltider: h.frokostInkludert ? 'Frokost inkludert' : null,
     }));
 }
 
@@ -2292,10 +2299,9 @@ function bygTransportrader(gm1){
 function bygInkludertFraKalkyle(gm1){
   const linjer = [];
   (gm1.hotels||[]).filter(h=>h.netter>0).forEach(h=>{
-    const stedTxt = h.sted ? ` i ${h.sted}` : '';
-    const maltiderTxt = h.maltider ? ` (${h.maltider})` : '';
+    const maltiderTxt = h.frokostInkludert ? ` (frokost inkludert)` : '';
     const navn = h.navn ? h.navn : 'hotell';
-    linjer.push(`${h.netter} ${h.netter===1?'natt':'netter'} ${navn}${stedTxt}${maltiderTxt}`.trim());
+    linjer.push(`${h.netter} ${h.netter===1?'natt':'netter'} ${navn}${maltiderTxt}`.trim());
   });
   const listeposter = [
     ...(gm1.flyItems||[]),
