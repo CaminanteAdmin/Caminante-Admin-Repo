@@ -431,7 +431,6 @@
     grid-template-columns:minmax(340px,480px) 1fr;
     gap:20px;
   }
-  .kalkyle-meta-grid .field{ margin-bottom:0; }
   @media (max-width:900px){
     .kalkyle-meta-grid{ grid-template-columns:1fr; }
   }
@@ -500,32 +499,40 @@
 <div class="kalkyle-bar" id="kalkyleBar">
   <div class="card-title">Reiseinformasjon</div>
   <div class="kalkyle-meta-grid">
-    <div class="field">
-      <label for="meta_navn">Kundenavn</label>
-      <div style="position:relative;">
-        <input type="text" id="meta_navn" placeholder="F.eks. Marrakech 2027, eller søk skolenavn…" autocomplete="off" style="width:100%; box-sizing:border-box; padding-right:24px;">
-        <button type="button" id="metaSkoleClear" title="Fjern kobling til skole" style="display:none; position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none; cursor:pointer; font-size:13px; color:var(--ink-muted); line-height:1; padding:3px 5px;">✕</button>
-        <div id="skoleDropdown" style="display:none; position:absolute; z-index:20; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--border); border-radius:6px; max-height:220px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
+    <div class="kalkyle-meta-left">
+      <div class="field">
+        <label for="meta_navn">Kundenavn</label>
+        <div style="position:relative;">
+          <input type="text" id="meta_navn" placeholder="F.eks. Marrakech 2027, eller søk skolenavn…" autocomplete="off" style="width:100%; box-sizing:border-box; padding-right:24px;">
+          <button type="button" id="metaSkoleClear" title="Fjern kobling til skole" style="display:none; position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none; cursor:pointer; font-size:13px; color:var(--ink-muted); line-height:1; padding:3px 5px;">✕</button>
+          <div id="skoleDropdown" style="display:none; position:absolute; z-index:20; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--border); border-radius:6px; max-height:220px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
+        </div>
+        <div class="save-hint" id="skoleLink" style="margin-top:4px; font-size:10px;"></div>
+        <div class="save-hint" id="forslagLink" style="margin-top:2px; font-size:10px;"></div>
+        <div class="hint" style="margin-top:6px;">Skriv fritt, eller begynn å skrive et skolenavn for å koble kalkylen til en skole.</div>
       </div>
-      <div class="save-hint" id="skoleLink" style="margin-top:4px; font-size:10px;"></div>
-      <div class="save-hint" id="forslagLink" style="margin-top:2px; font-size:10px;"></div>
-      <div class="hint" style="margin-top:6px;">Skriv fritt, eller begynn å skrive et skolenavn for å koble kalkylen til en skole.</div>
+      <!-- v41: Turdetaljer (Reisemål, Antall dager, Antall deltakere/reiseledere,
+           valuta) rendres inn her av buildModule1()/turdetaljerFields() - rett
+           under Kundenavn og hjelpeteksten, som del av samme Reiseinformasjon-boks. -->
+      <div id="m1_turdetaljer"></div>
     </div>
-    <div class="field">
-      <label for="meta_start">Reisedato / -periode</label>
-      <div style="display:flex;gap:6px;">
-        <input type="date" id="meta_start" title="Fra dato">
-        <input type="date" id="meta_slutt" title="Til dato (valgfritt)">
+    <div class="kalkyle-meta-right">
+      <div class="field">
+        <label for="meta_start">Reisedato / -periode</label>
+        <div style="display:flex;gap:6px;">
+          <input type="date" id="meta_start" title="Fra dato">
+          <input type="date" id="meta_slutt" title="Til dato (valgfritt)">
+        </div>
       </div>
+      <div class="kalkyle-actions">
+        <a class="btn small" href="priskalkulator.html" style="text-decoration:none;display:inline-flex;align-items:center;">← Tilbake til oversikten</a>
+        <button class="btn small" id="btnOpprettForslag" title="Oppretter et nytt reiseforslag basert på denne kalkylen">Opprett forslag fra kalkyle</button>
+        <button class="btn small" id="btnOpprettTilbud" title="Kommer snart – bruk «Opprett forslag fra kalkyle» i mellomtiden">Opprett tilbud fra kalkyle</button>
+      </div>
+      <div class="hint" id="tilbudSoonHint" style="display:none;margin-top:6px;">Denne snarveien er ikke bygget ferdig ennå – bruk «Opprett forslag fra kalkyle», så kan du gå videre til Tilbud derfra.</div>
+      <div class="kalkyle-status" id="kalkyleStatus">Laster…</div>
     </div>
   </div>
-  <div class="kalkyle-actions">
-    <a class="btn small" href="priskalkulator.html" style="text-decoration:none;display:inline-flex;align-items:center;">← Tilbake til oversikten</a>
-    <button class="btn small" id="btnOpprettForslag" title="Oppretter et nytt reiseforslag basert på denne kalkylen">Opprett forslag fra kalkyle</button>
-    <button class="btn small" id="btnOpprettTilbud" title="Kommer snart – bruk «Opprett forslag fra kalkyle» i mellomtiden">Opprett tilbud fra kalkyle</button>
-  </div>
-  <div class="hint" id="tilbudSoonHint" style="display:none;margin-top:6px;">Denne snarveien er ikke bygget ferdig ennå – bruk «Opprett forslag fra kalkyle», så kan du gå videre til Tilbud derfra.</div>
-  <div class="kalkyle-status" id="kalkyleStatus">Laster…</div>
 </div>
 </div>
 
@@ -637,6 +644,19 @@ function restoreValues(rootId, vals){
     else elx.value = vals[elx.id];
   });
 }
+/* v41: Reiseinformasjon/Turdetaljer-feltene (Reisemål, Antall dager,
+   deltakere, reiseledere, valuta) flyttet ut av #m1_inputs til en egen
+   #m1_turdetaljer-container (se buildModule1()) - disse to hjelperne fanger
+   og gjenoppretter felt fra BEGGE containerne samlet, slik at kall som
+   snapshotter/gjenoppretter "hele modulen" (f.eks. ved fjerning av en
+   hotell-/listelinje) ikke mister disse feltverdiene. */
+function snapshotModuleAll(moduleKey){
+  return { ...snapshotValues(moduleKey+'_inputs'), ...snapshotValues(moduleKey+'_turdetaljer') };
+}
+function restoreModuleAll(moduleKey, vals){
+  restoreValues(moduleKey+'_inputs', vals);
+  restoreValues(moduleKey+'_turdetaljer', vals);
+}
 
 /* ---------- Fjerne linjer: reindekser snapshot-verdier når en linje midt i en liste fjernes ---------- */
 function shiftIndexedValues(vals, prefix, tag, removeIdx){
@@ -690,13 +710,12 @@ function updateValutaKode(moduleKey, idx, value){
 }
 function removeValuta(moduleKey, idx){
   const prefix = moduleKey+'_';
-  const rootId = moduleKey+'_inputs';
-  let vals = snapshotValues(rootId);
+  let vals = snapshotModuleAll(moduleKey);
   vals = shiftIndexedValues(vals, prefix, 'valuta', idx);
   vals = shiftCurrencyRefs(vals, idx);
   state[moduleKey].valutaer.splice(idx,1);
   buildModule1(false);
-  restoreValues(rootId, vals);
+  restoreModuleAll(moduleKey, vals);
   recalcAll();
 }
 function currencyRate(prefix, moduleKey, idx){
@@ -748,10 +767,11 @@ function numberField(id, label, opts){
   opts = opts || {};
   const step = opts.step || 1;
   const value = opts.value !== undefined ? opts.value : 0;
+  const extra = opts.extraOninput || '';
   return `
     <div class="field">
       <label for="${id}">${label}</label>
-      <input type="number" id="${id}" value="${value}" min="0" step="${step}" oninput="recalcAll()">
+      <input type="number" id="${id}" value="${value}" min="0" step="${step}" oninput="recalcAll();${extra}">
       ${opts.hint ? `<div class="hint">${opts.hint}</div>` : ''}
     </div>`;
 }
@@ -787,7 +807,7 @@ function dbSelectOptions(selected){
 function priceCardM1(prefix){
   return `
     <div class="card">
-      <div class="card-title">Pris</div>
+      <div class="card-title">Fortjeneste per deltaker</div>
       <div class="field">
         <label for="${prefix}db_per_person">Ønsket fortjeneste per betalende deltaker</label>
         <select id="${prefix}db_per_person" oninput="recalcAll()" onchange="recalcAll()">${dbSelectOptions(2000)}</select>
@@ -896,8 +916,7 @@ function addHotel(key){
 function removeHotel(moduleKey, idx){
   if(state[moduleKey].hotelCount<=1) return;
   const prefix = moduleKey+'_';
-  const rootId = moduleKey+'_inputs';
-  let vals = snapshotValues(rootId);
+  let vals = snapshotModuleAll(moduleKey);
   vals = shiftIndexedValues(vals, prefix, 'hotel', idx);
   const tn = touchedNetter[moduleKey];
   const newTn = {};
@@ -909,27 +928,21 @@ function removeHotel(moduleKey, idx){
   touchedNetter[moduleKey] = newTn;
   state[moduleKey].hotelCount--;
   buildModule1(false);
-  restoreValues(rootId, vals);
+  restoreModuleAll(moduleKey, vals);
   recalcAll();
 }
 
 /* ---------- Fleksible lister: transport/guide, aktiviteter, andre faste kostnader ---------- */
-/* Forslag-integrasjon (additivt): kun en avkrysning for om linjen skal med i
-   Inkludert. Leses av gatherList() nedenfor, men påvirker aldri
-   beløpssummeringen - ren tilleggsinformasjon til "Opprett forslag fra
-   kalkyle". v36: eget "Kundetekst til Inkludert"-felt er fjernet - selve
-   navn/beskrivelse-feltet i linjen (f.eks. "Fly", "Buss") brukes direkte som
-   Inkludert-tekst. v37: type-valget på transportlinjer er også fjernet igjen
-   på ønske fra Vidar - alle transportlinjer overføres nå til Forslaget som
-   type "Buss" (kan justeres manuelt i Forslaget ved behov). */
-function forslagLinjeFelter(rid){
-  return `
-      <div style="display:flex;gap:6px;align-items:center;margin:2px 0 6px;flex-wrap:wrap;">
-        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink-2);white-space:nowrap;">
-          <input type="checkbox" id="${rid}inkluder" checked oninput="recalcAll()"> Ta med i Inkludert
-        </label>
-      </div>`;
-}
+/* Forslag-integrasjon (additivt, påvirker aldri beløpssummeringen - ren
+   tilleggsinformasjon til "Opprett forslag fra kalkyle"). v36: eget
+   "Kundetekst til Inkludert"-felt er fjernet - selve navn/beskrivelse-feltet
+   i linjen (f.eks. "Fly", "Buss") brukes direkte som Inkludert-tekst. v37:
+   type-valget på transportlinjer er også fjernet igjen på ønske fra Vidar -
+   alle transportlinjer overføres nå til Forslaget som type "Buss" (kan
+   justeres manuelt i Forslaget ved behov). v40: avkrysningen "Ta med i
+   Inkludert" er fjernet igjen - alt som er med i kalkylen regnes nå alltid
+   som inkludert (se gatherList() nedenfor, som ikke lenger leser noe
+   avkrysningsfelt). */
 
 function listCard(prefix, kind, title, hint, countKey, moduleKey, defaults){
   const count = state[moduleKey][countKey];
@@ -945,8 +958,7 @@ function listCard(prefix, kind, title, hint, countKey, moduleKey, defaults){
         <input type="number" id="${rid}belop" placeholder="beløp" min="0" step="10" oninput="recalcAll()">
         <select id="${rid}cur" oninput="recalcAll()" onchange="recalcAll()">${currencyOptions(moduleKey)}</select>
         ${removeBtn}
-      </div>
-      ${forslagLinjeFelter(rid)}`;
+      </div>`;
   }
   return `
     <div class="card">
@@ -965,12 +977,11 @@ function addListRow(moduleKey, countKey){
 
 function removeListRow(moduleKey, countKey, kind, idx){
   const prefix = moduleKey+'_';
-  const rootId = moduleKey+'_inputs';
-  let vals = snapshotValues(rootId);
+  let vals = snapshotModuleAll(moduleKey);
   vals = shiftIndexedValues(vals, prefix, kind+'_', idx);
   state[moduleKey][countKey] = Math.max(0, state[moduleKey][countKey]-1);
   buildModule1(false);
-  restoreValues(rootId, vals);
+  restoreModuleAll(moduleKey, vals);
   recalcAll();
 }
 
@@ -983,9 +994,9 @@ function gatherList(prefix, kind, count, moduleKey){
     const belop = resolveCurValue(belopRaw, el(rid+'cur'), prefix, moduleKey);
     const item = {navn:strVal(rid+'navn',''), belop};
     // Forslag-integrasjon (additivt - påvirker ikke beløpssummeringen over,
-    // kun brukt av "Opprett forslag fra kalkyle"):
-    const inkluderField = el(rid+'inkluder');
-    item.inkluderITilbud = inkluderField ? inkluderField.checked : true;
+    // kun brukt av "Opprett forslag fra kalkyle"): alt som er med i kalkylen
+    // regnes alltid som inkludert (v40 - avkrysningen er fjernet).
+    item.inkluderITilbud = true;
     items.push(item);
   }
   return items;
@@ -1009,12 +1020,14 @@ function valutaRows(prefix, moduleKey){
     </div>`).join('');
 }
 
-function reiseinformasjonCard(prefix, moduleKey, isM1){
+/* v41: tidligere "Turdetaljer"-kortet (eget .card med egen tittel), nå kun de
+   rå feltene uten kort-innpakning - rendres inn i #m1_turdetaljer, som sitter
+   rett under Kundenavn/hjelpeteksten i den felles "Reiseinformasjon"-boksen
+   øverst (se buildModule1() og HTML-en rundt #m1_turdetaljer). */
+function turdetaljerFields(prefix, moduleKey, isM1){
   return `
-    <div class="card">
-      <div class="card-title">Turdetaljer</div>
       ${textField(prefix+'navn','Reisemål')}
-      ${numberField(prefix+'dager','Antall dager',{value:6})}
+      ${numberField(prefix+'dager','Antall dager',{value:6, extraOninput:'refreshMatDagerOptions();'})}
       ${isM1 ? `
       <div class="row2" style="margin-top:10px;">
         ${numberField(prefix+'anslatt','Antall deltakere',{value:40})}
@@ -1023,8 +1036,7 @@ function reiseinformasjonCard(prefix, moduleKey, isM1){
       <div class="hint" style="margin-top:14px;margin-bottom:4px;">Utenlandske valutaer:</div>
       <div id="${prefix}valutarows">${valutaRows(prefix, moduleKey)}</div>
       <button type="button" class="btn small" onclick="addValuta('${moduleKey}')" style="margin-top:4px;">+ Legg til valuta</button>
-      <div class="hint" id="${prefix}valutainfo" style="margin-top:8px;"></div>
-    </div>`;
+      <div class="hint" id="${prefix}valutainfo" style="margin-top:8px;"></div>`;
 }
 
 /* ---------- Reisekostnader: fly, mat, markedsføring ---------- */
@@ -1040,16 +1052,40 @@ function flyCard(prefix, moduleKey){
         <input type="number" id="${rid}belop" placeholder="beløp" min="0" step="10" oninput="recalcAll()">
         <select id="${rid}cur" oninput="recalcAll()" onchange="recalcAll()">${currencyOptions(moduleKey)}</select>
         ${removeBtn}
-      </div>
-      ${forslagLinjeFelter(rid)}`;
+      </div>`;
   }
   return `
     <div class="card">
-      <div class="card-title">Fly (per betalende deltaker)</div>
+      <div class="card-title">Fly per person</div>
       <div id="${prefix}fly_rows">${rows}</div>
       <button type="button" class="btn small" onclick="addListRow('${moduleKey}','flyCount')" style="margin-top:2px;">+ Legg til fly</button>
       <div class="hint" id="${prefix}fly_total" style="margin-top:4px;"></div>
     </div>`;
+}
+
+/* v41: "Antall dager" på hver måltidslinje er nå en nedtrekksmeny (0 til
+   registrert "Antall dager" for turen) i stedet for et fritekst tallfelt -
+   umulig å taste inn et urealistisk høyt antall dager ved en feil. Valgene
+   regnes ut her (ved kortbygging) fra gjeldende m1_dager-verdi, og holdes
+   synkronisert live via refreshMatDagerOptions() (koblet til m1_dager sin
+   oninput, se turdetaljerFields()) - uten å bygge om hele skjemaet, som ville
+   mistet fokus i feltet brukeren faktisk skriver i. */
+function matDagerOptionsHtml(maxDager, selected){
+  let o = '';
+  for(let d=0; d<=maxDager; d++){
+    o += `<option value="${d}" ${d===selected?'selected':''}>${d}</option>`;
+  }
+  return o;
+}
+function refreshMatDagerOptions(){
+  const prefix = 'm1_';
+  const maxDager = Math.max(0, num(prefix+'dager', 0)||0);
+  ['mat_frokost_dager','mat_lunsj_dager','mat_middag_dager'].forEach(key=>{
+    const selEl = el(prefix+key);
+    if(!selEl) return;
+    const current = parseInt(selEl.value,10)||0;
+    selEl.innerHTML = matDagerOptionsHtml(maxDager, Math.min(current, maxDager));
+  });
 }
 
 function matCard(prefix, moduleKey){
@@ -1060,20 +1096,33 @@ function matCard(prefix, moduleKey){
   // 0 dager for nye kalkyler - eldre, allerede lagrede kalkyler som mangler
   // dette feltet i sin lagrede snapshot, fylles automatisk med full reiselengde
   // ved åpning (se loadCalculatorData), slik at de ikke stille mister matkostnaden.
+  const maxDager = Math.max(0, num(prefix+'dager', 6)||0);
+  const curFrokost = Math.min(num(prefix+'mat_frokost_dager', 0)||0, maxDager);
+  const curLunsj = Math.min(num(prefix+'mat_lunsj_dager', 0)||0, maxDager);
+  const curMiddag = Math.min(num(prefix+'mat_middag_dager', 0)||0, maxDager);
   return `
     <div class="card">
       <div class="card-title">Mat (per person)</div>
       <div class="row2">
         ${moneyField(prefix+'mat_frokost','Frokost/dag',{step:10, moduleKey, curWidth:70})}
-        ${numberField(prefix+'mat_frokost_dager','Antall dager',{value:0, hint:'Maks antall reisedager'})}
+        <div class="field">
+          <label for="${prefix}mat_frokost_dager">Antall dager</label>
+          <select id="${prefix}mat_frokost_dager" oninput="recalcAll()" onchange="recalcAll()">${matDagerOptionsHtml(maxDager, curFrokost)}</select>
+        </div>
       </div>
       <div class="row2">
         ${moneyField(prefix+'mat_lunsj','Lunsj/dag',{step:10, moduleKey, curWidth:70})}
-        ${numberField(prefix+'mat_lunsj_dager','Antall dager',{value:0, hint:'Maks antall reisedager'})}
+        <div class="field">
+          <label for="${prefix}mat_lunsj_dager">Antall dager</label>
+          <select id="${prefix}mat_lunsj_dager" oninput="recalcAll()" onchange="recalcAll()">${matDagerOptionsHtml(maxDager, curLunsj)}</select>
+        </div>
       </div>
       <div class="row2">
         ${moneyField(prefix+'mat_middag','Middag/dag',{step:10, moduleKey, curWidth:70})}
-        ${numberField(prefix+'mat_middag_dager','Antall dager',{value:0, hint:'Maks antall reisedager'})}
+        <div class="field">
+          <label for="${prefix}mat_middag_dager">Antall dager</label>
+          <select id="${prefix}mat_middag_dager" oninput="recalcAll()" onchange="recalcAll()">${matDagerOptionsHtml(maxDager, curMiddag)}</select>
+        </div>
       </div>
       ${moneyField(prefix+'mat_ekstra','Ekstra tillegg mat per person',{step:10, moduleKey, curWidth:70})}
     </div>`;
@@ -1150,9 +1199,18 @@ function reiselederCardM1(p){
 function buildModule1(preserve){
   if(preserve===undefined) preserve=true;
   const p='m1_';
+  // v41: Turdetaljer (#m1_turdetaljer, utenfor #m1_inputs - se HTML-en rundt
+  // .kalkyle-bar) bygges og gjenopprettes FØR #m1_inputs, slik at matCard()
+  // under kan lese den nettopp gjenopprettede "Antall dager"-verdien direkte
+  // (num('m1_dager', ...)) når den regner ut mat-dager-nedtrekksmenyenes
+  // øvre grense - ikke den midlertidige standardverdien fra en tom bygging.
+  const savedTurdetaljer = (preserve && el('m1_turdetaljer')) ? snapshotValues('m1_turdetaljer') : {};
+  if(el('m1_turdetaljer')){
+    el('m1_turdetaljer').innerHTML = turdetaljerFields(p,'m1',true);
+    if(preserve) restoreValues('m1_turdetaljer', savedTurdetaljer);
+  }
   const saved = (preserve && el('m1_inputs')) ? snapshotValues('m1_inputs') : {};
   el('m1_inputs').innerHTML = `
-    ${reiseinformasjonCard(p,'m1',true)}
     ${priceCardM1(p)}
     ${flyCard(p,'m1')}
     ${hotelCard(p, true, 'm1')}
@@ -2064,7 +2122,7 @@ function serializeCalculator(){
   return {
     counts: { ...JSON.parse(JSON.stringify(state.m1)), enkeltTilleggPerPerson, kundeprisVisning, totalOmsVisning, dbTotaltVisning, anslattVisning },
     touchedNetter: JSON.parse(JSON.stringify(touchedNetter.m1)),
-    values: snapshotValues('m1_inputs'),
+    values: snapshotModuleAll('m1'),
   };
 }
 
@@ -2074,7 +2132,7 @@ function loadCalculatorData(data){
   touchedNetter.m1 = { ...((data && data.touchedNetter) || {}) };
   buildModule1(false);
   const vals = (data && data.values) || {};
-  restoreValues('m1_inputs', vals);
+  restoreModuleAll('m1', vals);
   // v35 bakoverkompatibilitet: "Antall dager per måltid" fantes ikke da eldre
   // kalkyler ble lagret, og feltets nye HTML-standard er 0. Uten denne
   // backfillen ville matkostnaden stille bli 0 kr for enhver tidligere lagret
