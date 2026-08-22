@@ -234,10 +234,19 @@ function formatDatoKort(datoStr){
   const [aar, mnd, dag] = datoStr.slice(0,10).split("-");
   return `${dag}.${mnd}.${aar}`;
 }
+// v2: årstall droppet i Flyinformasjon (dag + måned + klokkeslett er nok her
+// - flyreiser er alltid nær forrige/neste seksjon i tid, og fjerning av
+// årstallet gjør flight-radene mer kompakte).
+function formatDatoUtenAar(datoStr){
+  if(!datoStr) return null;
+  const [aar, mnd, dag] = datoStr.slice(0,10).split("-").map(Number);
+  if(!aar || !mnd || !dag) return null;
+  return `${dag}. ${MAANEDER[mnd-1]}`;
+}
 function formatDatoTid(datetimeLocalStr){
   if(!datetimeLocalStr) return null;
   const [datoDel, tidDel] = datetimeLocalStr.split("T");
-  const dato = formatDato(datoDel);
+  const dato = formatDatoUtenAar(datoDel);
   const tid = (tidDel||"").slice(0,5);
   if(!dato) return null;
   return tid && tid !== "00:00" ? `${dato}, kl. ${tid}` : dato;
