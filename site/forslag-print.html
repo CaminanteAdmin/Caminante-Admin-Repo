@@ -117,7 +117,7 @@
   /* Overnatting / hotellbilder (side 2) */
   section.blokk.overnatting-blokk{ padding-bottom:38px; }
   section.blokk.om-reisemalet-blokk{ padding-top:34px; }
-  .hotell-head{ display:flex; align-items:baseline; flex-wrap:wrap; gap:10px; margin-bottom:5px; }
+  .hotell-head{ display:flex; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:5px; }
   .hotell-navn{ font-family:var(--font-serif); font-size:19px; font-weight:600; color:var(--ink); margin:0; }
   .stjerner{ color:var(--gold); font-size:11px; letter-spacing:1px; }
   .hotell-sub{ font-size:12.5px; color:var(--ink-muted); margin-bottom:8px; }
@@ -134,12 +134,10 @@
 
   /* Flyinformasjon (side 3) */
   section.blokk.flyinfo-blokk{ padding-top:56px; }
-  .reise-grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:14px; }
-  .reise-etappe .label{ font-size:11px; font-weight:750; letter-spacing:0.05em; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
-  .leg-gruppe{ margin-bottom:9px; }
-  .leg-gruppe:last-of-type{ margin-bottom:0; }
-  .reise-etappe .leg-rute{ font-size:13px; font-weight:700; color:var(--ink); line-height:1.3; }
-  .reise-etappe .leg-tid{ font-size:11.5px; color:var(--ink-muted); margin-top:1px; }
+  .reise-grid{ display:flex; flex-direction:column; gap:14px; margin-top:14px; }
+  .reise-etappe .label{ font-size:11px; font-weight:750; letter-spacing:0.05em; text-transform:uppercase; color:var(--accent); margin-bottom:6px; }
+  .reise-etappe .leg-rute{ font-size:13px; font-weight:700; color:var(--ink); line-height:1.3; margin-bottom:3px; }
+  .reise-etappe .leg-tid{ font-size:11.5px; color:var(--ink-muted); }
   .reise-intern{ margin-top:18px; padding-top:14px; border-top:1px dashed var(--hairline); }
 
   /* Dette får dere / Ikke inkludert (side 3) */
@@ -469,15 +467,18 @@ async function main(){
 
   function etappeHtml(tittel, rader){
     if(!rader.length) return `<div class="reise-etappe"><div class="label">${esc(tittel)}</div></div>`;
+    // v: hele etappen (evt. med mellomlanding) vises nå på én samlet
+    // rutelinje med en pil mellom hver flight, med tid+selskap for hver
+    // enkelt flight listet under - i stedet for at hver flight fikk sin
+    // egen rutelinje stablet vertikalt.
+    const ruteTekst = rader.map(t=> t.beskrivelse || "Flyreise").join(" → ");
     return `<div class="reise-etappe">
       <div class="label">${esc(tittel)}</div>
+      <div class="leg-rute">${esc(ruteTekst)}</div>
       ${rader.map(t=>{
         const tid = formatFlightTid(t.avreise_tidspunkt, t.ankomst_tidspunkt);
         const tidLinje = [tid, t.selskap].filter(Boolean).join(" • ");
-        return `<div class="leg-gruppe">
-          <div class="leg-rute">${esc(t.beskrivelse || "Flyreise")}</div>
-          ${tidLinje ? `<div class="leg-tid">${esc(tidLinje)}</div>` : ""}
-        </div>`;
+        return tidLinje ? `<div class="leg-tid">${esc(tidLinje)}</div>` : "";
       }).join("")}
     </div>`;
   }
