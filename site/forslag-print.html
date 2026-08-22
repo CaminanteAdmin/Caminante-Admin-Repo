@@ -74,20 +74,22 @@
     .pdf-page--siste{ height:297mm; display:flex; flex-direction:column; }
   }
 
-  .brandbar{ padding:14px 64px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; background:var(--night); }
-  .brandbar .logo{ height:64px; width:auto; display:block; }
+  .brandbar{ padding:17px 64px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; background:var(--night); }
+  .brandbar .logo{ height:72px; width:auto; display:block; }
   .brandbar-kontakt{ font-size:11px; color:#cfc6b8; text-align:right; line-height:1.5; }
+  .brandbar-kontakt .rolle{ font-size:9px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--gold); margin-bottom:2px; }
   .brandbar-kontakt .navn{ font-size:12.5px; font-weight:700; color:#fff; }
 
   /* Hero (side 1) */
   .hero-img{ width:100%; height:340px; object-fit:cover; display:block; background:var(--tint); }
   .hero-text{ padding:28px 64px 4px; }
+  .hero-text .kicker{ font-size:12.5px; font-weight:750; letter-spacing:0.06em; text-transform:uppercase; color:var(--accent-dark); margin:0 0 8px; }
   .hero-text h1{ font-family:var(--font-serif); font-size:34px; font-weight:600; margin:0; line-height:1.15; color:var(--ink); }
   .hero-text .utarbeidet{ font-size:13.5px; color:var(--ink-muted); margin:7px 0 14px; }
 
-  .fakta-strip{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; padding:12px 64px 6px; }
-  .fakta-item .k{ font-size:10px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-muted); margin-bottom:3px; }
-  .fakta-item .v{ font-size:13.5px; font-weight:600; color:var(--ink); }
+  .fakta-strip{ display:flex; justify-content:space-between; gap:14px; padding:12px 64px 6px; }
+  .fakta-item .k{ font-size:10px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-muted); margin-bottom:3px; white-space:nowrap; }
+  .fakta-item .v{ font-size:13.5px; font-weight:600; color:var(--ink); white-space:nowrap; }
 
   section.blokk{ padding:26px 64px 24px; position:relative; }
   section.blokk::before{ content:""; position:absolute; top:0; left:64px; right:64px; border-top:1px dashed var(--hairline); }
@@ -101,11 +103,11 @@
   .side-start::before{ display:none; }
 
   /* Om reisen (side 1) */
-  section.blokk.om-reisen-blokk{ padding-top:60px; }
+  section.blokk.om-reisen-blokk{ padding-top:22px; padding-bottom:52px; }
   .om-reisen-blokk p{ margin-bottom:0; }
 
-  /* Høydepunkter (side 1) */
-  .sub-label{ font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-muted); margin:60px 0 8px; }
+  /* Høydepunkter (side 1) - samme stil som blokk-overskriftene (fx "Om reisen") */
+  .sub-label{ font-size:12.5px; font-weight:750; letter-spacing:0.06em; text-transform:uppercase; color:var(--accent-dark); margin:24px 0 10px; }
   .hoydepunkt-grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px 20px; }
   .hoydepunkt-card{ display:flex; gap:14px; align-items:flex-start; }
   .hoydepunkt-card img, .hoydepunkt-card .img-tom{ width:130px; height:114px; object-fit:cover; border-radius:6px; flex:none; display:block; background:var(--tint); }
@@ -123,20 +125,21 @@
   .badge{ display:inline-block; font-size:11.5px; font-weight:600; color:var(--accent-dark); background:var(--tint); border:1px solid var(--hairline); border-radius:20px; padding:4px 11px; }
 
   .hotell-galleri-stor{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
-  .hotell-galleri-stor img{ width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:8px; display:block; background:var(--tint); }
+  .hotell-galleri-stor img{ width:100%; aspect-ratio:16/6.75; object-fit:cover; border-radius:8px; display:block; background:var(--tint); }
 
-  /* Om reisemålet-galleri (side 2) */
-  .om-reisemalet-galleri{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px; }
-  .om-reisemalet-galleri img{ width:100%; height:170px; object-fit:cover; border-radius:8px; display:block; background:var(--tint); }
+  /* Om reisemålet-galleri (side 2) - samme avlange bildeformat som hotellbildene */
+  .om-reisemalet-blokk .reisemaal-navn{ font-family:var(--font-serif); font-size:19px; font-weight:600; color:var(--ink); margin:0 0 8px; }
+  .om-reisemalet-galleri{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px; }
+  .om-reisemalet-galleri img{ width:100%; aspect-ratio:16/6.75; object-fit:cover; border-radius:8px; display:block; background:var(--tint); }
 
-  /* Reise (side 3) */
+  /* Flyinformasjon (side 3) */
+  section.blokk.flyinfo-blokk{ padding-top:56px; }
   .reise-grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:14px; }
   .reise-etappe .label{ font-size:11px; font-weight:750; letter-spacing:0.05em; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
   .leg-gruppe{ margin-bottom:9px; }
   .leg-gruppe:last-of-type{ margin-bottom:0; }
-  .reise-etappe .leg-rute{ font-size:15px; font-weight:700; color:var(--ink); line-height:1.3; }
+  .reise-etappe .leg-rute{ font-size:13px; font-weight:700; color:var(--ink); line-height:1.3; }
   .reise-etappe .leg-tid{ font-size:11.5px; color:var(--ink-muted); margin-top:1px; }
-  .reise-etappe .detalj{ font-size:11px; color:var(--ink-muted); margin-top:10px; padding-top:9px; border-top:1px dashed var(--hairline); }
   .reise-intern{ margin-top:18px; padding-top:14px; border-top:1px dashed var(--hairline); }
 
   /* Dette får dere / Ikke inkludert (side 3) */
@@ -148,14 +151,14 @@
 
   /* Pris (side 3) */
   .pris-boks{ background:var(--tint); border:1px solid var(--hairline); border-radius:10px; padding:20px 26px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; }
-  .pris-boks .venstre .label{ font-size:11px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--ink-secondary); margin-bottom:4px; }
+  .pris-boks .venstre .label{ font-size:11px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--ink-secondary); margin-top:6px; }
   .pris-tall{ font-family:var(--font-serif); font-size:30px; font-weight:600; color:var(--accent-dark); }
   .pris-tall .enhet{ font-size:13px; font-weight:500; color:var(--ink-secondary); margin-left:6px; font-family:var(--font-sans); }
   .pris-detalj{ font-size:12.5px; color:var(--ink-muted); text-align:right; max-width:260px; line-height:1.5; }
-  .pris-forklaring{ font-size:13px; color:var(--ink-secondary); line-height:1.6; margin-top:12px; }
 
   /* Veien videre (side 3) */
   .veien-videre .kontakt-blokk{ margin-top:12px; font-size:13px; color:var(--ink-secondary); line-height:1.6; }
+  .veien-videre .kontakt-blokk .hilsen{ margin-bottom:2px; }
   .veien-videre .kontakt-blokk .navn{ font-weight:700; color:var(--ink); }
 
   /* Avslutningsbilde (side 3) - fyller automatisk resten av siden ned til
@@ -324,7 +327,7 @@ async function main(){
   document.title = `${f.tittel || "Reiseforslag"} – Caminante`;
 
   const hotellIdSet = new Set(hoteller.map(h=>h.id));
-  const bilderDestinasjon = bilder.filter(b=> b.kategori === "Destinasjon").slice(0,3);
+  const bilderDestinasjon = bilder.filter(b=> b.kategori === "Destinasjon").slice(0,4);
   const bilderAvslutning = bilder.filter(b=> b.kategori === "Avslutning");
   const bilderForHotell = (hotellId)=> bilder.filter(b=> b.kategori==="Hotell" && b.hotellopphold_id===hotellId).slice(0,4);
 
@@ -341,7 +344,7 @@ async function main(){
     <div class="brandbar">
       <img class="logo" src="${LOGO_DATAURI}" alt="Caminante">
       <div class="brandbar-kontakt">
-        ${ansvarligNavn ? `<div class="navn">${esc(ansvarligNavn)}</div>` : ""}
+        ${ansvarligNavn ? `<div class="rolle">Reiserådgiver</div><div class="navn">${esc(ansvarligNavn)}</div>` : ""}
         <div class="info">41 57 24 72 · vidar@okreiser.no</div>
       </div>
     </div>`;
@@ -360,6 +363,7 @@ async function main(){
   let side1 = brandbarHtml;
   if(f.hovedbilde_url) side1 += `<img class="hero-img" src="${esc(f.hovedbilde_url)}" alt="">`;
   side1 += `<div class="hero-text">
+    <div class="kicker">Reiseforslag</div>
     <h1>${esc(f.destinasjon || f.tittel || "Reiseforslag")}</h1>
     ${f.kunde_navn ? `<div class="utarbeidet">Utarbeidet for ${esc(f.kunde_navn)}</div>` : ""}
   </div>`;
@@ -391,7 +395,7 @@ async function main(){
     </div>` : ""}
   </section>`;
 
-  /* ----- Side 2: Overnatting, Om reisemålet ----- */
+  /* ----- Side 2: Overnatting, Reisemålet ----- */
 
   let side2 = "";
   hoteller.forEach((h, idx)=>{
@@ -401,11 +405,11 @@ async function main(){
     if(last) klasser.push("overnatting-blokk");
     const sub = [];
     if(h.sted) sub.push(h.sted);
-    if(h.fra_dato && h.til_dato) sub.push(`${formatDatoKort(h.fra_dato)} – ${formatDatoKort(h.til_dato)}`);
     if(h.netter) sub.push(`${h.netter} ${h.netter===1?"natt":"netter"}`);
     const romtyper = [h.romtype_standard, ...(h.romtype_andre||[]), ...(h.romtype_egendefinert||[])].filter(Boolean);
     const bilderHotell = bilderForHotell(h.id);
     side2 += `<section class="${klasser.join(" ")}">
+      ${first ? `<h2>Overnatting</h2>` : ""}
       <div class="hotell-head">
         <div class="hotell-navn">${esc(h.hotellnavn || "Hotell")}</div>
         ${h.stjerner ? `<span class="stjerner">${"★".repeat(h.stjerner)}</span>` : ""}
@@ -423,13 +427,14 @@ async function main(){
   const omReisemaaletKlasser = ["blokk","om-reisemalet-blokk"];
   if(!hoteller.length) omReisemaaletKlasser.push("side-start");
   side2 += `<section class="${omReisemaaletKlasser.join(" ")}">
-    <h2>Om reisemålet</h2>
+    <h2>Reisemålet</h2>
+    ${f.destinasjon ? `<div class="reisemaal-navn">${esc(f.destinasjon)}</div>` : ""}
     ${f.om_reisemalet ? `<p>${nl2br(f.om_reisemalet)}</p>` : ""}
     ${f.muligheter_opplevelser ? `<p>${nl2br(f.muligheter_opplevelser)}</p>` : ""}
     ${bilderDestinasjon.length ? `<div class="om-reisemalet-galleri">${bilderDestinasjon.map(b=>`<img src="${esc(b.bilde_url)}" alt="${esc(b.alt_tekst||"")}">`).join("")}</div>` : ""}
   </section>`;
 
-  /* ----- Side 3: Reise, Dette får dere, Pris, Veien videre, avslutningsbilde ----- */
+  /* ----- Side 3: Flyinformasjon, Turen inkluderer, Priser, Fra forslag til reise, avslutningsbilde ----- */
 
   const utreise = transport.filter(t=>t.kategori==="utreise");
   const retur = transport.filter(t=>t.kategori==="retur");
@@ -437,17 +442,16 @@ async function main(){
 
   function etappeHtml(tittel, rader){
     if(!rader.length) return `<div class="reise-etappe"><div class="label">${esc(tittel)}</div></div>`;
-    const selskaper = [...new Set(rader.map(t=>t.selskap).filter(Boolean))];
     return `<div class="reise-etappe">
       <div class="label">${esc(tittel)}</div>
       ${rader.map(t=>{
         const tid = formatFlightTid(t.avreise_tidspunkt, t.ankomst_tidspunkt);
+        const tidLinje = [tid, t.selskap].filter(Boolean).join(" • ");
         return `<div class="leg-gruppe">
           <div class="leg-rute">${esc(t.beskrivelse || "Flyreise")}</div>
-          ${tid ? `<div class="leg-tid">${esc(tid)}</div>` : ""}
+          ${tidLinje ? `<div class="leg-tid">${esc(tidLinje)}</div>` : ""}
         </div>`;
       }).join("")}
-      ${selskaper.length ? `<div class="detalj">${esc(selskaper.join(" · "))}</div>` : ""}
     </div>`;
   }
 
@@ -459,8 +463,8 @@ async function main(){
     // samlet dato, som naturlig er reisens fra-/til-dato.
     const utreiseLabel = "Utreise" + (f.fra_dato ? ` – ${formatDatoUtenAar(f.fra_dato)}` : "");
     const returLabel = "Retur" + (f.til_dato ? ` – ${formatDatoUtenAar(f.til_dato)}` : "");
-    side3 += `<section class="blokk side-start">
-      <h2>Reise</h2>
+    side3 += `<section class="blokk side-start flyinfo-blokk">
+      <h2>Flyinformasjon</h2>
       <div class="reise-grid">
         ${etappeHtml(utreiseLabel, utreise)}
         ${etappeHtml(returLabel, retur)}
@@ -469,12 +473,18 @@ async function main(){
     </section>`;
   }
 
-  const inkl = f.inkludert || [];
+  // v: Netter+hotellnavn utledes automatisk fra forslag_hotellopphold i
+  // stedet for å måtte skrives inn manuelt i Inkludert-listen - unngår at
+  // linjen blir stående med feil/generisk hotellnavn.
+  const hotellNetterLinjer = hoteller
+    .filter(h=> h.hotellnavn && h.netter)
+    .map(h=> `${h.netter} ${h.netter===1?"natt":"netter"} ${h.hotellnavn}`);
+  const inkl = [...hotellNetterLinjer, ...(f.inkludert || [])];
   const ikkeInkl = f.ikke_inkludert || [];
   if(inkl.length || ikkeInkl.length){
     const klasser = (utreise.length||retur.length||intern.length) ? "blokk" : "blokk side-start";
     side3 += `<section class="${klasser}">
-      <h2>Dette får dere</h2>
+      <h2>Turen inkluderer</h2>
       <ul class="dfd-grid">${inkl.map(v=>`<li>${esc(v)}</li>`).join("")}</ul>
       ${ikkeInkl.length ? `<div class="ikke-inkl-linje"><b>Ikke inkludert:</b> ${esc(ikkeInkl.join(" · "))}</div>` : ""}
     </section>`;
@@ -482,10 +492,11 @@ async function main(){
 
   if(f.pris_per_person){
     side3 += `<section class="blokk">
+      <h2>Priser</h2>
       <div class="pris-boks">
         <div class="venstre">
-          <div class="label">${f.er_fra_pris ? "Fra pris" : "Pris"} per person</div>
           <div class="pris-tall">kr ${formatKr(f.pris_per_person)},-</div>
+          <div class="label">${f.er_fra_pris ? "Fra pris" : "Pris"} per person i delt dobbeltrom</div>
         </div>
         <div class="pris-detalj">
           ${[
@@ -495,14 +506,14 @@ async function main(){
           ].filter(Boolean).join(" · ")}
         </div>
       </div>
-      ${f.prisgrunnlag_forklaring ? `<p class="pris-forklaring">${nl2br(f.prisgrunnlag_forklaring)}</p>` : ""}
     </section>`;
   }
 
   side3 += `<section class="blokk veien-videre">
-    <h2>Veien videre</h2>
+    <h2>Fra forslag til reise</h2>
     ${f.veien_videre_tekst ? `<p>${nl2br(f.veien_videre_tekst)}</p>` : ""}
     <div class="kontakt-blokk">
+      <div class="hilsen">Vennlig hilsen,</div>
       ${ansvarligNavn ? `<div class="navn">${esc(ansvarligNavn)}</div>` : ""}
       <div>41 57 24 72 · vidar@okreiser.no · Caminante Travel AS</div>
     </div>
