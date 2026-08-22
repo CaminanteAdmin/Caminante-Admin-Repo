@@ -1,2 +1,3 @@
 # macOS Finder-metadata - ingen reell innhold, skal aldri spores
 .DS_Store
+*.bak
