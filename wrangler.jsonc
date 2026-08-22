@@ -3,7 +3,17 @@
   "name": "caminante-admin",
   // Sett til dagens dato ved neste endring, ellers kan den stå.
   "compatibility_date": "2026-08-19",
+  "main": "worker.js",
   "assets": {
-    "directory": "./site"
+    "directory": "./site",
+    "binding": "ASSETS"
+  },
+  "r2_buckets": [
+    { "binding": "BILDEBANK", "bucket_name": "caminante-bilder" }
+  ],
+  "vars": {
+    "SUPABASE_URL": "https://ihabhsqpzafusvxpikga.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloYWJoc3FwemFmdXN2eHBpa2dhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMDM0NTAsImV4cCI6MjA5OTg3OTQ1MH0.bvNkA7t0hz0t7jTx8jHf4dEtrjFhGgkK9fcEqlo_L8s",
+    "R2_PUBLIC_BASE": "https://pub-8f4270b9a9cf448a80b2613124b09894.r2.dev"
   }
 }

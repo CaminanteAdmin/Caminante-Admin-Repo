@@ -333,6 +333,25 @@
   .bilde-subbox:last-child{ margin-bottom:0; }
   .bilde-subbox-title{ font-size:12.5px; font-weight:600; color:var(--ink-secondary); margin-bottom:8px; }
 
+  /* v: "Velg fra bildebank" - lar deg hente inn bilder som allerede ligger i
+     den delte bildebanken (R2, destinations/<slug>/ og hoteller/<slug>/) i
+     stedet for å laste opp på nytt. Se shared/bildebank.js. */
+  .bildebank-velg-btn{
+    display:block; width:100%; text-align:center;
+    border:none; background:none; color:var(--blue); font-size:12px;
+    text-decoration:underline; cursor:pointer; padding:4px 2px 0;
+  }
+  .bildebank-panel{
+    margin-top:8px; padding:10px; border-radius:8px;
+    background:var(--page); display:flex; flex-wrap:wrap; gap:8px;
+  }
+  .bildebank-panel .bildebank-loading{ font-size:12px; color:var(--ink-muted); }
+  .bildebank-thumb{
+    width:56px; height:56px; object-fit:cover; border-radius:6px;
+    cursor:pointer; border:1px solid var(--card-border);
+  }
+  .bildebank-thumb:hover{ outline:2px solid var(--blue); }
+
   .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
 </style>
 </head>
@@ -606,6 +625,7 @@
 <script src="shared/supabase-client.js"></script>
 <script src="shared/auth.js"></script>
 <script src="shared/nav.js"></script>
+<script src="shared/bildebank.js"></script>
 <script>
 /* ============================================================
    Forslag-editor - v1
@@ -1462,7 +1482,12 @@ async function uploadFilesIntoBox(fileList, kategori, extra){
 // hvert kall. Program-/Hotell-underboksene er derimot alltid FRISKE
 // DOM-elementer (bygges på nytt hver gang i renderBilder), så der er det
 // trygt at wiring skjer på nytt hver gang uansett.
-function buildBildeDropbox(boxEl, items, kategori, extra){
+// v: bildebankInfo = {mappe, slugGetter} | null. slugGetter er en funksjon
+// (ikke en ferdig verdi) som leses PÅ KLIKK-TIDSPUNKTET, ikke ved rendering -
+// ellers ville f.eks. Destinasjon-boksens plukker huske en foreldet slug hvis
+// "Destinasjon / reiseidé" endres etter at siden lastet (boksen wires kun én
+// gang, se dataset.wired-guarden under).
+function buildBildeDropbox(boxEl, items, kategori, extra, bildebankInfo){
   let grid = boxEl.querySelector(".img-grid");
   if(!grid){
     grid = document.createElement("div");
@@ -1491,12 +1516,68 @@ function buildBildeDropbox(boxEl, items, kategori, extra){
     boxEl.classList.remove("drag-over");
     uploadFilesIntoBox(e.dataTransfer.files, kategori, extra);
   });
+
+  if(bildebankInfo) wireBildebankVelger(boxEl, kategori, extra, bildebankInfo);
+}
+
+function wireBildebankVelger(boxEl, kategori, extra, bildebankInfo){
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "bildebank-velg-btn";
+  btn.textContent = "Velg fra bildebank";
+  boxEl.appendChild(btn);
+
+  const panel = document.createElement("div");
+  panel.className = "bildebank-panel";
+  panel.style.display = "none";
+  boxEl.appendChild(panel);
+
+  btn.addEventListener("click", async ()=>{
+    if(panel.style.display !== "none"){ panel.style.display = "none"; return; }
+    const slug = bildebankInfo.slugGetter();
+    if(!slug){
+      alert(bildebankInfo.mappe === "destinations"
+        ? "Fyll inn «Destinasjon / reiseidé» i Grunninfo-fanen først."
+        : "Fyll inn hotellnavn først.");
+      return;
+    }
+    panel.style.display = "flex";
+    panel.innerHTML = '<div class="bildebank-loading">Henter bilder…</div>';
+    try{
+      const bilder = await bildebankList(bildebankInfo.mappe, slug);
+      if(!bilder.length){
+        panel.innerHTML = `<div class="bildebank-loading">Ingen bilder i bildebanken for «${escapeHtml(slug)}» ennå.</div>`;
+        return;
+      }
+      panel.innerHTML = "";
+      bilder.forEach(b=>{
+        const thumb = document.createElement("img");
+        thumb.className = "bildebank-thumb";
+        thumb.src = b.url;
+        thumb.title = "Klikk for å legge til dette bildet";
+        thumb.addEventListener("click", ()=>{
+          state.bilder.push({
+            id:null, clientKey:newClientKey(),
+            fields:{ kategori, bilde_url:b.url, alt_tekst:null, sortering: state.bilder.length },
+            hotellopphold_client_key: (extra && extra.hotellopphold_client_key) || null,
+            dagsprogram_client_key: (extra && extra.dagsprogram_client_key) || null,
+          });
+          el("saveStatus").textContent = "Bilde lagt til fra bildebanken – husk å lagre.";
+          renderBilder();
+        });
+        panel.appendChild(thumb);
+      });
+    } catch(err){
+      panel.innerHTML = `<div class="bildebank-loading">Kunne ikke hente bilder: ${escapeHtml(err.message)}</div>`;
+    }
+  });
 }
 
 function renderBilder(){
   renderHovedbilde();
 
-  buildBildeDropbox(el("bildeBoxDestinasjon"), state.bilder.filter(b=> b.fields.kategori==="Destinasjon"), "Destinasjon", null);
+  buildBildeDropbox(el("bildeBoxDestinasjon"), state.bilder.filter(b=> b.fields.kategori==="Destinasjon"), "Destinasjon", null,
+    { mappe:"destinations", slugGetter: ()=> slugifyBildebank(state.forslag.destinasjon) });
 
   const programWrap = el("bildeProgramSubboxes");
   programWrap.innerHTML = "";
@@ -1536,7 +1617,8 @@ function renderBilder(){
       sub.appendChild(box);
       hotellWrap.appendChild(sub);
       const items = state.bilder.filter(b=> b.fields.kategori==="Hotell" && b.hotellopphold_client_key===h.clientKey);
-      buildBildeDropbox(box, items, "Hotell", { hotellopphold_client_key: h.clientKey });
+      buildBildeDropbox(box, items, "Hotell", { hotellopphold_client_key: h.clientKey },
+        { mappe:"hoteller", slugGetter: ()=> slugifyBildebank(h.fields.hotellnavn) });
     });
   }
 

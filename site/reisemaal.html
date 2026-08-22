@@ -248,6 +248,7 @@
 <script src="shared/auth.js"></script>
 <script src="shared/nav.js"></script>
 <script src="shared/flagg-liste.js"></script>
+<script src="shared/bildebank.js"></script>
 <script>
 /* ---------- State (in-memory cache of DB rows for the current session) ---------- */
 
@@ -509,14 +510,17 @@ function renderProfile(id){
   document.getElementById("nyttRmBildeFile").addEventListener("change", async (e)=>{
     const file = e.target.files[0];
     if(!file) return;
+    const slug = slugifyBildebank(r.navn);
+    if(!slug){ alert("Fyll inn Navn først, slik at bildet kan legges i riktig mappe i bildebanken."); e.target.value=""; return; }
     try{
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-      const path = `${r.id}/${(crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2))}.${ext}`;
-      const { error: upErr } = await window.sb.storage.from("reisemaal-bilder").upload(path, file, { upsert:false });
-      if(upErr) throw upErr;
-      const { data: pub } = window.sb.storage.from("reisemaal-bilder").getPublicUrl(path);
+      // v: bilder lagres nå i den delte bildebanken (Cloudflare R2, destinations/<slug>/)
+      // i stedet for reisemaal-bilder-bucketen i Supabase Storage, slik at de samme
+      // bildene kan gjenbrukes direkte i Forslag & Tilbud (og etter hvert Web) uten
+      // å måtte lastes opp på nytt. reisemaal_bilder-tabellen er uendret - lagrer
+      // bare en URL som nå peker til R2 i stedet for Supabase Storage.
+      const { url } = await bildebankUpload(file, "destinations", slug);
       const { data, error } = await window.sb.from("reisemaal_bilder").insert({
-        reisemaal_id: r.id, bilde_url: pub.publicUrl, sortering: r.bilder.length,
+        reisemaal_id: r.id, bilde_url: url, sortering: r.bilder.length,
       }).select().single();
       if(error) throw error;
       r.bilder.push(data);
