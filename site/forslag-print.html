@@ -536,7 +536,7 @@ async function main(){
             f.pris_antall_personer ? `Basert på ${f.pris_antall_personer} betalende deltakere` : null,
             f.enkeltromstillegg ? `Enkeltromstillegg kr ${formatKr(f.enkeltromstillegg)},-` : null,
             f.kursgrunnlag || null,
-          ].filter(Boolean).join(" · ")}
+          ].filter(Boolean).join("<br>")}
         </div>
       </div>
     </section>`;
