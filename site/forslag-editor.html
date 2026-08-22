@@ -1511,15 +1511,19 @@ function hoydepunktBankForValgtReisemaal(){
   if(!rid) return [];
   return hoydepunktBankOversikt.filter(h=>h.reisemaal_id===rid).sort((a,b)=>(a.sortering??0)-(b.sortering??0));
 }
-function bankBilderForHoydepunkt(hoydepunktId){
-  return hoydepunktBankBilderOversikt
-    .filter(b=>b.hoydepunkt_id===hoydepunktId)
+function bankBilderForHoydepunkt(){
+  // v: bildevalget for et hoydepunkt vises nå fra reisemålets HELE
+  // bildebank (samme pool som Destinasjon-bildene i Bilder-fanen), ikke
+  // fra en smal, forhåndskoblet kandidatliste (reisemaal_hoydepunkt_bilder)
+  // - den koblingen forutsatte et eget kureringssteg i Reisemål-registeret
+  // før et bilde i det hele tatt dukket opp her, noe som gjorde velgeren
+  // tom/ubrukelig for de fleste høydepunkter i praksis.
+  const rid = state.forslag.reisemaal_id;
+  if(!rid) return [];
+  return reisemaalBilderOversikt
+    .filter(b=>b.reisemaal_id===rid)
     .sort((a,b)=>(a.sortering??0)-(b.sortering??0))
-    .map(b=>{
-      const rb = reisemaalBilderOversikt.find(x=>x.id===b.reisemaal_bilde_id);
-      return rb ? { reisemaal_bilde_id: rb.id, url: rb.bilde_url } : null;
-    })
-    .filter(Boolean);
+    .map(rb=>({ reisemaal_bilde_id: rb.id, url: rb.bilde_url }));
 }
 
 function renderHoydepunkter(){
@@ -1551,7 +1555,7 @@ function renderHoydepunkter(){
   state.hoydepunkter.forEach((item, idx)=>{
     const f = item.fields;
     const bankHp = bank.find(h=>h.id===f.hoydepunkt_id) || hoydepunktBankOversikt.find(h=>h.id===f.hoydepunkt_id);
-    const bilder = bankHp ? bankBilderForHoydepunkt(bankHp.id) : [];
+    const bilder = bankBilderForHoydepunkt();
     const card = document.createElement("div");
     card.className = "item-block hp-item";
     card.innerHTML = `
@@ -1571,7 +1575,7 @@ function renderHoydepunkter(){
         <label>Bilde</label>
         <div>
           ${bilder.length ? `<div class="hp-bilde-picker">${bilder.map(b=>`<img src="${escapeHtml(b.url)}" data-id="${b.reisemaal_bilde_id}" class="${f.valgt_bilde_id===b.reisemaal_bilde_id?"valgt":""}">`).join("")}</div>`
-            : '<div class="hp-ingen-bilder">Ingen bilder koblet til dette høydepunktet i banken ennå (legges til i Reisemål-registeret).</div>'}
+            : '<div class="hp-ingen-bilder">Reisemålet har ingen bilder i bildebanken ennå (legges til under Reisemål → 3. Bilder).</div>'}
         </div>
       </div>
     `;
