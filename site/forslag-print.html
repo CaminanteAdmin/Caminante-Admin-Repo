@@ -39,6 +39,15 @@
     background:var(--page-bg);
     -webkit-font-smoothing:antialiased;
   }
+  /* v4: uten dette strippes ALLE bakgrunnsfarger/-bilder (svart banner,
+     tint-bakgrunner, prisboks osv.) automatisk bort ved utskrift/PDF-
+     eksport med mindre brukeren manuelt huker av "Bakgrunnsgrafikk" i
+     Chromes utskriftsdialog - de fleste gjør ikke det, så uten denne
+     regelen falt PDF-en tilbake til ren hvit bakgrunn med nesten usynlig
+     lys tekst der banneret skal være (så det så ut som den gamle,
+     bannerløse stilen). Tvinger nettleseren til alltid å skrive ut
+     bakgrunner nøyaktig som på skjerm. */
+  *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; }
 
   /* ---------- Skjerm-verktøylinje (skjules ved print) ---------- */
   .toolbar{
@@ -75,11 +84,11 @@
      logoen plassert oppe til venstre og forslagsnummer/dato i lys tekst til
      høyre. */
   .brandbar{
-    padding:10px 48px;
+    padding:20px 48px;
     display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
     background:var(--night);
   }
-  .brandbar .logo{ height:34px; width:auto; display:block; }
+  .brandbar .logo{ height:58px; width:auto; display:block; }
   .brandbar .meta{ font-size:11px; color:#cfc6b8; text-align:right; }
 
   /* Hero */
