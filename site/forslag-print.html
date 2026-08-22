@@ -248,8 +248,29 @@ function formatKr(n){
 }
 function nl2br(str){ return esc(str).replace(/\n/g,"<br>"); }
 
+// v2: en full periode som "15. mars 2027 - 19. mars 2027" tar unødig mye
+// plass når begge datoene deler måned/år - kortes ned til "15.-19. mars
+// 2027" i det tilfellet (og til "15. mars - 3. april 2027" når kun året er
+// felles, dvs. måneden droppes fra fra-datoen men ikke fra til-datoen).
+// Datostrengene ("YYYY-MM-DD") tolkes direkte fra teksten, ikke via
+// Date-objekt - samme prinsipp som formatDato()/formatDatoKort() over.
+function formatDatoperiode(fraStr, tilStr){
+  const [fAar, fMnd, fDag] = fraStr.slice(0,10).split("-").map(Number);
+  const [tAar, tMnd, tDag] = tilStr.slice(0,10).split("-").map(Number);
+  if(!fAar || !tAar) return null;
+  if(fAar === tAar && fMnd === tMnd && fDag === tDag){
+    return `${fDag}. ${MAANEDER[fMnd-1]} ${fAar}`;
+  }
+  if(fAar === tAar && fMnd === tMnd){
+    return `${fDag}.–${tDag}. ${MAANEDER[fMnd-1]} ${fAar}`;
+  }
+  if(fAar === tAar){
+    return `${fDag}. ${MAANEDER[fMnd-1]} – ${tDag}. ${MAANEDER[tMnd-1]} ${fAar}`;
+  }
+  return `${fDag}. ${MAANEDER[fMnd-1]} ${fAar} – ${tDag}. ${MAANEDER[tMnd-1]} ${tAar}`;
+}
 function reiseperiode(f){
-  if(f.fra_dato && f.til_dato) return `${formatDato(f.fra_dato)} – ${formatDato(f.til_dato)}`;
+  if(f.fra_dato && f.til_dato) return formatDatoperiode(f.fra_dato, f.til_dato);
   if(f.fra_dato) return `Fra ${formatDato(f.fra_dato)}`;
   if(f.periode_tekst) return f.periode_tekst;
   return null;
