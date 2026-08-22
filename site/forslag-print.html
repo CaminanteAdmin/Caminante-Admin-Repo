@@ -172,8 +172,19 @@
     .no-print{ display:none !important; }
     body{ background:#fff; }
     .paper{ box-shadow:none; margin:0; max-width:none; border-radius:0; }
-    section.blokk, .hotell, .dag{ break-inside:avoid; }
+    /* v3: break-inside:avoid på HELE seksjoner (section.blokk/.hotell/.dag)
+       tvang hele blokken til å hoppe i sin helhet til neste side hvis den
+       ikke fikk plass på gjenværende plass på siden den startet på - det ga
+       et stort, synlig tomrom (opptil en halv side) foran seksjoner som
+       "Om reisemålet"/"Om hotellet" når teksten+galleriet var for høyt til
+       å rekke med resten av siden. Løsning: la selve innholdet (tekst,
+       bilder) flyte fritt over en sideskift som normal tekst, og bruk i
+       stedet break-after:avoid KUN på overskriftene - det hindrer en
+       overskrift i å bli stående alene nederst på en side uten noe innhold
+       under seg, UTEN å tvinge resten av seksjonen med over på ny side. */
+    .blokk h2, .dag-head, .dag-tittel, .hotell-head{ break-after:avoid; }
     .brandbar, .hero-text, .fakta-strip{ break-inside:avoid; }
+    .pris-boks, .flight-rad{ break-inside:avoid; }
     @page{ size:A4; margin:16mm 14mm; }
   }
 </style>
