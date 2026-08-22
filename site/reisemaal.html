@@ -247,6 +247,7 @@
 <script src="shared/supabase-client.js"></script>
 <script src="shared/auth.js"></script>
 <script src="shared/nav.js"></script>
+<script src="shared/flagg-liste.js"></script>
 <script>
 /* ---------- State (in-memory cache of DB rows for the current session) ---------- */
 
@@ -391,6 +392,23 @@ async function deleteReisemaal(id){
   renderList();
 }
 
+/* ---------- Flagg-nedtrekksliste ---------- */
+
+// v: flagg_bilde_url lagres nå som en relativ sti til et av de lokale flaggene
+// i site/flags/<kode>.svg (fra FLAGG_LISTE i shared/flagg-liste.js), ikke lenger
+// et opplastet bilde i reisemaal-bilder-bucketen.
+function flaggkodeFraUrl(url){
+  const m = /^flags\/([a-z-]+)\.svg$/.exec(url || "");
+  return m ? m[1] : null;
+}
+function flaggOptionsHtml(gjeldendeUrl){
+  const gjeldendeKode = flaggkodeFraUrl(gjeldendeUrl);
+  const sortert = FLAGG_LISTE.slice().sort((a,b)=> a.navn.localeCompare(b.navn,"nb"));
+  return sortert.map(f=>
+    `<option value="${f.code}" ${f.code===gjeldendeKode ? "selected" : ""}>${escapeHtml(f.navn)}</option>`
+  ).join("");
+}
+
 /* ---------- Profile panel ---------- */
 
 function openProfile(id){
@@ -434,7 +452,10 @@ function renderProfile(id){
         <label>Flagg</label>
         <div class="flagg-row">
           ${r.flagg_bilde_url ? `<img class="flagg-preview" src="${escapeHtml(r.flagg_bilde_url)}">` : `<div class="flagg-preview"></div>`}
-          <input type="file" id="flaggFile" accept="image/*" style="flex:1;">
+          <select id="f-flagg" style="flex:1;">
+            <option value="">— Velg flagg —</option>
+            ${flaggOptionsHtml(r.flagg_bilde_url)}
+          </select>
         </div>
       </div>
     </div>
@@ -479,18 +500,9 @@ function renderProfile(id){
   bind("f-valuta","valuta"); bind("f-folketall","folketall");
   bind("f-om-reisemaalet","om_reisemaalet"); bind("f-muligheter","muligheter_opplevelser");
 
-  document.getElementById("flaggFile").addEventListener("change", async (e)=>{
-    const file = e.target.files[0];
-    if(!file) return;
-    try{
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-      const path = `${r.id}/flagg-${(crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2))}.${ext}`;
-      const { error: upErr } = await window.sb.storage.from("reisemaal-bilder").upload(path, file, { upsert:false });
-      if(upErr) throw upErr;
-      const { data: pub } = window.sb.storage.from("reisemaal-bilder").getPublicUrl(path);
-      await updateReisemaal(r.id, { flagg_bilde_url: pub.publicUrl });
-    } catch(err){ alert("Kunne ikke laste opp flagg: " + err.message); }
-    e.target.value = "";
+  document.getElementById("f-flagg").addEventListener("change", async (e)=>{
+    const kode = e.target.value;
+    await updateReisemaal(r.id, { flagg_bilde_url: kode ? `flags/${kode}.svg` : null });
   });
 
   renderRmBilder(r);
