@@ -214,6 +214,67 @@
     border:none; background:none; color:#b04a4a; font-size:12px; cursor:pointer; padding:2px 4px;
   }
   .item-remove:hover{ text-decoration:underline; }
+
+  /* v: Flightene i Flyinformasjon-fanen (Utreise/Retur/Intern) ligger nå ved
+     siden av hverandre i en rad i stedet for stablet under hverandre - mer
+     kompakt når en etappe har flere enn én flight, og en ny flight (Flight 3
+     osv.) legges til lenger til høyre i samme rad (bryter til ny rad kun hvis
+     det ikke er plass). Kun Flyinformasjon-fanens .item-list berøres via
+     [data-tab="transport"]-scopingen - Hotellopphold beholder sin stablede
+     liste, siden hvert hotellkort er for stort/detaljert til å stå i kolonne. */
+  .tab-panel[data-tab="transport"] .item-list{
+    display:flex;
+    flex-wrap:wrap;
+    gap:22px;
+  }
+  .tab-panel[data-tab="transport"] .item-list .item-block{
+    flex:0 1 240px;
+    min-width:210px;
+    border-top:none;
+    padding-top:0;
+    margin-top:0;
+    border-left:1px dashed var(--card-border);
+    padding-left:18px;
+  }
+  .tab-panel[data-tab="transport"] .item-list .item-block:first-child{
+    border-left:none;
+    padding-left:0;
+  }
+  .tab-panel[data-tab="transport"] .item-list .field-grid{
+    grid-template-columns:1fr;
+    row-gap:9px;
+  }
+  .tab-panel[data-tab="transport"] .item-list .field-grid label{
+    padding-top:0;
+  }
+
+  /* v: Grunninfo, Hotellopphold og Pris komprimert til to felt-par per rad
+     (label/input x2) i stedet for ett felt per rad - de fleste feltene her
+     er korte (tall, ett ord, en kort kode) og trengte ikke full bredde, noe
+     som gjorde disse fanene unødvendig lange å scrolle gjennom. Felt som
+     trenger mer plass (fritekst-beskrivelser, romtype-avkrysning, dato-par,
+     Kunde-søkefeltet) får klassen .span-full og strekker seg fortsatt over
+     hele bredden. */
+  .tab-panel[data-tab="grunninfo"] .field-grid,
+  .tab-panel[data-tab="hotell"] .field-grid,
+  .tab-panel[data-tab="pris"] .field-grid{
+    grid-template-columns:120px 1fr 120px 1fr;
+    column-gap:14px;
+  }
+  .span-full{ grid-column:1 / -1; }
+
+  /* v: Inkludert/Ikke inkludert side om side i to smalere kolonner, i stedet
+     for stablet under hverandre som to fullbredde kort. */
+  .two-col-row{
+    display:flex;
+    gap:18px;
+    align-items:flex-start;
+  }
+  .two-col-row .card{
+    flex:1;
+    min-width:0;
+    margin-bottom:0;
+  }
   .add-item-btn{
     padding:9px 14px;
     border:1px dashed var(--card-border);
@@ -430,7 +491,6 @@
     <button class="tab-btn active" data-tab="grunninfo">Grunninfo</button>
     <button class="tab-btn" data-tab="transport">Flyinformasjon</button>
     <button class="tab-btn" data-tab="hotell">Hotellopphold</button>
-    <button class="tab-btn" data-tab="program">Program</button>
     <button class="tab-btn" data-tab="pris">Pris</button>
     <button class="tab-btn" data-tab="inkludert">Inkludert</button>
     <button class="tab-btn" data-tab="presentasjon">Presentasjon</button>
@@ -455,8 +515,8 @@
              skole_id. Nå er det ETT felt, alltid synlig, samme mønster som
              "Kundenavn" i kalkyle-editor.html - fritekst med skolesøk-
              autocomplete i samme felt når Kundetype=Skole. -->
-        <label for="g-kunde-navn">Kunde</label>
-        <div>
+        <label for="g-kunde-navn" class="span-full">Kunde</label>
+        <div class="span-full">
           <div style="position:relative;">
             <input type="text" id="g-kunde-navn" placeholder="Kundenavn, eller søk skolenavn…" autocomplete="off" style="width:100%; box-sizing:border-box; padding-right:24px;">
             <button type="button" id="gKundeSkoleClear" title="Fjern kobling til skole" style="display:none; position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none; cursor:pointer; font-size:13px; color:var(--ink-muted); line-height:1; padding:3px 5px;">✕</button>
@@ -475,16 +535,15 @@
         <label for="g-kontaktperson">Kontaktperson</label><input type="text" id="g-kontaktperson">
         <label for="g-ansvarlig">Ansvarlig hos Caminante</label><select id="g-ansvarlig"></select>
         <label for="g-antall">Antall reisende</label><input type="number" id="g-antall" min="0">
-        <label>Fra- / til-dato</label>
-        <div style="display:flex; gap:8px;">
-          <input type="date" id="g-fra" style="flex:1;">
-          <input type="date" id="g-til" style="flex:1;">
-        </div>
-        <label for="g-periode">Periode (hvis ikke eksakte datoer)</label><input type="text" id="g-periode" placeholder="F.eks. Ultimo mars 2027">
         <!-- v: label endret fra "Avreisested" til "Avreiseflyplass" - id/felt
              (g-avreisested / avreisested) uendret, kun visningstekst. -->
         <label for="g-avreisested">Avreiseflyplass</label><input type="text" id="g-avreisested">
-        <label for="g-notater">Interne notater</label><textarea id="g-notater"></textarea>
+        <label class="span-full">Fra- / til-dato</label>
+        <div class="span-full" style="display:flex; gap:8px; max-width:340px;">
+          <input type="date" id="g-fra" style="flex:1;">
+          <input type="date" id="g-til" style="flex:1;">
+        </div>
+        <label for="g-notater" class="span-full">Interne notater</label><textarea id="g-notater" class="span-full"></textarea>
       </div>
     </div>
   </div>
@@ -537,49 +596,36 @@
     </div>
   </div>
 
-  <!-- ===== Program ===== -->
-  <div class="tab-panel" data-tab="program">
-    <div class="card">
-      <div class="card-title">Introduksjon</div>
-      <div class="field-grid">
-        <label for="p-intro">Kort introduksjon</label><textarea id="p-intro"></textarea>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Dagsprogram</div>
-      <div class="item-list" id="dagList"></div>
-      <button class="add-item-btn" id="addDagBtn">+ Legg til dag</button>
-    </div>
-  </div>
-
   <!-- ===== Pris ===== -->
   <div class="tab-panel" data-tab="pris">
     <div class="card">
       <div class="field-grid">
         <label for="pr-per-person">Pris per person</label><input type="number" id="pr-per-person" step="1">
-        <label for="pr-fra">Vis som fra-pris</label>
-        <div><input type="checkbox" id="pr-fra" style="width:auto;"> <span class="field-hint">Presenteres da som «fra kr …,-» i PDF</span></div>
-        <label for="pr-antall">Antall personer prisen er basert på</label><input type="number" id="pr-antall" min="0">
+        <label for="pr-antall">Antall personer</label><input type="number" id="pr-antall" min="0">
         <label for="pr-enkeltrom">Enkeltromstillegg</label><input type="number" id="pr-enkeltrom" step="1">
         <label for="pr-valuta">Valuta</label><input type="text" id="pr-valuta" value="NOK">
         <label for="pr-kursgrunnlag">Kursgrunnlag</label><input type="text" id="pr-kursgrunnlag" placeholder="F.eks. EUR-kurs 11,5">
-        <label for="pr-forklaring">Forklaring på prisgrunnlaget</label><textarea id="pr-forklaring" placeholder="Vises i PDF, kort og kundevennlig"></textarea>
-        <label for="pr-intern">Intern kommentar</label><textarea id="pr-intern" placeholder="Vises IKKE i PDF - kun til internt bruk"></textarea>
+        <label for="pr-fra">Vis som fra-pris</label>
+        <div><input type="checkbox" id="pr-fra" style="width:auto;"> <span class="field-hint">Presenteres da som «fra kr …,-» i PDF</span></div>
+        <label for="pr-forklaring" class="span-full">Forklaring på prisgrunnlaget</label><textarea id="pr-forklaring" class="span-full" placeholder="Vises i PDF, kort og kundevennlig"></textarea>
+        <label for="pr-intern" class="span-full">Intern kommentar</label><textarea id="pr-intern" class="span-full" placeholder="Vises IKKE i PDF - kun til internt bruk"></textarea>
       </div>
     </div>
   </div>
 
   <!-- ===== Inkludert / ikke inkludert ===== -->
   <div class="tab-panel" data-tab="inkludert">
-    <div class="card">
-      <div class="card-title">Inkludert</div>
-      <div class="list-editor" id="inkludertList"></div>
-      <button class="add-item-btn" id="addInkludertBtn">+ Legg til punkt</button>
-    </div>
-    <div class="card">
-      <div class="card-title">Ikke inkludert</div>
-      <div class="list-editor" id="ikkeInkludertList"></div>
-      <button class="add-item-btn" id="addIkkeInkludertBtn">+ Legg til punkt</button>
+    <div class="two-col-row">
+      <div class="card">
+        <div class="card-title">Inkludert</div>
+        <div class="list-editor" id="inkludertList"></div>
+        <button class="add-item-btn" id="addInkludertBtn">+ Legg til punkt</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Ikke inkludert</div>
+        <div class="list-editor" id="ikkeInkludertList"></div>
+        <button class="add-item-btn" id="addIkkeInkludertBtn">+ Legg til punkt</button>
+      </div>
     </div>
   </div>
 
@@ -673,12 +719,6 @@
     </div>
 
     <div class="card">
-      <div class="card-title">Program</div>
-      <div class="upload-hint">Ett bildeområde per dag i programmet.</div>
-      <div id="bildeProgramSubboxes"></div>
-    </div>
-
-    <div class="card">
       <div class="card-title">Hotell</div>
       <div class="upload-hint">Ett bildeområde per hotellopphold.</div>
       <div id="bildeHotellSubboxes"></div>
@@ -709,16 +749,22 @@
 <script>
 /* ============================================================
    Forslag-editor - v1
-   Ett forslag, ni faner. Én global "Lagre" som synkroniserer
+   Ett forslag, åtte faner. Én global "Lagre" som synkroniserer
    hovedraden og alle underlister (transport/hotellopphold/
-   dagsprogram/bilder) mot Supabase i én operasjon.
+   bilder) mot Supabase i én operasjon.
+
+   v: Program-fanen (dagsprogram) er fjernet herfra - den ble aldri
+   brukt av forslag-print.html, og feltene var i praksis dødvekt i
+   editoren. forslag_dagsprogram-tabellen og evt. eksisterende data
+   er IKKE slettet eller rørt - kan gjenbrukes i en fremtidig
+   Tilbud-editor om det trengs der.
    ============================================================ */
 
 const STATUSER = ["Utkast","Sendt","Kunde interessert","Gått videre til tilbud","Avslått","Arkivert"];
 const KUNDETYPER = ["Firma","Skole","Forening","Annen gruppe"];
 // v: ikke lenger brukt til et nedtrekksfelt (se Bilder-fanens dropbokser),
 // men beholdt som dokumentasjon av gyldige forslag_bilder.kategori-verdier.
-const BILDEKATEGORIER = ["Destinasjon","Hotell","Program","Andre"];
+const BILDEKATEGORIER = ["Destinasjon","Hotell","Andre"];
 
 let forslagId = null;
 let currentUserId = null;
@@ -736,11 +782,10 @@ let state = {
   forslag: {},
   transport: [],       // {id, clientKey, fields:{...}}
   hotellopphold: [],
-  dagsprogram: [],
   bilder: [],
   hoydepunkter: [],
 };
-let originalIds = { transport:new Set(), hotellopphold:new Set(), dagsprogram:new Set(), bilder:new Set(), hoydepunkter:new Set() };
+let originalIds = { transport:new Set(), hotellopphold:new Set(), bilder:new Set(), hoydepunkter:new Set() };
 
 /* ---------- Helpers ---------- */
 
@@ -792,11 +837,10 @@ async function loadReferenceData(){
 }
 
 async function loadForslag(id){
-  const [{ data: f, error: e0 }, { data: transportRows }, { data: hotellRows }, { data: dagRows }, { data: bildeRows }, { data: hpRows }] = await Promise.all([
+  const [{ data: f, error: e0 }, { data: transportRows }, { data: hotellRows }, { data: bildeRows }, { data: hpRows }] = await Promise.all([
     window.sb.from("forslag").select("*").eq("id", id).single(),
     window.sb.from("forslag_transport").select("*").eq("forslag_id", id).order("sortering"),
     window.sb.from("forslag_hotellopphold").select("*").eq("forslag_id", id).order("sortering"),
-    window.sb.from("forslag_dagsprogram").select("*").eq("forslag_id", id).order("sortering"),
     window.sb.from("forslag_bilder").select("*").eq("forslag_id", id).order("sortering"),
     window.sb.from("forslag_hoydepunkter").select("*").eq("forslag_id", id).order("sortering"),
   ]);
@@ -805,7 +849,6 @@ async function loadForslag(id){
   state.forslag = f;
 
   state.hotellopphold = (hotellRows||[]).map(h=>({ id:h.id, clientKey:h.id, fields: stripMeta(h) }));
-  state.dagsprogram = (dagRows||[]).map(d=>({ id:d.id, clientKey:d.id, fields: stripMeta(d) }));
   state.transport = (transportRows||[]).map(t=>({ id:t.id, clientKey:t.id, fields: stripMeta(t) }));
 
   // v: Utreise og Retur skal alltid ha minst 1 åpen flight som standard (en
@@ -841,13 +884,11 @@ async function loadForslag(id){
   }
 
   const hotellIdSet = new Set(state.hotellopphold.map(h=>h.id));
-  const dagIdSet = new Set(state.dagsprogram.map(d=>d.id));
   state.bilder = (bildeRows||[]).map(b=>{
     const fields = stripMeta(b);
     return {
       id:b.id, clientKey:b.id, fields,
       hotellopphold_client_key: (b.hotellopphold_id && hotellIdSet.has(b.hotellopphold_id)) ? b.hotellopphold_id : null,
-      dagsprogram_client_key: (b.dagsprogram_id && dagIdSet.has(b.dagsprogram_id)) ? b.dagsprogram_id : null,
     };
   });
 
@@ -855,7 +896,6 @@ async function loadForslag(id){
 
   originalIds.transport = new Set(state.transport.map(i=>i.id));
   originalIds.hotellopphold = new Set(state.hotellopphold.map(i=>i.id));
-  originalIds.dagsprogram = new Set(state.dagsprogram.map(i=>i.id));
   originalIds.bilder = new Set(state.bilder.map(i=>i.id));
   originalIds.hoydepunkter = new Set(state.hoydepunkter.map(i=>i.id));
 
@@ -883,7 +923,6 @@ function renderGrunninfo(){
   el("g-antall").value = f.antall_reisende ?? "";
   el("g-fra").value = f.fra_dato || "";
   el("g-til").value = f.til_dato || "";
-  el("g-periode").value = f.periode_tekst || "";
   el("g-avreisested").value = f.avreisested || "";
   el("g-notater").value = f.interne_notater || "";
   // v5: kunde-feltet viser alltid en verdi uansett Kundetype - primært den
@@ -1156,18 +1195,18 @@ function renderHotell(){
             </label>`).join("")}
         </div>
         <label>Sted</label><input class="h-sted" value="${escapeHtml(f.sted)}" placeholder="F.eks. Split">
-        <label>Fra- / til-dato</label>
-        <div style="display:flex; gap:8px;">
+        <label>Antall netter</label><input type="number" class="h-netter" value="${f.netter??""}" min="0">
+        <label class="span-full">Fra- / til-dato</label>
+        <div class="span-full" style="display:flex; gap:8px;">
           <input type="date" class="h-fra" value="${f.fra_dato||""}" style="flex:1;">
           <input type="date" class="h-til" value="${f.til_dato||""}" style="flex:1;">
         </div>
-        <label>Antall netter</label><input type="number" class="h-netter" value="${f.netter??""}" min="0">
         <label>Standard romtype</label>
         <select class="h-standard-romtype">${ROOM_TYPE_OPTIONS.map(rt=>`<option value="${rt}" ${rt===(f.romtype_standard||"Dobbeltrom")?"selected":""}>${rt}</option>`).join("")}</select>
-        <label>Andre romtyper</label>
-        <div class="romtype-andre-wrap"></div>
         <label>Måltider</label><input class="h-maltider" value="${escapeHtml(f.maltider)}" placeholder="F.eks. Frokost inkludert">
-        <label>Kort beskrivelse</label><textarea class="h-beskrivelse">${escapeHtml(f.beskrivelse)}</textarea>
+        <label class="span-full">Andre romtyper</label>
+        <div class="romtype-andre-wrap span-full"></div>
+        <label class="span-full">Kort beskrivelse</label><textarea class="h-beskrivelse span-full">${escapeHtml(f.beskrivelse)}</textarea>
         <label>Intern prisinfo</label><input class="h-prisinfo" value="${escapeHtml(f.prisinfo)}">
         <label>Tilgjengelighet</label><input class="h-tilgjengelighet" value="${escapeHtml(f.tilgjengelighet_merknad)}" placeholder="F.eks. Ikke reservert - sjekkes ved bestilling">
       </div>
@@ -1297,59 +1336,12 @@ function velgHotellFraOversiktInn(item, id){
     state.bilder.push({
       id:null, clientKey:newClientKey(),
       fields:{ kategori:"Hotell", bilde_url:b.bilde_url, alt_tekst:b.alt_tekst||null, sortering: state.bilder.length },
-      hotellopphold_client_key: item.clientKey, dagsprogram_client_key: null,
+      hotellopphold_client_key: item.clientKey,
     });
   });
   renderHotell();
   renderBilder();
 }
-
-/* ---------- Rendering: Program (dagsprogram) ---------- */
-
-function renderProgram(){
-  el("p-intro").value = state.forslag.ingress_program || "";
-  const wrap = el("dagList");
-  wrap.innerHTML = "";
-  state.dagsprogram.forEach((item, idx)=>{
-    const f = item.fields;
-    const card = document.createElement("div");
-    card.className = "item-block";
-    card.innerHTML = `
-      <div class="item-head">
-        <span class="item-title">Dag ${f.dagnummer || idx+1}${f.overskrift ? " – " + escapeHtml(f.overskrift) : ""}</span>
-        <button class="item-remove" data-idx="${idx}">Fjern</button>
-      </div>
-      <div class="field-grid">
-        <label>Dagnummer</label><input type="number" class="d-nummer" value="${f.dagnummer??""}" min="1">
-        <label>Dato</label><input type="date" class="d-dato" value="${f.dato||""}">
-        <label>Overskrift</label><input class="d-overskrift" value="${escapeHtml(f.overskrift)}">
-        <label>Tekst</label><textarea class="d-tekst">${escapeHtml(f.tekst)}</textarea>
-        <label>Aktiviteter</label><textarea class="d-aktiviteter" placeholder="Én per linje">${(f.aktiviteter||[]).join("\n")}</textarea>
-        <label>Måltider</label><textarea class="d-maltider" placeholder="Én per linje">${(f.maltider||[]).join("\n")}</textarea>
-      </div>
-    `;
-    wrap.appendChild(card);
-    card.querySelector(".d-nummer").addEventListener("change", e=>{ f.dagnummer = numOrNull(e.target.value); });
-    card.querySelector(".d-dato").addEventListener("change", e=>{ f.dato = e.target.value || null; });
-    card.querySelector(".d-overskrift").addEventListener("change", e=>{ f.overskrift = e.target.value || null; renderProgram(); });
-    card.querySelector(".d-tekst").addEventListener("change", e=>{ f.tekst = e.target.value || null; });
-    card.querySelector(".d-aktiviteter").addEventListener("change", e=>{ f.aktiviteter = e.target.value.split("\n").map(s=>s.trim()).filter(Boolean); });
-    card.querySelector(".d-maltider").addEventListener("change", e=>{ f.maltider = e.target.value.split("\n").map(s=>s.trim()).filter(Boolean); });
-    card.querySelector(".item-remove").addEventListener("click", ()=>{
-      const removedKey = item.clientKey;
-      state.dagsprogram.splice(idx,1);
-      state.bilder.forEach(b=>{ if(b.dagsprogram_client_key === removedKey) b.dagsprogram_client_key = null; });
-      renderProgram();
-      renderBilder();
-    });
-  });
-}
-el("addDagBtn").addEventListener("click", ()=>{
-  state.dagsprogram.push({ id:null, clientKey:newClientKey(), fields:{ dagnummer: state.dagsprogram.length+1, aktiviteter:[], maltider:[], sortering: state.dagsprogram.length } });
-  renderProgram();
-  renderBilder(); // v: ny dag-underboks i Bilder-fanen med en gang
-});
-el("p-intro").addEventListener("change", e=>{ state.forslag.ingress_program = e.target.value || null; });
 
 /* ---------- Rendering: Pris ---------- */
 
@@ -1744,7 +1736,6 @@ async function uploadFilesIntoBox(fileList, kategori, extra, matchFn, maks){
         id:null, clientKey:newClientKey(),
         fields:{ kategori, bilde_url:url, alt_tekst:null, sortering: state.bilder.length },
         hotellopphold_client_key: (extra && extra.hotellopphold_client_key) || null,
-        dagsprogram_client_key: (extra && extra.dagsprogram_client_key) || null,
       });
     } catch(err){ alert("Kunne ikke laste opp: " + err.message); }
   }
@@ -1870,7 +1861,6 @@ function wireBildebankVelger(boxEl, kategori, extra, bildebankInfo, matchFn, mak
             id:null, clientKey:newClientKey(),
             fields:{ kategori, bilde_url:b.url, alt_tekst:null, sortering: state.bilder.length },
             hotellopphold_client_key: (extra && extra.hotellopphold_client_key) || null,
-            dagsprogram_client_key: (extra && extra.dagsprogram_client_key) || null,
           });
           el("saveStatus").textContent = "Bilde lagt til fra bildebanken – husk å lagre.";
           renderBilder();
@@ -1898,26 +1888,6 @@ function renderBilder(){
     { mappe:"destinations", slugGetter: ()=> slugifyBildebank(state.forslag.destinasjon) },
     DESTINASJON_BILDER_MAKS);
 
-  const programWrap = el("bildeProgramSubboxes");
-  programWrap.innerHTML = "";
-  if(!state.dagsprogram.length){
-    programWrap.innerHTML = '<div class="field-hint">Ingen dager lagt til i Program-fanen ennå.</div>';
-  } else {
-    state.dagsprogram.forEach(d=>{
-      const sub = document.createElement("div");
-      sub.className = "bilde-subbox";
-      const title = document.createElement("div");
-      title.className = "bilde-subbox-title";
-      title.textContent = `Dag ${d.fields.dagnummer||"?"}${d.fields.overskrift?" – "+d.fields.overskrift:""}`;
-      sub.appendChild(title);
-      const box = document.createElement("div");
-      box.className = "bilde-dropbox";
-      sub.appendChild(box);
-      programWrap.appendChild(sub);
-      buildBildeDropbox(box, b=> b.fields.kategori==="Program" && b.dagsprogram_client_key===d.clientKey, "Program", { dagsprogram_client_key: d.clientKey });
-    });
-  }
-
   const hotellWrap = el("bildeHotellSubboxes");
   hotellWrap.innerHTML = "";
   if(!state.hotellopphold.length){
@@ -1944,17 +1914,16 @@ function renderBilder(){
   buildBildeDropbox(el("bildeBoxAvslutning"), b=> b.fields.kategori==="Avslutning", "Avslutning", null, null, 1);
 
   // "Andre bilder" er et bevisst fangnett: alt som ikke tydelig hører hjemme
-  // i Destinasjon eller i en gyldig Program-/Hotell-underboks havner her -
-  // f.eks. eldre bilder fra før denne ombyggingen, eller bilder knyttet til
-  // et hotellopphold/en dag som siden er slettet. Sikrer at ingen bilder
-  // "forsvinner" (blir usynlige) etter denne endringen.
+  // i Destinasjon eller i en gyldig Hotell-underboks havner her - f.eks.
+  // eldre bilder fra før denne ombyggingen, bilder knyttet til et
+  // hotellopphold som siden er slettet, eller bilder fra den nå fjernede
+  // Program-fanen (kategori "Program" - se historikk i git). Sikrer at
+  // ingen bilder "forsvinner" (blir usynlige) etter denne endringen.
   const kjenteHotellKeys = new Set(state.hotellopphold.map(h=>h.clientKey));
-  const kjenteDagKeys = new Set(state.dagsprogram.map(d=>d.clientKey));
   const andreMatch = b=>{
     if(b.fields.kategori === "Destinasjon") return false;
     if(b.fields.kategori === "Avslutning") return false;
     if(b.fields.kategori === "Hotell" && kjenteHotellKeys.has(b.hotellopphold_client_key)) return false;
-    if(b.fields.kategori === "Program" && kjenteDagKeys.has(b.dagsprogram_client_key)) return false;
     return true;
   };
   buildBildeDropbox(el("bildeBoxAndre"), andreMatch, "Andre", null);
@@ -1966,7 +1935,6 @@ function renderAll(){
   renderGrunninfo();
   renderTransport();
   renderHotell();
-  renderProgram();
   renderPris();
   renderListEditor("inkludertList","inkludert");
   renderListEditor("ikkeInkludertList","ikke_inkludert");
@@ -1997,7 +1965,6 @@ function collectForslagFields(){
     antall_reisende: f.antall_reisende ?? null,
     fra_dato: f.fra_dato || null,
     til_dato: f.til_dato || null,
-    periode_tekst: f.periode_tekst || null,
     avreisested: f.avreisested || null,
     status: f.status,
     interne_notater: f.interne_notater || null,
@@ -2039,7 +2006,6 @@ function collectFieldsFromForm(){
   f.antall_reisende = numOrNull(el("g-antall").value);
   f.fra_dato = el("g-fra").value || null;
   f.til_dato = el("g-til").value || null;
-  f.periode_tekst = el("g-periode").value;
   f.avreisested = el("g-avreisested").value;
   f.interne_notater = el("g-notater").value;
   f.kunde_navn = el("g-kunde-navn").value;
@@ -2100,11 +2066,15 @@ async function lagreAlt(){
 
     await syncChildTable("forslag_transport", "forslag_id", state.transport, originalIds.transport);
     const hotellKeyToId = await syncChildTable("forslag_hotellopphold", "forslag_id", state.hotellopphold, originalIds.hotellopphold);
-    const dagKeyToId = await syncChildTable("forslag_dagsprogram", "forslag_id", state.dagsprogram, originalIds.dagsprogram);
 
+    // v: Program-fanen (og dermed forslag_dagsprogram) er fjernet fra
+    // forslagseditoren - eksisterende rader i tabellen røres bevisst ikke
+    // (verken lest eller slettet herfra), i tilfelle de får ny bruk i en
+    // fremtidig Tilbud-variant. forslag_bilder-rader med dagsprogram_id satt
+    // fra før (kategori "Program") beholder også sin kobling - de vises nå
+    // i "Andre bilder" i Bilder-fanen (se andreMatch() i renderBilder()).
     await syncChildTable("forslag_bilder", "forslag_id", state.bilder, originalIds.bilder, (item)=>{
       item.fields.hotellopphold_id = item.hotellopphold_client_key ? (hotellKeyToId[item.hotellopphold_client_key] || null) : null;
-      item.fields.dagsprogram_id = item.dagsprogram_client_key ? (dagKeyToId[item.dagsprogram_client_key] || null) : null;
     });
 
     // v: sortering settes eksplisitt fra listens rekkefølge rett før lagring
@@ -2114,7 +2084,6 @@ async function lagreAlt(){
 
     originalIds.transport = new Set(state.transport.map(i=>i.id));
     originalIds.hotellopphold = new Set(state.hotellopphold.map(i=>i.id));
-    originalIds.dagsprogram = new Set(state.dagsprogram.map(i=>i.id));
     originalIds.bilder = new Set(state.bilder.map(i=>i.id));
     originalIds.hoydepunkter = new Set(state.hoydepunkter.map(i=>i.id));
 
