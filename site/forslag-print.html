@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reiseforslag – Caminante</title>
+<style>
+  :root{
+    --blue:#2a78d6;
+    --blue-dark:#184f95;
+    --ink:#1c1c1a;
+    --ink-secondary:#4a4a46;
+    --ink-muted:#8a8a84;
+    --hairline:#e4e2da;
+    --page-bg:#efeee9;
+    --paper:#ffffff;
+    --tint:#f4f8fd;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color:var(--ink);
+    background:var(--page-bg);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- Skjerm-verktøylinje (skjules ved print) ---------- */
+  .toolbar{
+    position:sticky; top:0; z-index:10;
+    background:var(--paper);
+    border-bottom:1px solid var(--hairline);
+    padding:12px 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    flex-wrap:wrap;
+  }
+  .toolbar a{ color:var(--ink-secondary); font-size:13px; text-decoration:none; }
+  .toolbar a:hover{ text-decoration:underline; }
+  .toolbar .right{ display:flex; gap:8px; align-items:center; }
+  .toolbar button{
+    padding:8px 14px; border-radius:8px; border:1px solid var(--blue);
+    background:var(--blue); color:#fff; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .toolbar button:hover{ background:var(--blue-dark); border-color:var(--blue-dark); }
+  .toolbar .hint{ font-size:11.5px; color:var(--ink-muted); }
+
+  /* ---------- Selve dokumentet ---------- */
+  .paper{
+    max-width:760px;
+    margin:28px auto 60px;
+    background:var(--paper);
+    box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.06);
+    border-radius:2px;
+    overflow:hidden;
+  }
+  .pad{ padding:0 48px; }
+
+  /* Brand-header */
+  .brandbar{
+    padding:22px 48px 18px;
+    display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    border-bottom:1px solid var(--hairline);
+  }
+  .brandbar .word{ font-size:14px; font-weight:750; letter-spacing:0.09em; color:var(--blue-dark); text-transform:uppercase; }
+  .brandbar .meta{ font-size:11.5px; color:var(--ink-muted); text-align:right; }
+
+  /* Hero */
+  .hero-img{ width:100%; height:320px; object-fit:cover; display:block; background:var(--tint); }
+  .hero-text{ padding:26px 48px 8px; }
+  .hero-text .destinasjon{ font-size:12px; font-weight:650; letter-spacing:0.06em; text-transform:uppercase; color:var(--blue); margin:0 0 6px; }
+  .hero-text h1{ font-size:28px; font-weight:700; margin:0 0 10px; line-height:1.2; color:var(--ink); }
+  .hero-text .kunde{ font-size:14.5px; color:var(--ink-secondary); margin:0; }
+
+  /* Fakta-strip */
+  .fakta-strip{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    gap:16px; padding:18px 48px 26px; border-bottom:1px solid var(--hairline);
+  }
+  .fakta-item .k{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-muted); margin-bottom:3px; }
+  .fakta-item .v{ font-size:14px; font-weight:600; color:var(--ink); }
+
+  /* Seksjoner */
+  section.blokk{ padding:30px 48px; border-bottom:1px solid var(--hairline); }
+  section.blokk:last-of-type{ border-bottom:none; }
+  .blokk h2{
+    font-size:12.5px; font-weight:750; letter-spacing:0.06em; text-transform:uppercase;
+    color:var(--blue-dark); margin:0 0 16px;
+  }
+  .blokk p{ font-size:14px; line-height:1.65; color:var(--ink-secondary); margin:0 0 12px; white-space:pre-wrap; }
+  .blokk p:last-child{ margin-bottom:0; }
+  .ingress p{ font-size:16.5px; line-height:1.6; color:var(--ink); font-weight:450; }
+
+  /* Bilde-galleri */
+  .galleri{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:16px; }
+  .galleri img{ width:100%; height:130px; object-fit:cover; border-radius:6px; display:block; background:var(--tint); }
+  .galleri figure{ margin:0; }
+  .galleri figcaption{ font-size:10.5px; color:var(--ink-muted); margin-top:4px; }
+
+  /* Program (dager) */
+  .dag{ padding:18px 0; border-top:1px dashed var(--hairline); }
+  .dag:first-child{ border-top:none; padding-top:0; }
+  .dag-head{ display:flex; align-items:baseline; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+  .dag-nr{ font-size:12px; font-weight:750; color:var(--blue); text-transform:uppercase; letter-spacing:0.04em; }
+  .dag-dato{ font-size:11.5px; color:var(--ink-muted); }
+  .dag-tittel{ font-size:15.5px; font-weight:650; color:var(--ink); margin:0 0 6px; }
+  .dag-liste{ margin:8px 0 0; padding-left:0; list-style:none; font-size:13px; color:var(--ink-secondary); }
+  .dag-liste li{ padding:2px 0 2px 18px; position:relative; }
+  .dag-liste li:before{ content:"–"; position:absolute; left:0; color:var(--ink-muted); }
+  .dag-maltider{ margin-top:8px; font-size:12px; color:var(--ink-muted); }
+
+  /* Hotell */
+  .hotell{ padding:18px 0; border-top:1px dashed var(--hairline); }
+  .hotell:first-child{ border-top:none; padding-top:0; }
+  .hotell-head{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+  .hotell-navn{ font-size:16px; font-weight:650; color:var(--ink); margin:0; }
+  .stjerner{ color:#d6a520; font-size:13px; letter-spacing:1px; }
+  .hotell-sub{ font-size:12.5px; color:var(--ink-muted); margin-bottom:10px; }
+  .badge-rad{ display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; }
+  .badge{
+    display:inline-block; font-size:11.5px; font-weight:600; color:var(--blue-dark);
+    background:var(--tint); border:1px solid #cfe0f4; border-radius:20px; padding:4px 11px;
+  }
+
+  /* Flyinformasjon */
+  .fly-seksjon{ margin-bottom:18px; }
+  .fly-seksjon:last-child{ margin-bottom:0; }
+  .fly-seksjon-tittel{ font-size:12px; font-weight:700; color:var(--ink); text-transform:uppercase; letter-spacing:0.04em; margin:0 0 8px; }
+  .flight-rad{ display:flex; justify-content:space-between; gap:14px; padding:9px 0; border-top:1px dashed var(--hairline); font-size:13px; flex-wrap:wrap; }
+  .flight-rad:first-of-type{ border-top:none; }
+  .flight-rute{ font-weight:600; color:var(--ink); }
+  .flight-tid{ color:var(--ink-secondary); }
+  .flight-sub{ font-size:11.5px; color:var(--ink-muted); }
+
+  /* Pris */
+  .pris-boks{ background:var(--tint); border:1px solid #cfe0f4; border-radius:10px; padding:22px 26px; }
+  .pris-tall{ font-size:26px; font-weight:750; color:var(--blue-dark); }
+  .pris-tall .fra{ font-size:14px; font-weight:600; color:var(--ink-secondary); text-transform:uppercase; margin-right:6px; }
+  .pris-enhet{ font-size:13px; color:var(--ink-secondary); margin-left:4px; }
+  .pris-detalj{ font-size:12.5px; color:var(--ink-muted); margin-top:8px; }
+  .pris-forklaring{ font-size:13.5px; color:var(--ink-secondary); line-height:1.6; margin-top:14px; }
+
+  /* Inkludert / ikke inkludert */
+  .inkl-grid{ display:grid; grid-template-columns:1fr 1fr; gap:28px; }
+  @media (max-width:600px){ .inkl-grid{ grid-template-columns:1fr; } }
+  .inkl-kol h3{ font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-secondary); margin:0 0 10px; }
+  .inkl-liste{ list-style:none; margin:0; padding:0; font-size:13.5px; color:var(--ink-secondary); }
+  .inkl-liste li{ padding:5px 0 5px 22px; position:relative; line-height:1.4; }
+  .inkl-liste.ja li:before{ content:"✓"; position:absolute; left:0; color:#2a8f52; font-weight:700; }
+  .inkl-liste.nei li:before{ content:"–"; position:absolute; left:0; color:var(--ink-muted); font-weight:700; }
+
+  /* Forbehold */
+  .forbehold p{ font-size:12px; color:var(--ink-muted); line-height:1.6; }
+
+  /* Footer */
+  .footer{ padding:26px 48px 34px; text-align:center; }
+  .footer .navn{ font-size:12.5px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--blue-dark); }
+  .footer .kontakt{ font-size:12px; color:var(--ink-secondary); margin-top:6px; }
+  .footer .liten{ font-size:10.5px; color:var(--ink-muted); margin-top:10px; }
+
+  .load-msg{ padding:80px 24px; text-align:center; color:var(--ink-muted); font-size:13px; }
+
+  /* ---------- Print ---------- */
+  @media print{
+    .no-print{ display:none !important; }
+    body{ background:#fff; }
+    .paper{ box-shadow:none; margin:0; max-width:none; border-radius:0; }
+    section.blokk, .hotell, .dag{ break-inside:avoid; }
+    .brandbar, .hero-text, .fakta-strip{ break-inside:avoid; }
+    @page{ size:A4; margin:16mm 14mm; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar no-print">
+  <a id="tilbakeLink" href="forslag.html">← Tilbake</a>
+  <div class="right">
+    <span class="hint">Bruk «Skriv ut» og velg «Lagre som PDF» for å laste ned</span>
+    <button id="btnPrint">Skriv ut / Last ned PDF</button>
+  </div>
+</div>
+
+<div id="loadMsg" class="load-msg">Laster forslag…</div>
+<div id="paper" class="paper" style="display:none;"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/auth.js"></script>
+<script>
+/* ============================================================
+   Forslag – forhåndsvisning / print-vennlig visning (v1, 2026-08-22)
+   Ren, kundevennlig fremstilling av ett forslag. Ingen redigering -
+   kun visning. "PDF" løses via nettleserens Skriv ut -> Lagre som PDF
+   (window.print() + egen @media print-stilsett over), i stedet for et
+   eget PDF-bibliotek - se prosjektdokumentasjonen for begrunnelse.
+   ============================================================ */
+
+const MAANEDER = ["januar","februar","mars","april","mai","juni","juli","august","september","oktober","november","desember"];
+
+function el(id){ return document.getElementById(id); }
+function esc(str){
+  return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+// Datostrenger ("YYYY-MM-DD") tolkes direkte fra teksten, ikke via Date-
+// objekt - unngår enhver fare for av-en-dag-feil rundt tidssoner (samme
+// prinsipp som computeDagerFraDatoer() i kalkyle-editor.html).
+function formatDato(datoStr){
+  if(!datoStr) return null;
+  const [aar, mnd, dag] = datoStr.slice(0,10).split("-").map(Number);
+  if(!aar || !mnd || !dag) return null;
+  return `${dag}. ${MAANEDER[mnd-1]} ${aar}`;
+}
+function formatDatoKort(datoStr){
+  if(!datoStr) return null;
+  const [aar, mnd, dag] = datoStr.slice(0,10).split("-");
+  return `${dag}.${mnd}.${aar}`;
+}
+function formatDatoTid(datetimeLocalStr){
+  if(!datetimeLocalStr) return null;
+  const [datoDel, tidDel] = datetimeLocalStr.split("T");
+  const dato = formatDato(datoDel);
+  const tid = (tidDel||"").slice(0,5);
+  if(!dato) return null;
+  return tid && tid !== "00:00" ? `${dato}, kl. ${tid}` : dato;
+}
+function formatKr(n){
+  if(n===null||n===undefined||n==="") return null;
+  return Math.round(Number(n)).toLocaleString("nb-NO").replace(/ /g," ");
+}
+function nl2br(str){ return esc(str).replace(/\n/g,"<br>"); }
+
+function reiseperiode(f){
+  if(f.fra_dato && f.til_dato) return `${formatDato(f.fra_dato)} – ${formatDato(f.til_dato)}`;
+  if(f.fra_dato) return `Fra ${formatDato(f.fra_dato)}`;
+  if(f.periode_tekst) return f.periode_tekst;
+  return null;
+}
+
+async function main(){
+  const session = await requireLogin();
+  if(!session) return;
+
+  const params = new URLSearchParams(location.search);
+  const id = params.get("id");
+  if(!id){ el("loadMsg").textContent = "Mangler forslag-id i lenken."; return; }
+  el("tilbakeLink").href = `forslag-editor.html?id=${encodeURIComponent(id)}`;
+
+  const [{ data: f, error: e0 }, { data: transportRows }, { data: hotellRows }, { data: dagRows }, { data: bildeRows }] = await Promise.all([
+    window.sb.from("forslag").select("*").eq("id", id).single(),
+    window.sb.from("forslag_transport").select("*").eq("forslag_id", id).order("sortering"),
+    window.sb.from("forslag_hotellopphold").select("*").eq("forslag_id", id).order("sortering"),
+    window.sb.from("forslag_dagsprogram").select("*").eq("forslag_id", id).order("sortering"),
+    window.sb.from("forslag_bilder").select("*").eq("forslag_id", id).order("sortering"),
+  ]);
+  if(e0 || !f){ el("loadMsg").textContent = "Fant ikke dette forslaget."; return; }
+
+  let ansvarligNavn = null;
+  if(f.ansvarlig){
+    const { data: p } = await window.sb.from("profiles").select("navn").eq("id", f.ansvarlig).single();
+    ansvarligNavn = p && p.navn;
+  }
+
+  const transport = transportRows || [];
+  const hoteller = hotellRows || [];
+  const dager = dagRows || [];
+  const bilder = bildeRows || [];
+
+  document.title = `${f.tittel || "Reiseforslag"} – Caminante`;
+
+  const hotellIdSet = new Set(hoteller.map(h=>h.id));
+  const dagIdSet = new Set(dager.map(d=>d.id));
+  const bilderDestinasjon = bilder.filter(b=> b.kategori === "Destinasjon");
+  const bilderAndre = bilder.filter(b=>{
+    if(b.kategori === "Destinasjon") return false;
+    if(b.kategori === "Hotell" && b.hotellopphold_id && hotellIdSet.has(b.hotellopphold_id)) return false;
+    if(b.kategori === "Program" && b.dagsprogram_id && dagIdSet.has(b.dagsprogram_id)) return false;
+    return true;
+  });
+  const bilderForHotell = (hotellId)=> bilder.filter(b=> b.kategori==="Hotell" && b.hotellopphold_id===hotellId);
+  const bilderForDag = (dagId)=> bilder.filter(b=> b.kategori==="Program" && b.dagsprogram_id===dagId);
+
+  /* ---------- Bygg HTML ---------- */
+
+  const generertDato = formatDato(new Date().toISOString().slice(0,10));
+
+  let html = "";
+
+  html += `
+    <div class="brandbar">
+      <div class="word">Caminante Travel</div>
+      <div class="meta">${esc(f.forslagsnummer||"")}${f.forslagsnummer?" · ":""}Generert ${generertDato}</div>
+    </div>`;
+
+  if(f.hovedbilde_url){
+    html += `<img class="hero-img" src="${esc(f.hovedbilde_url)}" alt="">`;
+  }
+
+  html += `<div class="hero-text">`;
+  if(f.destinasjon) html += `<div class="destinasjon">${esc(f.destinasjon)}</div>`;
+  html += `<h1>${esc(f.tittel || "Reiseforslag")}</h1>`;
+  if(f.kunde_navn) html += `<p class="kunde">Utarbeidet for ${esc(f.kunde_navn)}</p>`;
+  html += `</div>`;
+
+  // Fakta-strip
+  const fakta = [];
+  const periode = reiseperiode(f);
+  if(periode) fakta.push(["Reiseperiode", periode]);
+  if(f.antall_reisende) fakta.push(["Antall reisende", `${f.antall_reisende} personer`]);
+  if(f.avreisested) fakta.push(["Avreiseflyplass", f.avreisested]);
+  if(hoteller.length) fakta.push(["Overnatting", hoteller.length===1 ? "1 hotell" : `${hoteller.length} hoteller`]);
+  if(fakta.length){
+    html += `<div class="fakta-strip">` + fakta.map(([k,v])=>`<div class="fakta-item"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join("") + `</div>`;
+  }
+
+  // Ingress
+  if(f.ingress){
+    html += `<section class="blokk ingress"><p>${nl2br(f.ingress)}</p></section>`;
+  }
+
+  // Om reisemålet / muligheter og opplevelser
+  if(f.om_reisemalet || f.muligheter_opplevelser || bilderDestinasjon.length){
+    html += `<section class="blokk">`;
+    html += `<h2>Om reisemålet</h2>`;
+    if(f.om_reisemalet) html += `<p>${nl2br(f.om_reisemalet)}</p>`;
+    if(f.muligheter_opplevelser) html += `<p>${nl2br(f.muligheter_opplevelser)}</p>`;
+    if(bilderDestinasjon.length) html += galleriHtml(bilderDestinasjon);
+    html += `</section>`;
+  }
+
+  // Program
+  if(dager.length){
+    html += `<section class="blokk"><h2>Reiseprogram</h2>`;
+    if(f.ingress_program) html += `<p style="margin-bottom:20px;">${nl2br(f.ingress_program)}</p>`;
+    dager.forEach((d, idx)=>{
+      const bilderDag = bilderForDag(d.id);
+      html += `<div class="dag">
+        <div class="dag-head">
+          <span class="dag-nr">Dag ${d.dagnummer || idx+1}</span>
+          ${d.dato ? `<span class="dag-dato">${esc(formatDato(d.dato))}</span>` : ""}
+        </div>
+        ${d.overskrift ? `<div class="dag-tittel">${esc(d.overskrift)}</div>` : ""}
+        ${d.tekst ? `<p>${nl2br(d.tekst)}</p>` : ""}
+        ${(d.aktiviteter||[]).length ? `<ul class="dag-liste">${d.aktiviteter.map(a=>`<li>${esc(a)}</li>`).join("")}</ul>` : ""}
+        ${(d.maltider||[]).length ? `<div class="dag-maltider">Måltider: ${esc(d.maltider.join(", "))}</div>` : ""}
+        ${bilderDag.length ? galleriHtml(bilderDag) : ""}
+      </div>`;
+    });
+    html += `</section>`;
+  }
+
+  // Hotellopphold
+  if(hoteller.length){
+    html += `<section class="blokk"><h2>Overnatting</h2>`;
+    hoteller.forEach(h=>{
+      const bilderHotell = bilderForHotell(h.id);
+      const sub = [];
+      if(h.sted) sub.push(h.sted);
+      if(h.fra_dato && h.til_dato) sub.push(`${formatDatoKort(h.fra_dato)} – ${formatDatoKort(h.til_dato)}`);
+      if(h.netter) sub.push(`${h.netter} ${h.netter===1?"natt":"netter"}`);
+      const romtyper = [h.romtype_standard, ...(h.romtype_andre||[]), ...(h.romtype_egendefinert||[])].filter(Boolean);
+      html += `<div class="hotell">
+        <div class="hotell-head">
+          <div class="hotell-navn">${esc(h.hotellnavn || "Hotell")}</div>
+          ${h.stjerner ? `<span class="stjerner">${"★".repeat(h.stjerner)}</span>` : ""}
+        </div>
+        ${sub.length ? `<div class="hotell-sub">${esc(sub.join(" · "))}</div>` : ""}
+        ${h.beskrivelse ? `<p>${nl2br(h.beskrivelse)}</p>` : ""}
+        ${(romtyper.length || h.maltider) ? `<div class="badge-rad">
+          ${romtyper.map(rt=>`<span class="badge">${esc(rt)}</span>`).join("")}
+          ${h.maltider ? `<span class="badge">${esc(h.maltider)}</span>` : ""}
+        </div>` : ""}
+        ${bilderHotell.length ? galleriHtml(bilderHotell) : ""}
+      </div>`;
+    });
+    html += `</section>`;
+  }
+
+  // Om hotellet (generell tekst) / Hvorfor reisen passer
+  if(f.om_hotellet || f.hvorfor_passer){
+    html += `<section class="blokk">`;
+    if(f.om_hotellet){ html += `<h2>Om hotellet</h2><p>${nl2br(f.om_hotellet)}</p>`; }
+    if(f.hvorfor_passer){ html += `${f.om_hotellet?'<div style="height:18px;"></div>':''}<h2>Hvorfor denne reisen passer</h2><p>${nl2br(f.hvorfor_passer)}</p>`; }
+    html += `</section>`;
+  }
+
+  // Flyinformasjon
+  const utreise = transport.filter(t=>t.kategori==="utreise");
+  const retur = transport.filter(t=>t.kategori==="retur");
+  const intern = transport.filter(t=>t.kategori==="intern");
+  if(utreise.length || retur.length || intern.length){
+    html += `<section class="blokk"><h2>Reise</h2>`;
+    html += flySeksjonHtml("Utreise", utreise);
+    html += flySeksjonHtml("Intern flight", intern);
+    html += flySeksjonHtml("Retur", retur);
+    html += `</section>`;
+  }
+
+  // Pris
+  if(f.pris_per_person){
+    html += `<section class="blokk"><h2>Pris</h2><div class="pris-boks">
+      <div class="pris-tall">${f.er_fra_pris ? '<span class="fra">Fra</span>' : ''}kr ${formatKr(f.pris_per_person)},-<span class="pris-enhet">per person</span></div>
+      ${f.enkeltromstillegg ? `<div class="pris-detalj">Enkeltromstillegg: kr ${formatKr(f.enkeltromstillegg)},-</div>` : ""}
+      ${f.pris_antall_personer ? `<div class="pris-detalj">Prisen er beregnet ut fra ${f.pris_antall_personer} betalende deltakere${f.kursgrunnlag?`, ${esc(f.kursgrunnlag)}`:""}.</div>` : (f.kursgrunnlag ? `<div class="pris-detalj">${esc(f.kursgrunnlag)}</div>` : "")}
+      ${f.prisgrunnlag_forklaring ? `<div class="pris-forklaring">${nl2br(f.prisgrunnlag_forklaring)}</div>` : ""}
+    </div></section>`;
+  }
+
+  // Inkludert / ikke inkludert
+  const inkl = f.inkludert || [];
+  const ikkeInkl = f.ikke_inkludert || [];
+  if(inkl.length || ikkeInkl.length){
+    html += `<section class="blokk"><h2>Inkludert i prisen</h2><div class="inkl-grid">
+      <div class="inkl-kol"><h3>Inkludert</h3><ul class="inkl-liste ja">${inkl.map(v=>`<li>${esc(v)}</li>`).join("") || '<li style="opacity:0.5;">–</li>'}</ul></div>
+      <div class="inkl-kol"><h3>Ikke inkludert</h3><ul class="inkl-liste nei">${ikkeInkl.map(v=>`<li>${esc(v)}</li>`).join("") || '<li style="opacity:0.5;">–</li>'}</ul></div>
+    </div></section>`;
+  }
+
+  // Andre bilder
+  if(bilderAndre.length){
+    html += `<section class="blokk"><h2>Flere bilder</h2>${galleriHtml(bilderAndre)}</section>`;
+  }
+
+  // Forbehold
+  if(f.forbehold_tekst){
+    html += `<section class="blokk forbehold"><p>${nl2br(f.forbehold_tekst)}</p></section>`;
+  }
+
+  // Footer
+  html += `<div class="footer">
+    <div class="navn">Caminante Travel AS</div>
+    ${ansvarligNavn ? `<div class="kontakt">Din kontaktperson: ${esc(ansvarligNavn)}</div>` : ""}
+    <div class="liten">Dette er et uforpliktende forslag. Priser og tilgjengelighet kan endre seg frem til et eventuelt tilbud er akseptert.</div>
+  </div>`;
+
+  el("paper").innerHTML = html;
+  el("paper").style.display = "block";
+  el("loadMsg").style.display = "none";
+}
+
+function galleriHtml(rader){
+  return `<div class="galleri">${rader.map(b=>`
+    <figure>
+      <img src="${esc(b.bilde_url)}" alt="${esc(b.alt_tekst||"")}">
+      ${b.alt_tekst ? `<figcaption>${esc(b.alt_tekst)}</figcaption>` : ""}
+    </figure>`).join("")}</div>`;
+}
+
+function flySeksjonHtml(tittel, rader){
+  if(!rader.length) return "";
+  return `<div class="fly-seksjon">
+    <div class="fly-seksjon-tittel">${esc(tittel)}</div>
+    ${rader.map(t=>`
+      <div class="flight-rad">
+        <div>
+          <div class="flight-rute">${esc(t.beskrivelse || "Flyreise")}</div>
+          ${(t.flightnr || t.selskap) ? `<div class="flight-sub">${esc([t.flightnr, t.selskap].filter(Boolean).join(" · "))}</div>` : ""}
+        </div>
+        <div class="flight-tid">
+          ${t.avreise_tidspunkt ? `Avreise: ${esc(formatDatoTid(t.avreise_tidspunkt))}` : ""}
+          ${t.ankomst_tidspunkt ? `<br>Ankomst: ${esc(formatDatoTid(t.ankomst_tidspunkt))}` : ""}
+        </div>
+      </div>`).join("")}
+  </div>`;
+}
+
+el("btnPrint").addEventListener("click", ()=> window.print());
+
+main();
+</script>
+</body>
+</html>
