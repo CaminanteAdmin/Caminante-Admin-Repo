@@ -347,7 +347,7 @@ async function main(){
   if(periode) fakta.push(["Reiseperiode", periode]);
   if(f.antall_reisende) fakta.push(["Antall reisende", `${f.antall_reisende} personer`]);
   if(f.avreisested) fakta.push(["Avreiseflyplass", f.avreisested]);
-  if(hoteller.length) fakta.push(["Overnatting", hoteller.length===1 ? "1 hotell" : `${hoteller.length} hoteller`]);
+  if(f.pris_per_person) fakta.push(["Pris", `${f.er_fra_pris ? "Fra " : ""}kr ${formatKr(f.pris_per_person)},- pr. person`]);
   if(fakta.length){
     html += `<div class="fakta-strip">` + fakta.map(([k,v])=>`<div class="fakta-item"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join("") + `</div>`;
   }
