@@ -193,6 +193,16 @@
   .field-grid textarea{ min-height:70px; resize:vertical; }
   .field-hint{ font-size:11px; color:var(--ink-muted); margin-top:3px; }
 
+  /* v8: Forbehold-fanens to bokser ("Veien videre"/"Forbehold") - tekstfeltet
+     står nå til venstre i boksen uten noe label-ord foran, med samme bredde
+     (604px) det hadde i den gamle .field-grid-layouten. */
+  .forbehold-textarea{
+    display:block; width:604px; max-width:100%; box-sizing:border-box;
+    border:1px solid var(--card-border); border-radius:6px; padding:8px 10px;
+    font-size:13px; font-family:inherit; color:var(--ink-primary);
+    background:var(--surface-1); resize:vertical;
+  }
+
   /* Enkeltposter i en liste (transportsegment, hotellopphold, dag) ligger nå
      som avsnitt INNI én felles .card per fane, atskilt med en stiplet linje
      - samme mønster som "Hotell 2" osv. under hverandre i kalkulatorens
@@ -236,16 +246,23 @@
      alene (bevisst kortere boks, ikke full bredde), Avreise alene, Ankomst
      alene (datetime-local har en fast browser-minimumsbredde som uansett
      ikke lar seg presse under ~190px), og til slutt Flyselskap+Flight.nr
-     sammen på én rad. */
+     sammen på én rad. v8: Strekning/Avreise/Ankomst/Flyselskap sin label får
+     nå en FAST bredde (i stedet for kv-fields vanlige auto-bredde) slik at
+     alle fire boksene starter på nøyaktig samme sted, uansett hvor langt
+     label-ordet er - flukten Vidar ba om. Flyselskap-boksen er samtidig
+     smalnet inn til ca. 80% av forrige bredde. */
+  .fl-field-strekning label, .fl-field-avreise label, .fl-field-ankomst label, .fl-field-selskap label{ width:70px; flex:none; }
   .fl-field-strekning input{ width:190px; }
   .fl-field-avreise input, .fl-field-ankomst input{ width:194px; }
-  .fl-field-selskap input{ width:134px; }
+  .fl-field-selskap input{ width:108px; }
   .fl-field-nr input{ width:76px; }
 
   /* v7: Priser sine tre hovedtall er nå del av den vanlige .field-grid
      under (Pris per person + Antall personer på første linje, Enkeltrom-
      stillegg alene på linjen under) - egen .pr-row3-stil er ikke lenger i
-     bruk. */
+     bruk. v8: alle tre er halvert i bredde (var 254px via 1fr-kolonnen -
+     unødvendig bredt for et tall på noen få siffer). */
+  #pr-per-person, #pr-antall, #pr-enkeltrom{ width:127px; }
 
   /* v: Grunninfo, Hotellopphold og Pris komprimert til to felt-par per rad
      (label/input x2) i stedet for ett felt per rad - de fleste feltene her
@@ -321,7 +338,13 @@
      (leser som én sammenhengende venstre-kolonne på tvers av de tre
      linjene), stjerne-boksen er litt bredere enn før, Antall netter er
      komprimert enda mer (alltid 1-2 siffer), og Standard romtype/Måltider
-     er bredere nok til at ingen alternativtekst kuttes av. */
+     er bredere nok til at ingen alternativtekst kuttes av. v8: kolonne 1
+     (Hotellnavn/Reisemål/Land) og kolonne 2 (Stjerner/Datoer/Romtype) får nå
+     hver sin FASTE label-bredde (i stedet for auto), slik at både ordene OG
+     boksene deres står nøyaktig under hverandre på tvers av de tre radene -
+     samme "flukt"-prinsipp som Flyinformasjon. */
+  .h-field-navn label, .h-field-sted label, .h-field-land label{ width:66px; flex:none; }
+  .h-field-stjerner label, .h-field-datoer label, .h-field-romtype label{ width:56px; flex:none; }
   .h-field-navn input, .h-field-sted input, .h-field-land input{ width:180px; }
   .h-field-stjerner select{ width:128px; }
   .h-field-netter input{ width:56px; }
@@ -338,7 +361,10 @@
   /* v7: Presentasjon-fanen er nå to 50/50-kolonner - "Om reisen"/"Om
      reisemålet" til venstre (uten egne feltlabel-ord, kun kort-tittelen
      forklarer innholdet), Høydepunkter til høyre, komprimert i bredden fra
-     tidligere fullbredde-løsning. */
+     tidligere fullbredde-løsning. v8: fanen bruker nå full skjermbredde (i
+     stedet for det vanlige 880px-taket alle andre faner har) - det var mye
+     ledig plass til høyre i 50/50-oppsettet ved normal skjermbredde. */
+  .tab-panel[data-tab="presentasjon"]{ max-width:none; }
   .pres-col{ flex:1; min-width:0; }
   .pres-col .card:last-child{ margin-bottom:0; }
   .pres-textarea{
@@ -680,7 +706,7 @@
              (skiller seg fra "Om reisemålet" under, som handler om
              destinasjonen generelt). Nytt felt (forslag.om_reisen), del av
              den godkjente 3-siders design v6g. -->
-        <div class="card">
+        <div class="card" style="margin-bottom:28px;">
           <div class="card-title">Om reisen</div>
           <textarea id="pres-omreisen" class="pres-textarea" placeholder="Kort tekst om selve reisen - vises øverst på side 1"></textarea>
           <div class="ordteller" id="pres-omreisen-teller">0/60 ord</div>
@@ -728,56 +754,67 @@
     <!-- v: "Veien videre" - avsluttende tekst på side 3, rett over
          avslutningsbildet/bunnbanneret. Nytt felt (forslag.veien_videre_tekst),
          del av den godkjente 3-siders design v6g. Samme mønster som
-         Forbehold under: standardtekst som DB-default, fritt overstyrbar. -->
+         Forbehold under: standardtekst som DB-default, fritt overstyrbar.
+         v8: label-ordet ("Tekst"/"Forbeholdstekst") er fjernet fra begge
+         boksene og tekstfeltet flyttet helt til venstre i stedet for i
+         .field-grids vanlige høyre kolonne - selve feltbredden er UENDRET
+         (604px, målt opp mot den gamle grid-layouten), kun plasseringen er
+         endret, slik at de to boksene ("Veien videre"/"Forbehold") nå ser
+         like ut. -->
     <div class="card">
-      <div class="card-title">Fra forslag til reise</div>
-      <div class="field-grid">
-        <label for="vv-tekst">Tekst</label><textarea id="vv-tekst" style="min-height:100px;"></textarea>
-      </div>
+      <div class="card-title">Veien videre</div>
+      <textarea id="vv-tekst" class="forbehold-textarea" style="min-height:100px;"></textarea>
       <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan overstyres fritt per forslag.</div>
     </div>
     <div class="card">
-      <div class="field-grid">
-        <label for="fb-tekst">Forbeholdstekst</label><textarea id="fb-tekst" style="min-height:140px;"></textarea>
-      </div>
+      <div class="card-title">Forbehold</div>
+      <textarea id="fb-tekst" class="forbehold-textarea" style="min-height:140px;"></textarea>
       <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan overstyres fritt per forslag.</div>
     </div>
   </div>
 
   <!-- ===== Bilder ===== -->
+  <!-- v8: to rader à to bokser side om side i stedet for fem bokser under
+       hverandre - Hovedbilde/Avslutningsbilde er begge "kun ett bilde"-
+       felt og trenger dermed ikke full bredde, og Reisemål/Hotell er de to
+       kategoriene som normalt har flest bilder, så de får hver sin halvdel.
+       "Andre bilder" (det gamle fangnett-kortet for bilder som ikke passer
+       tydelig i noen kategori, f.eks. gjenglemte bilder fra den fjernede
+       Program-fanen) er fjernet fra UI-et etter eksplisitt ønske - se
+       renderBilder() for hvordan de underliggende bildene fortsatt håndteres
+       trygt (slettes IKKE, blir bare ikke lenger vist noe sted i editoren). -->
   <div class="tab-panel" data-tab="bilder">
-    <div class="card">
-      <div class="card-title">Hovedbilde</div>
-      <div id="hovedbildePreview" style="margin-bottom:8px;"></div>
-      <input type="file" id="hovedbildeFile" accept="image/*">
+    <div class="two-col-row" style="margin-bottom:18px;">
+      <div class="card">
+        <div class="card-title">Hovedbilde</div>
+        <div id="hovedbildePreview" style="margin-bottom:8px;"></div>
+        <input type="file" id="hovedbildeFile" accept="image/*">
+      </div>
+
+      <!-- v: Avslutningsbilde - side 3 sitt avsluttende stemningsbilde (flex-
+           vokser til å fylle resten av siden over bunnbanneret i print-malen).
+           Kategori 'Avslutning', maks 1 bilde. -->
+      <div class="card">
+        <div class="card-title">Avslutningsbilde</div>
+        <div class="upload-hint">Stemningsbilde nederst på siste side. Kun ett bilde.</div>
+        <div class="bilde-dropbox" id="bildeBoxAvslutning"></div>
+      </div>
     </div>
 
-    <div class="card">
-      <!-- v: kortets synlige tittel er endret til "Reisemål/Høydepunkt" -
-           selve databasekategorien (forslag_bilder.kategori="Destinasjon")
-           er urørt. -->
-      <div class="card-title">Reisemål/Høydepunkt</div>
-      <div class="bilde-dropbox" id="bildeBoxDestinasjon"></div>
-    </div>
+    <div class="two-col-row">
+      <div class="card">
+        <!-- v: kortets synlige tittel er endret til "Reisemål/Høydepunkt" -
+             selve databasekategorien (forslag_bilder.kategori="Destinasjon")
+             er urørt. -->
+        <div class="card-title">Reisemål/Høydepunkt</div>
+        <div class="bilde-dropbox" id="bildeBoxDestinasjon"></div>
+      </div>
 
-    <div class="card">
-      <div class="card-title">Hotell</div>
-      <div class="upload-hint">Ett bildeområde per hotellopphold.</div>
-      <div id="bildeHotellSubboxes"></div>
-    </div>
-
-    <!-- v: Avslutningsbilde - side 3 sitt avsluttende stemningsbilde (flex-
-         vokser til å fylle resten av siden over bunnbanneret i print-malen).
-         Kategori 'Avslutning', maks 1 bilde. -->
-    <div class="card">
-      <div class="card-title">Avslutningsbilde</div>
-      <div class="upload-hint">Stemningsbilde nederst på siste side. Kun ett bilde.</div>
-      <div class="bilde-dropbox" id="bildeBoxAvslutning"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Andre bilder</div>
-      <div class="bilde-dropbox" id="bildeBoxAndre"></div>
+      <div class="card">
+        <div class="card-title">Hotell</div>
+        <div class="upload-hint">Ett bildeområde per hotellopphold.</div>
+        <div id="bildeHotellSubboxes"></div>
+      </div>
     </div>
   </div>
 
@@ -1106,7 +1143,7 @@ function renderFlySection(kategori, containerId, placeholder){
         <div class="kv-field fl-field-ankomst"><label>Ankomst</label><input type="datetime-local" class="fl-ankomst" value="${f.ankomst_tidspunkt ? f.ankomst_tidspunkt.slice(0,16) : ""}"></div>
       </div>
       <div class="kv-row">
-        <div class="kv-field fl-field-selskap"><label>Flyselskap</label><input class="fl-selskap" value="${escapeHtml(f.selskap)}" placeholder="F.eks. Norwegian"></div>
+        <div class="kv-field fl-field-selskap"><label>Flyselskap</label><input class="fl-selskap" value="${escapeHtml(f.selskap)}" placeholder="Norwegian"></div>
         <div class="kv-field fl-field-nr"><label>Flight.nr</label><input class="fl-nr" value="${escapeHtml(f.flightnr)}" placeholder="SK1234"></div>
       </div>
     `;
@@ -1231,7 +1268,7 @@ function renderHotell(){
         <div class="kv-field h-field-stjerner"><label>Stjerner</label>
           <select class="h-stjerner-select">${[2,3,4,5].map(n=>`<option value="${n}" ${Number(f.stjerner||3)===n?"selected":""}>${"★".repeat(n)}</option>`).join("")}</select>
         </div>
-        <div class="kv-field h-field-netter"><label>Netter</label><input type="number" class="h-netter" value="${f.netter??""}" min="0"></div>
+        <div class="kv-field h-field-netter"><label>Antall netter</label><input type="number" class="h-netter" value="${f.netter??""}" min="0"></div>
       </div>
       <div class="kv-row">
         <div class="kv-field h-field-sted"><label>Reisemål</label><input class="h-sted" value="${escapeHtml(f.sted)}" placeholder="F.eks. Kroatia-kysten"></div>
@@ -1244,7 +1281,7 @@ function renderHotell(){
       </div>
       <div class="kv-row">
         <div class="kv-field h-field-land"><label>Land</label><input class="h-land" value="${escapeHtml(f.land)}" placeholder="F.eks. Kroatia"></div>
-        <div class="kv-field h-field-romtype"><label>Standard romtype</label>
+        <div class="kv-field h-field-romtype"><label>Romtype</label>
           <select class="h-standard-romtype">${ROOM_TYPE_OPTIONS.map(rt=>`<option value="${rt}" ${rt===(f.romtype_standard||"Dobbeltrom")?"selected":""}>${rt}</option>`).join("")}</select>
         </div>
         <div class="kv-field h-field-maltider"><label>Måltider</label>
@@ -1254,7 +1291,7 @@ function renderHotell(){
       <!-- v7: "Hotellegenskaper"-ordet er fjernet (badgene forklarer seg
            selv) og egenskapene flyttet opp rett under de tre info-linjene,
            i stedet for lenger ned i feltlisten. -->
-      <div class="egenskaper-wrap h-egenskaper-wrap" style="margin-bottom:14px;"></div>
+      <div class="egenskaper-wrap h-egenskaper-wrap" style="margin-top:8px; margin-bottom:14px;"></div>
       <div class="field-grid">
         <label class="span-full">Kort beskrivelse</label><textarea class="h-beskrivelse span-full">${escapeHtml(f.beskrivelse)}</textarea>
         <label class="span-full">Intern kommentar</label><textarea class="h-prisinfo span-full">${escapeHtml(f.prisinfo)}</textarea>
@@ -1974,20 +2011,15 @@ function renderBilder(){
   // Avslutningsbilde - side 3 sitt avsluttende stemningsbilde, nøyaktig 1.
   buildBildeDropbox(el("bildeBoxAvslutning"), b=> b.fields.kategori==="Avslutning", "Avslutning", null, null, 1);
 
-  // "Andre bilder" er et bevisst fangnett: alt som ikke tydelig hører hjemme
-  // i Destinasjon eller i en gyldig Hotell-underboks havner her - f.eks.
-  // eldre bilder fra før denne ombyggingen, bilder knyttet til et
-  // hotellopphold som siden er slettet, eller bilder fra den nå fjernede
-  // Program-fanen (kategori "Program" - se historikk i git). Sikrer at
-  // ingen bilder "forsvinner" (blir usynlige) etter denne endringen.
-  const kjenteHotellKeys = new Set(state.hotellopphold.map(h=>h.clientKey));
-  const andreMatch = b=>{
-    if(b.fields.kategori === "Destinasjon") return false;
-    if(b.fields.kategori === "Avslutning") return false;
-    if(b.fields.kategori === "Hotell" && kjenteHotellKeys.has(b.hotellopphold_client_key)) return false;
-    return true;
-  };
-  buildBildeDropbox(el("bildeBoxAndre"), andreMatch, "Andre", null);
+  // v8: "Andre bilder"-boksen (det tidligere fangnettet for bilder som ikke
+  // tydelig hørte hjemme i Destinasjon/Hotell/Avslutning - f.eks. eldre
+  // bilder fra før Bilder-fanen ble bygget om, bilder knyttet til et siden
+  // slettet hotellopphold, eller rester fra den fjernede Program-fanen) er
+  // fjernet fra UI-et etter eksplisitt ønske ("har ingen plass i forslaget").
+  // MERK: bildene selv er IKKE slettet fra databasen/Storage - de blir bare
+  // ikke lenger vist eller redigerbare noe sted i editoren. Skulle det
+  // finnes forslag med denne typen "foreldreløse" bilder fra før, bør de
+  // ryddes opp i direkte i databasen ved anledning (se "Neste steg").
 }
 
 /* ---------- Global render ---------- */
@@ -2118,8 +2150,10 @@ async function lagreAlt(){
     // forslagseditoren - eksisterende rader i tabellen røres bevisst ikke
     // (verken lest eller slettet herfra), i tilfelle de får ny bruk i en
     // fremtidig Tilbud-variant. forslag_bilder-rader med dagsprogram_id satt
-    // fra før (kategori "Program") beholder også sin kobling - de vises nå
-    // i "Andre bilder" i Bilder-fanen (se andreMatch() i renderBilder()).
+    // fra før (kategori "Program") beholder også sin kobling og lagres
+    // fortsatt uendret her (state.bilder er urørt av UI-endringen) - v8
+    // fjernet kun "Andre bilder"-BOKSEN i Bilder-fanen (se renderBilder()),
+    // ikke selve dataene, så denne typen bilder blir bare ikke lenger vist.
     await syncChildTable("forslag_bilder", "forslag_id", state.bilder, originalIds.bilder, (item)=>{
       item.fields.hotellopphold_id = item.hotellopphold_client_key ? (hotellKeyToId[item.hotellopphold_client_key] || null) : null;
     });
