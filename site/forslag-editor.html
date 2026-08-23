@@ -291,6 +291,13 @@
     min-width:0;
     margin-bottom:0;
   }
+  /* v9: Bilder-fanen i full bredde, med ujevn kolonnebredde per rad -
+     Hovedbilde/Avslutningsbilde er "kun ett bilde"-felt og trenger lite
+     plass, mens Hotell/Reisemål normalt har flest bilder og får mesteparten
+     av bredden. Samme .two-col-row-rad, bare med to nye kort-modifikatorer. */
+  .tab-panel[data-tab="bilder"]{ max-width:none; }
+  .two-col-row .card.bilder-narrow{ flex:0 0 300px; }
+  .two-col-row .card.bilder-wide{ flex:1; }
   .add-item-btn{
     padding:9px 14px;
     border:1px dashed var(--card-border);
@@ -370,7 +377,7 @@
   .pres-textarea{
     width:100%; box-sizing:border-box; border:1px solid var(--card-border); border-radius:6px;
     padding:10px 12px; font-size:13px; font-family:inherit; color:var(--ink-primary);
-    background:var(--surface-1); min-height:150px; resize:vertical;
+    background:var(--surface-1); min-height:90px; resize:vertical;
   }
   /* v7: ordteller under nederste høyre hjørne av tekstfeltet - samme
      hjelpefunksjon (refreshOrdteller()) håndhever en hard 60-ords-sperre. */
@@ -556,9 +563,7 @@
     <button class="tab-btn" data-tab="transport">Flyinformasjon</button>
     <button class="tab-btn" data-tab="hotell">Hotell</button>
     <button class="tab-btn" data-tab="pris">Priser</button>
-    <button class="tab-btn" data-tab="inkludert">Inkludert</button>
     <button class="tab-btn" data-tab="presentasjon">Presentasjon</button>
-    <button class="tab-btn" data-tab="forbehold">Forbehold</button>
     <button class="tab-btn" data-tab="bilder">Bilder</button>
   </div>
 
@@ -657,6 +662,12 @@
   </div>
 
   <!-- ===== Pris ===== -->
+  <!-- v9: Priser er splittet i tre bokser (var én) - de tre tallene alene,
+       Inkludert/Ikke inkludert i midten (flyttet hit fra sin egen fane, som
+       er fjernet - se merknad der den pleide å stå), og de to
+       kommentarfeltene alene nederst. Ren omorganisering for å samle alt om
+       pris/innhold på ett sted - ingen av feltene har endret id eller
+       lagringslogikk. -->
   <div class="tab-panel" data-tab="pris">
     <div class="card">
       <!-- v: Kursgrunnlag, Valuta og "Vis som fra-pris" er fjernet - alt her
@@ -670,14 +681,8 @@
         <label for="pr-per-person">Pris per person</label><input type="number" id="pr-per-person" step="1">
         <label for="pr-antall">Antall personer</label><input type="number" id="pr-antall" min="0">
         <label for="pr-enkeltrom">Enkeltromstillegg</label><input type="number" id="pr-enkeltrom" step="1">
-        <label for="pr-forklaring" class="span-full">Kommentar angående priser</label><textarea id="pr-forklaring" class="span-full" placeholder="Vises i PDF, kort og kundevennlig"></textarea>
-        <label for="pr-intern" class="span-full">Intern kommentar</label><textarea id="pr-intern" class="span-full" placeholder="Vises IKKE i PDF - kun til internt bruk"></textarea>
       </div>
     </div>
-  </div>
-
-  <!-- ===== Inkludert / ikke inkludert ===== -->
-  <div class="tab-panel" data-tab="inkludert">
     <div class="two-col-row">
       <div class="card">
         <div class="card-title">Inkludert</div>
@@ -688,6 +693,12 @@
         <div class="card-title">Ikke inkludert</div>
         <div class="list-editor" id="ikkeInkludertList"></div>
         <button class="add-item-btn" id="addIkkeInkludertBtn">+ Legg til punkt</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="field-grid">
+        <label for="pr-forklaring" class="span-full">Kommentar angående priser</label><textarea id="pr-forklaring" class="span-full" placeholder="Vises i PDF, kort og kundevennlig"></textarea>
+        <label for="pr-intern" class="span-full">Intern kommentar</label><textarea id="pr-intern" class="span-full" placeholder="Vises IKKE i PDF - kun til internt bruk"></textarea>
       </div>
     </div>
   </div>
@@ -729,6 +740,23 @@
           <textarea id="pres-reisemal" class="pres-textarea" placeholder="Om reisemålet - vises på side 2"></textarea>
           <div class="ordteller" id="pres-reisemal-teller">0/60 ord</div>
         </div>
+        <!-- v9: "Fra forslag til reise" (tidligere "Veien videre") og
+             "Forbehold" er flyttet hit fra den nå fjernede Forbehold-fanen,
+             plassert under Reisemål i venstre kolonne. Samme
+             ordtellermønster som Om reisen/Reisemål over, men med 40-ords
+             sperre i stedet for 60. -->
+        <div class="card">
+          <div class="card-title">Fra forslag til reise</div>
+          <textarea id="vv-tekst" class="forbehold-textarea" style="min-height:90px;"></textarea>
+          <div class="ordteller" id="vv-tekst-teller">0/40 ord</div>
+          <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan overstyres fritt per forslag.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Forbehold</div>
+          <textarea id="fb-tekst" class="forbehold-textarea" style="min-height:90px;"></textarea>
+          <div class="ordteller" id="fb-tekst-teller">0/40 ord</div>
+          <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan overstyres fritt per forslag.</div>
+        </div>
       </div>
       <!-- v: Høydepunkter - plukkes fra det valgte reisemålets
            høydepunktbank (bygget i reisemaal.html §4, forutsetter at "Velg
@@ -749,35 +777,14 @@
     </div>
   </div>
 
-  <!-- ===== Forbehold ===== -->
-  <div class="tab-panel" data-tab="forbehold">
-    <!-- v: "Veien videre" - avsluttende tekst på side 3, rett over
-         avslutningsbildet/bunnbanneret. Nytt felt (forslag.veien_videre_tekst),
-         del av den godkjente 3-siders design v6g. Samme mønster som
-         Forbehold under: standardtekst som DB-default, fritt overstyrbar.
-         v8: label-ordet ("Tekst"/"Forbeholdstekst") er fjernet fra begge
-         boksene og tekstfeltet flyttet helt til venstre i stedet for i
-         .field-grids vanlige høyre kolonne - selve feltbredden er UENDRET
-         (604px, målt opp mot den gamle grid-layouten), kun plasseringen er
-         endret, slik at de to boksene ("Veien videre"/"Forbehold") nå ser
-         like ut. -->
-    <div class="card">
-      <div class="card-title">Veien videre</div>
-      <textarea id="vv-tekst" class="forbehold-textarea" style="min-height:100px;"></textarea>
-      <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan overstyres fritt per forslag.</div>
-    </div>
-    <div class="card">
-      <div class="card-title">Forbehold</div>
-      <textarea id="fb-tekst" class="forbehold-textarea" style="min-height:140px;"></textarea>
-      <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan overstyres fritt per forslag.</div>
-    </div>
-  </div>
-
   <!-- ===== Bilder ===== -->
-  <!-- v8: to rader à to bokser side om side i stedet for fem bokser under
-       hverandre - Hovedbilde/Avslutningsbilde er begge "kun ett bilde"-
-       felt og trenger dermed ikke full bredde, og Reisemål/Hotell er de to
-       kategoriene som normalt har flest bilder, så de får hver sin halvdel.
+  <!-- v9: full bredde (samme prinsipp som Presentasjon-fanen), fortsatt to
+       rader à to bokser, men nå med ujevn kolonnebredde - Hovedbilde og
+       Avslutningsbilde er begge "kun ett bilde"-felt og trenger lite plass
+       (.bilder-narrow), mens Hotell og Reisemål er kategoriene som normalt
+       har flest bilder og får mesteparten av bredden (.bilder-wide). Rad 1:
+       Hovedbilde + Hotell. Rad 2: Reisemål + Avslutningsbilde. Kortets
+       synlige tittel er forkortet fra "Reisemål/Høydepunkt" til "Reisemål".
        "Andre bilder" (det gamle fangnett-kortet for bilder som ikke passer
        tydelig i noen kategori, f.eks. gjenglemte bilder fra den fjernede
        Program-fanen) er fjernet fra UI-et etter eksplisitt ønske - se
@@ -785,35 +792,32 @@
        trygt (slettes IKKE, blir bare ikke lenger vist noe sted i editoren). -->
   <div class="tab-panel" data-tab="bilder">
     <div class="two-col-row" style="margin-bottom:18px;">
-      <div class="card">
+      <div class="card bilder-narrow">
         <div class="card-title">Hovedbilde</div>
         <div id="hovedbildePreview" style="margin-bottom:8px;"></div>
         <input type="file" id="hovedbildeFile" accept="image/*">
       </div>
 
-      <!-- v: Avslutningsbilde - side 3 sitt avsluttende stemningsbilde (flex-
-           vokser til å fylle resten av siden over bunnbanneret i print-malen).
-           Kategori 'Avslutning', maks 1 bilde. -->
-      <div class="card">
-        <div class="card-title">Avslutningsbilde</div>
-        <div class="upload-hint">Stemningsbilde nederst på siste side. Kun ett bilde.</div>
-        <div class="bilde-dropbox" id="bildeBoxAvslutning"></div>
+      <div class="card bilder-wide">
+        <div class="card-title">Hotell</div>
+        <div class="upload-hint">Ett bildeområde per hotellopphold.</div>
+        <div id="bildeHotellSubboxes"></div>
       </div>
     </div>
 
     <div class="two-col-row">
-      <div class="card">
-        <!-- v: kortets synlige tittel er endret til "Reisemål/Høydepunkt" -
-             selve databasekategorien (forslag_bilder.kategori="Destinasjon")
-             er urørt. -->
-        <div class="card-title">Reisemål/Høydepunkt</div>
+      <div class="card bilder-wide">
+        <div class="card-title">Reisemål</div>
         <div class="bilde-dropbox" id="bildeBoxDestinasjon"></div>
       </div>
 
-      <div class="card">
-        <div class="card-title">Hotell</div>
-        <div class="upload-hint">Ett bildeområde per hotellopphold.</div>
-        <div id="bildeHotellSubboxes"></div>
+      <!-- v: Avslutningsbilde - side 3 sitt avsluttende stemningsbilde (flex-
+           vokser til å fylle resten av siden over bunnbanneret i print-malen).
+           Kategori 'Avslutning', maks 1 bilde. -->
+      <div class="card bilder-narrow">
+        <div class="card-title">Avslutningsbilde</div>
+        <div class="upload-hint">Stemningsbilde nederst på siste side. Kun ett bilde.</div>
+        <div class="bilde-dropbox" id="bildeBoxAvslutning"></div>
       </div>
     </div>
   </div>
@@ -1513,6 +1517,10 @@ function refreshOrdteller(taId, tellerId, max){
 }
 el("pres-omreisen").addEventListener("input", ()=> refreshOrdteller("pres-omreisen","pres-omreisen-teller",60));
 el("pres-reisemal").addEventListener("input", ()=> refreshOrdteller("pres-reisemal","pres-reisemal-teller",60));
+// v9: "Fra forslag til reise"/"Forbehold" flyttet inn i Presentasjon-fanen
+// - samme ordteller-mønster, men 40-ords sperre.
+el("vv-tekst").addEventListener("input", ()=> refreshOrdteller("vv-tekst","vv-tekst-teller",40));
+el("fb-tekst").addEventListener("input", ()=> refreshOrdteller("fb-tekst","fb-tekst-teller",40));
 
 function renderPresentasjon(){
   const f = state.forslag;
@@ -1717,11 +1725,13 @@ async function opprettHoydepunktInline(){
 }
 el("hpNyttBtn").addEventListener("click", opprettHoydepunktInline);
 
-/* ---------- Rendering: Forbehold ---------- */
+/* ---------- Rendering: Forbehold (bor nå i Presentasjon-fanen, se v9) ---------- */
 
 function renderForbehold(){
   el("vv-tekst").value = state.forslag.veien_videre_tekst || "";
   el("fb-tekst").value = state.forslag.forbehold_tekst || "";
+  refreshOrdteller("vv-tekst","vv-tekst-teller",40);
+  refreshOrdteller("fb-tekst","fb-tekst-teller",40);
 }
 
 /* ---------- Rendering: Bilder ---------- */
