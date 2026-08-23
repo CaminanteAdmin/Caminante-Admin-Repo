@@ -191,6 +191,11 @@
     box-sizing:border-box;
   }
   .field-grid textarea{ min-height:70px; resize:vertical; }
+  /* v10: Hotellbeskrivelse-feltet er ca. 30% høyere enn standard
+     .field-grid-tekstfelt (70px -> 90px), etter eksplisitt ønske. Må
+     matche/overgå spesifisiteten til ".field-grid textarea" over for å
+     faktisk slå igjennom. */
+  .field-grid textarea.h-beskrivelse{ min-height:90px; }
   .field-hint{ font-size:11px; color:var(--ink-muted); margin-top:3px; }
 
   /* v8: Forbehold-fanens to bokser ("Veien videre"/"Forbehold") - tekstfeltet
@@ -279,6 +284,18 @@
   }
   .span-full{ grid-column:1 / -1; }
 
+  /* v10: Priser i to kolonner - Inkludert/Ikke inkludert stablet i venstre
+     kolonne (samme bredde de hadde side om side før), resten av feltene i
+     høyre, smalere kolonne. Samme flex-mønster som Presentasjons .pres-col.
+     Høyre kolonnes .field-grid er smalnet til ett felt-par per rad (var
+     to par per rad da kortet hadde hele panelbredden) - ellers ville
+     f.eks. "Pris per person"+"Antall personer" på samme rad sprengt den
+     nye, smalere kolonnebredden. */
+  .pris-row{ display:flex; gap:18px; align-items:flex-start; }
+  .pris-col{ flex:1; min-width:0; }
+  .pris-col .card:last-child{ margin-bottom:0; }
+  .tab-panel[data-tab="pris"] .pris-col .field-grid{ grid-template-columns:120px 1fr; }
+
   /* v: Inkludert/Ikke inkludert side om side i to smalere kolonner, i stedet
      for stablet under hverandre som to fullbredde kort. */
   .two-col-row{
@@ -291,13 +308,10 @@
     min-width:0;
     margin-bottom:0;
   }
-  /* v9: Bilder-fanen i full bredde, med ujevn kolonnebredde per rad -
-     Hovedbilde/Avslutningsbilde er "kun ett bilde"-felt og trenger lite
-     plass, mens Hotell/Reisemål normalt har flest bilder og får mesteparten
-     av bredden. Samme .two-col-row-rad, bare med to nye kort-modifikatorer. */
+  /* v10: Bilder-fanen i full bredde, med hver kategori som en egen,
+     fullbred boks under hverandre (Hovedbilde/Hotell/Reisemål/
+     Avslutningsbilde) i stedet for to-og-to side om side. */
   .tab-panel[data-tab="bilder"]{ max-width:none; }
-  .two-col-row .card.bilder-narrow{ flex:0 0 300px; }
-  .two-col-row .card.bilder-wide{ flex:1; }
   .add-item-btn{
     padding:9px 14px;
     border:1px dashed var(--card-border);
@@ -662,43 +676,46 @@
   </div>
 
   <!-- ===== Pris ===== -->
-  <!-- v9: Priser er splittet i tre bokser (var én) - de tre tallene alene,
-       Inkludert/Ikke inkludert i midten (flyttet hit fra sin egen fane, som
-       er fjernet - se merknad der den pleide å stå), og de to
-       kommentarfeltene alene nederst. Ren omorganisering for å samle alt om
-       pris/innhold på ett sted - ingen av feltene har endret id eller
-       lagringslogikk. -->
+  <!-- v10: Priser er bygget om til to kolonner. Venstre kolonne: Inkludert/
+       Ikke inkludert stablet oppå hverandre, med SAMME bredde de hadde side
+       om side i forrige runde (kolonnen er halve panelbredden, akkurat som
+       hver av de to boksene var i .two-col-row før). Høyre kolonne: de tre
+       tallfeltene øverst og de to kommentarfeltene under, som nå bruker
+       resten av bredden i stedet for hele panelbredden - se den smalere
+       .pris-col .field-grid-malen i CSS (120px 1fr i stedet for
+       120px 1fr 120px 1fr, siden kolonnen ikke lenger har plass til to
+       felt-par per rad). -->
   <div class="tab-panel" data-tab="pris">
-    <div class="card">
-      <!-- v: Kursgrunnlag, Valuta og "Vis som fra-pris" er fjernet - alt her
-           hentes fra kalkylen (se "Oppdater pris fra kalkyle" øverst på
-           siden). v7: de tre tallene er nå del av samme .field-grid som
-           tekstfeltene under (samme design som Grunninfo/Hotell), i stedet
-           for en egen .pr-row3-stil - Pris per person + Antall personer på
-           første linje, Enkeltromstillegg alene på linjen under (god plass
-           her, ingen grunn til å presse alle tre sammen). -->
-      <div class="field-grid">
-        <label for="pr-per-person">Pris per person</label><input type="number" id="pr-per-person" step="1">
-        <label for="pr-antall">Antall personer</label><input type="number" id="pr-antall" min="0">
-        <label for="pr-enkeltrom">Enkeltromstillegg</label><input type="number" id="pr-enkeltrom" step="1">
+    <div class="pris-row">
+      <div class="pris-col">
+        <div class="card">
+          <div class="card-title">Inkludert</div>
+          <div class="list-editor" id="inkludertList"></div>
+          <button class="add-item-btn" id="addInkludertBtn">+ Legg til punkt</button>
+        </div>
+        <div class="card">
+          <div class="card-title">Ikke inkludert</div>
+          <div class="list-editor" id="ikkeInkludertList"></div>
+          <button class="add-item-btn" id="addIkkeInkludertBtn">+ Legg til punkt</button>
+        </div>
       </div>
-    </div>
-    <div class="two-col-row">
-      <div class="card">
-        <div class="card-title">Inkludert</div>
-        <div class="list-editor" id="inkludertList"></div>
-        <button class="add-item-btn" id="addInkludertBtn">+ Legg til punkt</button>
-      </div>
-      <div class="card">
-        <div class="card-title">Ikke inkludert</div>
-        <div class="list-editor" id="ikkeInkludertList"></div>
-        <button class="add-item-btn" id="addIkkeInkludertBtn">+ Legg til punkt</button>
-      </div>
-    </div>
-    <div class="card">
-      <div class="field-grid">
-        <label for="pr-forklaring" class="span-full">Kommentar angående priser</label><textarea id="pr-forklaring" class="span-full" placeholder="Vises i PDF, kort og kundevennlig"></textarea>
-        <label for="pr-intern" class="span-full">Intern kommentar</label><textarea id="pr-intern" class="span-full" placeholder="Vises IKKE i PDF - kun til internt bruk"></textarea>
+      <div class="pris-col">
+        <div class="card">
+          <!-- v: Kursgrunnlag, Valuta og "Vis som fra-pris" er fjernet - alt her
+               hentes fra kalkylen (se "Oppdater pris fra kalkyle" øverst på
+               siden). -->
+          <div class="field-grid">
+            <label for="pr-per-person">Pris per person</label><input type="number" id="pr-per-person" step="1">
+            <label for="pr-antall">Antall personer</label><input type="number" id="pr-antall" min="0">
+            <label for="pr-enkeltrom">Enkeltromstillegg</label><input type="number" id="pr-enkeltrom" step="1">
+          </div>
+        </div>
+        <div class="card">
+          <div class="field-grid">
+            <label for="pr-forklaring" class="span-full">Kommentar angående priser</label><textarea id="pr-forklaring" class="span-full" placeholder="Vises i PDF, kort og kundevennlig"></textarea>
+            <label for="pr-intern" class="span-full">Intern kommentar</label><textarea id="pr-intern" class="span-full" placeholder="Vises IKKE i PDF - kun til internt bruk"></textarea>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -722,7 +739,7 @@
           <textarea id="pres-omreisen" class="pres-textarea" placeholder="Kort tekst om selve reisen - vises øverst på side 1"></textarea>
           <div class="ordteller" id="pres-omreisen-teller">0/60 ord</div>
         </div>
-        <div class="card">
+        <div class="card" style="margin-bottom:28px;">
           <div class="card-title">Reisemål</div>
           <!-- v: "Om reisemålet" standardiseres via Reisemål-registeret
                (reisemaal.html) - IKKE fra hotellet. Hentes inn som
@@ -745,7 +762,7 @@
              plassert under Reisemål i venstre kolonne. Samme
              ordtellermønster som Om reisen/Reisemål over, men med 40-ords
              sperre i stedet for 60. -->
-        <div class="card">
+        <div class="card" style="margin-bottom:28px;">
           <div class="card-title">Fra forslag til reise</div>
           <textarea id="vv-tekst" class="forbehold-textarea" style="min-height:90px;"></textarea>
           <div class="ordteller" id="vv-tekst-teller">0/40 ord</div>
@@ -778,47 +795,39 @@
   </div>
 
   <!-- ===== Bilder ===== -->
-  <!-- v9: full bredde (samme prinsipp som Presentasjon-fanen), fortsatt to
-       rader à to bokser, men nå med ujevn kolonnebredde - Hovedbilde og
-       Avslutningsbilde er begge "kun ett bilde"-felt og trenger lite plass
-       (.bilder-narrow), mens Hotell og Reisemål er kategoriene som normalt
-       har flest bilder og får mesteparten av bredden (.bilder-wide). Rad 1:
-       Hovedbilde + Hotell. Rad 2: Reisemål + Avslutningsbilde. Kortets
-       synlige tittel er forkortet fra "Reisemål/Høydepunkt" til "Reisemål".
-       "Andre bilder" (det gamle fangnett-kortet for bilder som ikke passer
-       tydelig i noen kategori, f.eks. gjenglemte bilder fra den fjernede
-       Program-fanen) er fjernet fra UI-et etter eksplisitt ønske - se
-       renderBilder() for hvordan de underliggende bildene fortsatt håndteres
-       trygt (slettes IKKE, blir bare ikke lenger vist noe sted i editoren). -->
+  <!-- v10: full bredde, én boks per linje i stedet for to-og-to side om side
+       - rekkefølge Hovedbilde (1 bilde) - Hotell (4 bilder) - Reisemål
+       (3 bilder) - Avslutningsbilde (1 bilde). Alle fire boksene har nå
+       samme, rene stil som Hotell: kun tittel + selve bildeområdet, ingen
+       forklarende hjelpetekst under tittelen. "Andre bilder" (det gamle
+       fangnett-kortet for bilder som ikke passer tydelig i noen kategori,
+       f.eks. gjenglemte bilder fra den fjernede Program-fanen) er fjernet
+       fra UI-et etter eksplisitt ønske - se renderBilder() for hvordan de
+       underliggende bildene fortsatt håndteres trygt (slettes IKKE, blir
+       bare ikke lenger vist noe sted i editoren). -->
   <div class="tab-panel" data-tab="bilder">
-    <div class="two-col-row" style="margin-bottom:18px;">
-      <div class="card bilder-narrow">
-        <div class="card-title">Hovedbilde</div>
-        <div id="hovedbildePreview" style="margin-bottom:8px;"></div>
-        <input type="file" id="hovedbildeFile" accept="image/*">
-      </div>
-
-      <div class="card bilder-wide">
-        <div class="card-title">Hotell</div>
-        <div class="upload-hint">Ett bildeområde per hotellopphold.</div>
-        <div id="bildeHotellSubboxes"></div>
-      </div>
+    <div class="card">
+      <div class="card-title">Hovedbilde</div>
+      <div id="hovedbildePreview" style="margin-bottom:8px;"></div>
+      <input type="file" id="hovedbildeFile" accept="image/*">
     </div>
 
-    <div class="two-col-row">
-      <div class="card bilder-wide">
-        <div class="card-title">Reisemål</div>
-        <div class="bilde-dropbox" id="bildeBoxDestinasjon"></div>
-      </div>
+    <div class="card">
+      <div class="card-title">Hotell</div>
+      <div id="bildeHotellSubboxes"></div>
+    </div>
 
-      <!-- v: Avslutningsbilde - side 3 sitt avsluttende stemningsbilde (flex-
-           vokser til å fylle resten av siden over bunnbanneret i print-malen).
-           Kategori 'Avslutning', maks 1 bilde. -->
-      <div class="card bilder-narrow">
-        <div class="card-title">Avslutningsbilde</div>
-        <div class="upload-hint">Stemningsbilde nederst på siste side. Kun ett bilde.</div>
-        <div class="bilde-dropbox" id="bildeBoxAvslutning"></div>
-      </div>
+    <div class="card">
+      <div class="card-title">Reisemål</div>
+      <div class="bilde-dropbox" id="bildeBoxDestinasjon"></div>
+    </div>
+
+    <!-- v: Avslutningsbilde - side 3 sitt avsluttende stemningsbilde (flex-
+         vokser til å fylle resten av siden over bunnbanneret i print-malen).
+         Kategori 'Avslutning', maks 1 bilde. -->
+    <div class="card">
+      <div class="card-title">Avslutningsbilde</div>
+      <div class="bilde-dropbox" id="bildeBoxAvslutning"></div>
     </div>
   </div>
 
@@ -1294,10 +1303,12 @@ function renderHotell(){
       </div>
       <!-- v7: "Hotellegenskaper"-ordet er fjernet (badgene forklarer seg
            selv) og egenskapene flyttet opp rett under de tre info-linjene,
-           i stedet for lenger ned i feltlisten. -->
-      <div class="egenskaper-wrap h-egenskaper-wrap" style="margin-top:8px; margin-bottom:14px;"></div>
+           i stedet for lenger ned i feltlisten. v10: mer luft over
+           egenskapene (margin-top økt fra 8px til 20px), for tydeligere
+           avstand til feltradene over. -->
+      <div class="egenskaper-wrap h-egenskaper-wrap" style="margin-top:20px; margin-bottom:14px;"></div>
       <div class="field-grid">
-        <label class="span-full">Kort beskrivelse</label><textarea class="h-beskrivelse span-full">${escapeHtml(f.beskrivelse)}</textarea>
+        <label class="span-full">Hotellbeskrivelse</label><textarea class="h-beskrivelse span-full">${escapeHtml(f.beskrivelse)}</textarea>
         <label class="span-full">Intern kommentar</label><textarea class="h-prisinfo span-full">${escapeHtml(f.prisinfo)}</textarea>
       </div>
     `;
