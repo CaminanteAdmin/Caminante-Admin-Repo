@@ -437,6 +437,9 @@ async function main(){
     if(h.sted) sub.push(h.sted);
     if(h.netter) sub.push(`${h.netter} ${h.netter===1?"natt":"netter"}`);
     const romtyper = [h.romtype_standard, ...(h.romtype_andre||[]), ...(h.romtype_egendefinert||[])].filter(Boolean);
+    // v: Hotellegenskaper (salgsfremmende, hukes av per hotellopphold i
+    // Forslag-editoren) vises som samme type badge som romtype/måltider.
+    const egenskaper = (h.hotellegenskaper||[]).filter(Boolean);
     const bilderHotell = bilderForHotell(h.id);
     side2 += `<section class="${klasser.join(" ")}">
       ${first ? `<h2>Overnatting</h2>` : ""}
@@ -446,9 +449,10 @@ async function main(){
       </div>
       ${sub.length ? `<div class="hotell-sub">${esc(sub.join(" · "))}</div>` : ""}
       ${h.beskrivelse ? `<p>${nl2br(h.beskrivelse)}</p>` : ""}
-      ${(romtyper.length || h.maltider) ? `<div class="badge-rad">
+      ${(romtyper.length || h.maltider || egenskaper.length) ? `<div class="badge-rad">
         ${romtyper.map(rt=>`<span class="badge">${esc(rt)}</span>`).join("")}
         ${h.maltider ? `<span class="badge">${esc(h.maltider)}</span>` : ""}
+        ${egenskaper.map(eg=>`<span class="badge">${esc(eg)}</span>`).join("")}
       </div>` : ""}
       ${bilderHotell.length ? `<div class="hotell-galleri-stor">${bilderHotell.map(b=>`<img src="${esc(b.bilde_url)}" alt="${esc(b.alt_tekst||"")}">`).join("")}</div>` : ""}
     </section>`;

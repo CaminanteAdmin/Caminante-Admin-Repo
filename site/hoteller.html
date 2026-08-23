@@ -171,6 +171,12 @@
   .stjerne-radio-group{ display:flex; gap:12px; flex-wrap:wrap; }
   .stjerne-radio-opt{ display:flex; align-items:center; gap:4px; font-size:13px; color:var(--ink-primary); cursor:pointer; width:auto; }
   .stjerne-radio-opt input{ width:auto; margin:0; }
+  /* v: Hotellegenskaper - salgsfremmende egenskaper, listet horisontalt for
+     å utnytte bredden i fact-grid sin verdikolonne. Flere kan hukes av.
+     Samme liste/verdier som forslag-editor.html sin Hotell-fane. */
+  .egenskaper-wrap{ display:flex; flex-wrap:wrap; gap:6px 16px; align-self:start; margin-top:2px; }
+  .egenskaper-opt{ display:flex; align-items:center; gap:4px; font-size:13px; color:var(--ink-primary); cursor:pointer; width:auto; }
+  .egenskaper-opt input{ width:auto; margin:0; }
   .upload-hint{ font-size:11.5px; color:var(--ink-muted); margin-bottom:10px; }
   .hotel-img-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
   .hotel-img-card{ border:1px solid var(--hairline); border-radius:8px; overflow:hidden; background:var(--surface-1); }
@@ -278,6 +284,11 @@ const STATUS_COLORS = {
   "Avtale":   { bg:"#0ca30c", fg:"#ffffff" },   // fast avtale på plass
 };
 const PRISNIVAER = ["", "€", "€€", "€€€"];
+// v: Salgsfremmende hotellegenskaper - fast liste, flere kan hukes av per
+// hotell. Samme liste/verdier brukes i forslag-editor.html sin Hotell-fane
+// (der hukede egenskaper forhåndsfylles fra hotellet og vises som badges
+// i reiseforslaget).
+const HOTELLEGENSKAPER_OPTIONS = ["Nærhet til strand","På stranden","Sentral beliggenhet","Utendørs basseng","Takterrasse","Innendørs basseng","Klimaanlegg","Treningsrom","Spa/velvære"];
 
 /* ---------- State (in-memory cache of DB rows for the current session) ---------- */
 
@@ -505,6 +516,14 @@ function renderProfile(id){
         <label>Nettside</label><input id="f-nettside" value="${escapeHtml(h.nettside)}" placeholder="https://…">
         <label>Standard</label><input id="f-standard" value="${escapeHtml(h.standard)}" placeholder="F.eks. 4-stjerners">
         <label>Beskrivelse</label><textarea id="f-beskrivelse" placeholder="Generell, fri beskrivelse av hotellet - brukes ved «Velg fra hotelloversikt» i Forslag">${escapeHtml(h.beskrivelse)}</textarea>
+        <label>Hotellegenskaper</label>
+        <div class="egenskaper-wrap">
+          ${HOTELLEGENSKAPER_OPTIONS.map((eg,i)=>`
+            <label class="egenskaper-opt">
+              <input type="checkbox" class="f-egenskap" value="${escapeHtml(eg)}" ${(h.hotellegenskaper||[]).includes(eg)?"checked":""}>
+              ${escapeHtml(eg)}
+            </label>`).join("")}
+        </div>
       </div>
     </div>
 
@@ -557,6 +576,13 @@ function renderProfile(id){
   document.querySelectorAll('input[name="f-stjerner"]').forEach(radio=>{
     radio.addEventListener("change", async (e)=>{
       await updateHotell(h.id, { stjerner: Number(e.target.value) });
+    });
+  });
+  document.querySelectorAll('.f-egenskap').forEach(cb=>{
+    cb.addEventListener("change", async ()=>{
+      const valgte = Array.from(document.querySelectorAll('.f-egenskap:checked')).map(x=>x.value);
+      h.hotellegenskaper = valgte;
+      await updateHotell(h.id, { hotellegenskaper: valgte });
     });
   });
 

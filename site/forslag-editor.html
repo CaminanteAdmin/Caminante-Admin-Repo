@@ -215,38 +215,36 @@
   }
   .item-remove:hover{ text-decoration:underline; }
 
-  /* v: Flightene i Flyinformasjon-fanen (Utreise/Retur/Intern) ligger nå ved
-     siden av hverandre i en rad i stedet for stablet under hverandre - mer
-     kompakt når en etappe har flere enn én flight, og en ny flight (Flight 3
-     osv.) legges til lenger til høyre i samme rad (bryter til ny rad kun hvis
-     det ikke er plass). Kun Flyinformasjon-fanens .item-list berøres via
-     [data-tab="transport"]-scopingen - Hotellopphold beholder sin stablede
-     liste, siden hvert hotellkort er for stort/detaljert til å stå i kolonne. */
-  .tab-panel[data-tab="transport"] .item-list{
-    display:flex;
-    flex-wrap:wrap;
-    gap:22px;
-  }
-  .tab-panel[data-tab="transport"] .item-list .item-block{
-    flex:0 1 240px;
-    min-width:210px;
-    border-top:none;
-    padding-top:0;
-    margin-top:0;
-    border-left:1px dashed var(--card-border);
-    padding-left:18px;
-  }
-  .tab-panel[data-tab="transport"] .item-list .item-block:first-child{
-    border-left:none;
-    padding-left:0;
-  }
-  .tab-panel[data-tab="transport"] .item-list .field-grid{
-    grid-template-columns:1fr;
-    row-gap:9px;
-  }
-  .tab-panel[data-tab="transport"] .item-list .field-grid label{
-    padding-top:0;
-  }
+  /* v: Flightene i Flyinformasjon-fanen stables under hverandre igjen inni
+     hver Utreise/Retur-boks (boksene selv står nå side ved side, se
+     .two-col-row). Hver flight-blokk har en egen kompakt intern layout:
+     "Strekning" øverst i egen rad (tidligere "Flight 1" som feltlabel,
+     forvirrende likt med boks-tittelen), deretter Avreise/Ankomst/
+     Flyselskap/Flight.nr i én smalere rad - to linjer per flight i stedet
+     for tre, med bevart gruppering (dato-paret og selskap/nr-paret ligger
+     side om side i samme rad). */
+  .fl-strekning-row{ margin-bottom:9px; }
+  .fl-strekning-row label{ display:block; font-size:11px; color:var(--ink-muted); margin-bottom:3px; }
+  .fl-strekning-row input{ width:100%; box-sizing:border-box; }
+  /* v: datetime-local-feltene har en fast browser-minimumsbredde de ikke lar
+     seg presse under - Avreise/Ankomst får derfor sin egen rad, og
+     Flyselskap/Flight.nr (rene tekstfelt, komprimerer fint) sin egen rad
+     under. To smale rader i stedet for én for bred/overflowende rad. */
+  .fl-detail-row{ display:flex; gap:8px; margin-bottom:7px; }
+  .fl-detail-row > div{ flex:1; min-width:0; }
+  .fl-row2{ display:flex; gap:8px; }
+  .fl-row2 > div{ flex:1; min-width:0; }
+  .fl-detail-row label, .fl-row2 label{ display:block; font-size:11px; color:var(--ink-muted); margin-bottom:3px; }
+  .fl-detail-row input, .fl-row2 input{ width:100%; box-sizing:border-box; }
+
+  /* v: Priser-fanens tre hovedtall (Pris per person/Antall personer/
+     Enkeltromstillegg) på én linje, samme kompakte mønster som
+     .fl-detail-row - alt hentes fra kalkylen, ingen av disse trenger full
+     bredde. */
+  .pr-row3{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px; }
+  .pr-row3 > div{ flex:1 1 140px; min-width:140px; }
+  .pr-row3 label{ display:block; font-size:12px; color:var(--ink-muted); margin-bottom:3px; }
+  .pr-row3 input{ width:100%; box-sizing:border-box; }
 
   /* v: Grunninfo, Hotellopphold og Pris komprimert til to felt-par per rad
      (label/input x2) i stedet for ett felt per rad - de fleste feltene her
@@ -309,11 +307,12 @@
   }
   .btn-small-add:hover{ background:rgba(255,255,255,0.5); border-color:var(--blue); }
 
-  /* v: "Antall stjerner" - obligatorisk radiovalg (2-5), ingen forhåndsvalgt
-     standard. Samme visuelle mønster som stjerne-radioen i hoteller.html. */
-  .stjerne-radio-group{ display:flex; gap:12px; flex-wrap:wrap; }
-  .stjerne-radio-opt{ display:flex; align-items:center; gap:4px; font-size:13px; color:var(--ink-primary); cursor:pointer; width:auto; }
-  .stjerne-radio-opt input{ width:auto; margin:0; }
+  /* v: Hotellegenskaper - salgsfremmende egenskaper, listet horisontalt for
+     å utnytte bredden. Flere kan hukes av. Samme klassenavn/liste som
+     hoteller.html sin Hotellegenskaper-seksjon. */
+  .egenskaper-wrap{ display:flex; flex-wrap:wrap; gap:6px 16px; align-self:start; margin-top:2px; }
+  .egenskaper-opt{ display:flex; align-items:center; gap:4px; font-size:13px; color:var(--ink-primary); cursor:pointer; width:auto; }
+  .egenskaper-opt input{ width:auto; margin:0; }
 
   .list-editor{ display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
   .list-editor-row{ display:flex; gap:6px; align-items:center; }
@@ -490,8 +489,8 @@
   <div class="tab-nav" id="tabNav">
     <button class="tab-btn active" data-tab="grunninfo">Grunninfo</button>
     <button class="tab-btn" data-tab="transport">Flyinformasjon</button>
-    <button class="tab-btn" data-tab="hotell">Hotellopphold</button>
-    <button class="tab-btn" data-tab="pris">Pris</button>
+    <button class="tab-btn" data-tab="hotell">Hotell</button>
+    <button class="tab-btn" data-tab="pris">Priser</button>
     <button class="tab-btn" data-tab="inkludert">Inkludert</button>
     <button class="tab-btn" data-tab="presentasjon">Presentasjon</button>
     <button class="tab-btn" data-tab="forbehold">Forbehold</button>
@@ -515,14 +514,22 @@
              skole_id. Nå er det ETT felt, alltid synlig, samme mønster som
              "Kundenavn" i kalkyle-editor.html - fritekst med skolesøk-
              autocomplete i samme felt når Kundetype=Skole. -->
-        <label for="g-kunde-navn" class="span-full">Kunde</label>
-        <div class="span-full">
+        <!-- v: Kunde og Datoer (tidligere "Fra-/til-dato") komprimert til å
+             stå på samme linje, samme label|boks-mønster som resten av
+             fanen, i stedet for hver sin fullbredde stablede rad. -->
+        <label for="g-kunde-navn">Kunde</label>
+        <div>
           <div style="position:relative;">
             <input type="text" id="g-kunde-navn" placeholder="Kundenavn, eller søk skolenavn…" autocomplete="off" style="width:100%; box-sizing:border-box; padding-right:24px;">
             <button type="button" id="gKundeSkoleClear" title="Fjern kobling til skole" style="display:none; position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none; cursor:pointer; font-size:13px; color:var(--ink-muted); line-height:1; padding:3px 5px;">✕</button>
             <div id="g-skole-dropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:200px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
           </div>
           <div class="field-hint" id="g-skole-link" style="margin-top:3px;"></div>
+        </div>
+        <label class="g-datoer-label">Datoer</label>
+        <div style="display:flex; gap:6px;">
+          <input type="date" id="g-fra" style="flex:1; min-width:128px;">
+          <input type="date" id="g-til" style="flex:1; min-width:128px;">
         </div>
         <label for="g-destinasjon">Destinasjon / reiseidé</label><input type="text" id="g-destinasjon">
         <label for="g-kundetype">Kundetype</label>
@@ -538,11 +545,6 @@
         <!-- v: label endret fra "Avreisested" til "Avreiseflyplass" - id/felt
              (g-avreisested / avreisested) uendret, kun visningstekst. -->
         <label for="g-avreisested">Avreiseflyplass</label><input type="text" id="g-avreisested">
-        <label class="span-full">Fra- / til-dato</label>
-        <div class="span-full" style="display:flex; gap:8px; max-width:340px;">
-          <input type="date" id="g-fra" style="flex:1;">
-          <input type="date" id="g-til" style="flex:1;">
-        </div>
         <label for="g-notater" class="span-full">Interne notater</label><textarea id="g-notater" class="span-full"></textarea>
       </div>
     </div>
@@ -551,33 +553,26 @@
   <!-- ===== Flyinformasjon =====
        v: Erstatter det gamle generiske "Transport"-segmentet (fritt antall
        segmenter med type/retning/fra/til osv.) med en fast struktur: Utreise
-       og Retur (alltid synlige, med én eller flere "Flight N"-oppføringer
-       hver), pluss en valgfri "Intern flight"-seksjon nederst for sjeldne
-       tilfeller (f.eks. en intern flygning mellom to reisemål, som senere kan
-       plasseres mellom ut- og hjemreise i PDF-en). -->
+       og Retur, alltid synlige, med én eller flere "Flight N"-oppføringer
+       hver.
+       v: Utreise/Retur står nå side ved side (samme to-kolonne-mønster som
+       Inkludert/Ikke inkludert) i stedet for stablet under hverandre, og
+       "Intern flight"-konseptet er fjernet - alle flights legges til under
+       enten Utreise eller Retur. Gamle forslag som fra før har en
+       "intern"-kategorisert flight beholder dataen urørt (bare ikke
+       synlig/redigerbar her lenger). -->
   <div class="tab-panel" data-tab="transport">
-    <div class="card">
-      <div class="card-title">Utreise</div>
-      <div class="item-list" id="utreiseList"></div>
-      <button class="add-item-btn" id="addUtreiseBtn">+ Legg til flight</button>
-    </div>
-    <!-- v: Intern flight flyttet mellom Utreise og Retur (var tidligere
-         nederst) - gir mer mening tidsmessig, siden en eventuell intern
-         flygning skjer mellom ut- og hjemreisen. Fortsatt et valgfritt
-         tillegg, skjult til "+ Legg til intern flight" trykkes. -->
-    <div class="card" id="internCard" style="display:none;">
-      <div class="card-title">Intern flight</div>
-      <div class="item-list" id="internList"></div>
-      <button class="add-item-btn" id="addInternBtn">+ Legg til flight</button>
-    </div>
-    <!-- v4: ekstra luft under denne knappen (margin-bottom, i tillegg til
-         add-item-btn sin vanlige margin-top) - den lå for tett inntil
-         Retur-kortet under. -->
-    <button class="add-item-btn" id="addInternSectionBtn" style="margin-bottom:18px;">+ Legg til intern flight</button>
-    <div class="card">
-      <div class="card-title">Retur</div>
-      <div class="item-list" id="returList"></div>
-      <button class="add-item-btn" id="addReturBtn">+ Legg til flight</button>
+    <div class="two-col-row">
+      <div class="card">
+        <div class="card-title">Utreise</div>
+        <div class="item-list" id="utreiseList"></div>
+        <button class="add-item-btn" id="addUtreiseBtn">+ Legg til flight</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Retur</div>
+        <div class="item-list" id="returList"></div>
+        <button class="add-item-btn" id="addReturBtn">+ Legg til flight</button>
+      </div>
     </div>
   </div>
 
@@ -590,7 +585,7 @@
        uten lagrede hotellopphold (samme mønster som Flyinformasjon). -->
   <div class="tab-panel" data-tab="hotell">
     <div class="card">
-      <div class="card-title">Hotellopphold</div>
+      <div class="card-title">Hotell</div>
       <div class="item-list" id="hotellList"></div>
       <button class="add-item-btn" id="addHotellBtn">+ Legg til hotellopphold</button>
     </div>
@@ -599,15 +594,16 @@
   <!-- ===== Pris ===== -->
   <div class="tab-panel" data-tab="pris">
     <div class="card">
+      <!-- v: Kursgrunnlag, Valuta og "Vis som fra-pris" er fjernet - alt her
+           hentes fra kalkylen (se "Oppdater pris fra kalkyle" øverst på
+           siden), og de tre gjenværende tallene får plass på én linje. -->
+      <div class="pr-row3">
+        <div><label for="pr-per-person">Pris per person</label><input type="number" id="pr-per-person" step="1"></div>
+        <div><label for="pr-antall">Antall personer</label><input type="number" id="pr-antall" min="0"></div>
+        <div><label for="pr-enkeltrom">Enkeltromstillegg</label><input type="number" id="pr-enkeltrom" step="1"></div>
+      </div>
       <div class="field-grid">
-        <label for="pr-per-person">Pris per person</label><input type="number" id="pr-per-person" step="1">
-        <label for="pr-antall">Antall personer</label><input type="number" id="pr-antall" min="0">
-        <label for="pr-enkeltrom">Enkeltromstillegg</label><input type="number" id="pr-enkeltrom" step="1">
-        <label for="pr-valuta">Valuta</label><input type="text" id="pr-valuta" value="NOK">
-        <label for="pr-kursgrunnlag">Kursgrunnlag</label><input type="text" id="pr-kursgrunnlag" placeholder="F.eks. EUR-kurs 11,5">
-        <label for="pr-fra">Vis som fra-pris</label>
-        <div><input type="checkbox" id="pr-fra" style="width:auto;"> <span class="field-hint">Presenteres da som «fra kr …,-» i PDF</span></div>
-        <label for="pr-forklaring" class="span-full">Forklaring på prisgrunnlaget</label><textarea id="pr-forklaring" class="span-full" placeholder="Vises i PDF, kort og kundevennlig"></textarea>
+        <label for="pr-forklaring" class="span-full">Kommentar angående priser</label><textarea id="pr-forklaring" class="span-full" placeholder="Vises i PDF, kort og kundevennlig"></textarea>
         <label for="pr-intern" class="span-full">Intern kommentar</label><textarea id="pr-intern" class="span-full" placeholder="Vises IKKE i PDF - kun til internt bruk"></textarea>
       </div>
     </div>
@@ -631,11 +627,6 @@
 
   <!-- ===== Presentasjon ===== -->
   <div class="tab-panel" data-tab="presentasjon">
-    <div class="card">
-      <div class="field-grid">
-        <label for="pres-ingress">Kort ingress</label><textarea id="pres-ingress"></textarea>
-      </div>
-    </div>
     <!-- v: "Om reisen" - side 1 sin egen brødtekst om selve reisen (skiller
          seg fra "Om reisemålet" lenger ned, som handler om destinasjonen
          generelt). Nytt felt (forslag.om_reisen), del av den godkjente
@@ -648,10 +639,11 @@
     </div>
     <div class="card">
       <div class="card-title">Reisemål</div>
-      <!-- v: "Om reisemålet"/"Muligheter og opplevelser" standardiseres via
-           Reisemål-registeret (reisemaal.html) - IKKE fra hotellet. Henter
-           begge feltene inn som fritekstkopier ved valg, samme mønster som
-           «Velg fra hotelloversikt». -->
+      <!-- v: "Om reisemålet" standardiseres via Reisemål-registeret
+           (reisemaal.html) - IKKE fra hotellet. Hentes inn som fritekstkopi
+           ved valg, samme mønster som «Velg fra hotelloversikt». v: feltet
+           "Muligheter og opplevelser" er fjernet - Reisemål-registeret har
+           nå kun ett presentasjonsfelt. -->
       <div style="position:relative; margin-bottom:14px;">
         <button type="button" class="btn-small-add" id="presVelgReisemaalBtn">Velg fra reisemål-oversikt</button>
         <div class="pres-reisemaal-wrap" id="presReisemaalWrap" style="display:none; position:relative; margin-top:8px;">
@@ -660,8 +652,7 @@
         </div>
       </div>
       <div class="field-grid">
-        <label for="pres-reisemal">Om reisemålet</label><textarea id="pres-reisemal"></textarea>
-        <label for="pres-muligheter">Muligheter / opplevelser</label><textarea id="pres-muligheter"></textarea>
+        <label for="pres-reisemal" class="span-full">Om reisemålet</label><textarea id="pres-reisemal" class="span-full"></textarea>
       </div>
     </div>
     <!-- v: Høydepunkter - plukkes fra det valgte reisemålets høydepunktbank
@@ -676,12 +667,6 @@
       <div class="item-list" id="hoydepunktList"></div>
       <button type="button" class="btn-small-add" id="hpNyttBtn">+ Opprett nytt høydepunkt i banken</button>
     </div>
-    <div class="card">
-      <div class="field-grid">
-        <label for="pres-hotell">Om hotellet/hotellene</label><textarea id="pres-hotell"></textarea>
-        <label for="pres-hvorfor">Hvorfor reisen kan passe kunden</label><textarea id="pres-hvorfor"></textarea>
-      </div>
-    </div>
   </div>
 
   <!-- ===== Forbehold ===== -->
@@ -691,7 +676,7 @@
          del av den godkjente 3-siders design v6g. Samme mønster som
          Forbehold under: standardtekst som DB-default, fritt overstyrbar. -->
     <div class="card">
-      <div class="card-title">Veien videre</div>
+      <div class="card-title">Fra forslag til reise</div>
       <div class="field-grid">
         <label for="vv-tekst">Tekst</label><textarea id="vv-tekst" style="min-height:100px;"></textarea>
       </div>
@@ -714,7 +699,10 @@
     </div>
 
     <div class="card">
-      <div class="card-title">Destinasjon</div>
+      <!-- v: kortets synlige tittel er endret til "Reisemål/Høydepunkt" -
+           selve databasekategorien (forslag_bilder.kategori="Destinasjon")
+           er urørt. -->
+      <div class="card-title">Reisemål/Høydepunkt</div>
       <div class="bilde-dropbox" id="bildeBoxDestinasjon"></div>
     </div>
 
@@ -879,7 +867,7 @@ async function loadForslag(id){
   if(!state.hotellopphold.length){
     state.hotellopphold.push({
       id:null, clientKey:newClientKey(),
-      fields:{ sortering:0, fra_dato: f.fra_dato||null, til_dato: f.til_dato||null },
+      fields:{ sortering:0, fra_dato: f.fra_dato||null, til_dato: f.til_dato||null, stjerner:3 },
     });
   }
 
@@ -1046,12 +1034,17 @@ function renderFlySection(kategori, containerId, placeholder){
         <span class="item-title">${flightLabel}</span>
         <button class="item-remove">Fjern</button>
       </div>
-      <div class="field-grid">
-        <label>Avreise</label><input type="datetime-local" class="fl-avreise" value="${f.avreise_tidspunkt ? f.avreise_tidspunkt.slice(0,16) : ""}">
-        <label>Ankomst</label><input type="datetime-local" class="fl-ankomst" value="${f.ankomst_tidspunkt ? f.ankomst_tidspunkt.slice(0,16) : ""}">
-        <label>${flightLabel}</label><input class="fl-rute" value="${escapeHtml(f.beskrivelse)}" placeholder="${placeholder}">
-        <label>Flightnr</label><input class="fl-nr" value="${escapeHtml(f.flightnr)}" placeholder="F.eks. SK1234">
-        <label>Selskap</label><input class="fl-selskap" value="${escapeHtml(f.selskap)}" placeholder="Flyselskap / operatør">
+      <div class="fl-strekning-row">
+        <label>Strekning</label>
+        <input class="fl-rute" value="${escapeHtml(f.beskrivelse)}" placeholder="${placeholder}">
+      </div>
+      <div class="fl-detail-row">
+        <div><label>Avreise</label><input type="datetime-local" class="fl-avreise" value="${f.avreise_tidspunkt ? f.avreise_tidspunkt.slice(0,16) : ""}"></div>
+        <div><label>Ankomst</label><input type="datetime-local" class="fl-ankomst" value="${f.ankomst_tidspunkt ? f.ankomst_tidspunkt.slice(0,16) : ""}"></div>
+      </div>
+      <div class="fl-row2">
+        <div><label>Flyselskap</label><input class="fl-selskap" value="${escapeHtml(f.selskap)}" placeholder="Flyselskap / operatør"></div>
+        <div><label>Flight.nr</label><input class="fl-nr" value="${escapeHtml(f.flightnr)}" placeholder="F.eks. SK1234"></div>
       </div>
     `;
     wrap.appendChild(card);
@@ -1091,71 +1084,50 @@ function addFlight(kategori){
 function renderTransport(){
   renderFlySection("utreise", "utreiseList", "Oslo - Barcelona");
   renderFlySection("retur", "returList", "Barcelona - Oslo");
-  renderFlySection("intern", "internList", "F.eks. New York - Chicago");
-  const internCount = flightsInKategori("intern").length;
-  el("internCard").style.display = internCount > 0 ? "block" : "none";
-  el("addInternSectionBtn").style.display = internCount > 0 ? "none" : "block";
 }
 el("addUtreiseBtn").addEventListener("click", ()=> addFlight("utreise"));
 el("addReturBtn").addEventListener("click", ()=> addFlight("retur"));
-el("addInternBtn").addEventListener("click", ()=> addFlight("intern"));
-el("addInternSectionBtn").addEventListener("click", ()=> addFlight("intern"));
 
 /* ---------- Rendering: Hotellopphold ---------- */
 
-// v: Romtype er ikke lenger ett fritekstfelt - "Standard romtype" er nå ett
-// eget felt (nedtrekksmeny, samme fire typer som i Priskalkulatoren:
-// Enkeltrom/Dobbeltrom/Trippelrom/Firemannsrom), og "Andre romtyper" lar
-// brukeren huke av flere av de samme fire typene (automatisk avhukingen ut
-// fra hva som er priset i kalkylen håndteres av bygHotellopphold() i
-// kalkyle-editor.html ved overføring - se der), pluss en "+ Legg til annen
-// romtype"-knapp for helt egendefinerte typer (fritekst). Lagres i tre nye
-// kolonner (romtype_standard/romtype_andre/romtype_egendefinert) - den gamle
-// "romtype"-kolonnen (fritekst) står urørt og ubrukt i databasen.
+// v: "Standard romtype" - nedtrekksmeny, samme fire typer som i
+// Priskalkulatoren. "Andre romtyper" (avkrysning av flere typer + egen-
+// definerte typer) er FJERNET fra denne fanen (Vidar: "vi går bort fra å
+// fokusere på romtyper i reiseforslag") - romtype_andre/romtype_egendefinert
+// står urørt og ubrukt i databasen, samme konvensjon som andre nedlagte felt.
 const ROOM_TYPE_OPTIONS = ["Enkeltrom","Dobbeltrom","Trippelrom","Firemannsrom"];
 
-function renderRomtypeAndre(container, f){
-  const standard = f.romtype_standard || "Dobbeltrom";
-  const andre = f.romtype_andre || [];
-  const egendefinert = f.romtype_egendefinert || [];
-  const fixedRows = ROOM_TYPE_OPTIONS.filter(rt=>rt!==standard).map(rt=>`
-    <div class="checkbox-row">
-      <input type="checkbox" class="romtype-fast" data-type="${escapeHtml(rt)}" ${andre.includes(rt)?"checked":""} id="rt_${item_uid(container)}_${rt}">
-      <label for="rt_${item_uid(container)}_${rt}">${rt}</label>
-    </div>`).join("");
-  const customRows = egendefinert.map((val)=>`
-    <div class="list-editor-row">
-      <input class="romtype-egendefinert-input" value="${escapeHtml(val)}" placeholder="F.eks. Familierom">
-      <button type="button" class="romtype-egendefinert-fjern" title="Fjern">✕</button>
-    </div>`).join("");
-  container.innerHTML = `${fixedRows}${customRows}<button type="button" class="btn-small-add romtype-legg-til">+ Legg til annen romtype</button>`;
-  container.querySelectorAll(".romtype-fast").forEach(cb=>{
+// v: Måltider er nå en nedtrekksmeny i stedet for fritekst - samme fire
+// alternativer/verdier som matplan-radioknappene i kalkylen
+// (kalkyle-editor.html), slik at forslag_hotellopphold.maltider fortsatt
+// lagres som "Frokost inkludert"/"Halvpensjon inkludert"/"Helpensjon
+// inkludert" (eller null ved "Ingen måltider") - forslag-print.html sin
+// badge-rendering av feltet er dermed uendret.
+const MALTIDER_OPTIONS = [
+  { value:"", label:"Ingen måltider" },
+  { value:"Frokost inkludert", label:"Frokost" },
+  { value:"Halvpensjon inkludert", label:"Halvpensjon" },
+  { value:"Helpensjon inkludert", label:"Helpensjon" },
+];
+
+// v: Hotellegenskaper - samme faste liste/verdier som hoteller.html, huket av
+// per hotellopphold (forhåndsfylt fra hotellet ved "Velg fra hotelloversikt"),
+// vises som badges i reiseforslaget på samme måte som romtype/måltider.
+const HOTELLEGENSKAPER_OPTIONS = ["Nærhet til strand","På stranden","Sentral beliggenhet","Utendørs basseng","Takterrasse","Innendørs basseng","Klimaanlegg","Treningsrom","Spa/velvære"];
+
+function renderHotellegenskaper(container, f){
+  const valgte = f.hotellegenskaper || [];
+  container.innerHTML = HOTELLEGENSKAPER_OPTIONS.map(eg=>`
+    <label class="egenskaper-opt">
+      <input type="checkbox" class="h-egenskap" value="${escapeHtml(eg)}" ${valgte.includes(eg)?"checked":""}>
+      ${escapeHtml(eg)}
+    </label>`).join("");
+  container.querySelectorAll(".h-egenskap").forEach(cb=>{
     cb.addEventListener("change", ()=>{
-      const type = cb.dataset.type;
-      f.romtype_andre = f.romtype_andre || [];
-      if(cb.checked){ if(!f.romtype_andre.includes(type)) f.romtype_andre.push(type); }
-      else { f.romtype_andre = f.romtype_andre.filter(t=>t!==type); }
+      f.hotellegenskaper = Array.from(container.querySelectorAll(".h-egenskap:checked")).map(x=>x.value);
     });
-  });
-  container.querySelectorAll(".romtype-egendefinert-input").forEach((inp, i)=>{
-    inp.addEventListener("change", e=>{ f.romtype_egendefinert[i] = e.target.value; });
-  });
-  container.querySelectorAll(".romtype-egendefinert-fjern").forEach((btn, i)=>{
-    btn.addEventListener("click", ()=>{
-      f.romtype_egendefinert.splice(i,1);
-      renderRomtypeAndre(container, f);
-    });
-  });
-  container.querySelector(".romtype-legg-til").addEventListener("click", ()=>{
-    f.romtype_egendefinert = f.romtype_egendefinert || [];
-    f.romtype_egendefinert.push("");
-    renderRomtypeAndre(container, f);
   });
 }
-// Enkel, stabil unik streng per container-element (til checkbox-id/label-for) -
-// bruker en løpende teller lagret direkte på DOM-noden.
-let _romtypeUidCounter = 0;
-function item_uid(el){ if(!el.dataset.uid) el.dataset.uid = String(_romtypeUidCounter++); return el.dataset.uid; }
 
 // v4: maks antall hotellopphold - Vidar ba om en øvre grense "om vi trenger
 // en", satt til 9 (i praksis mer enn nok for enhver reise).
@@ -1185,49 +1157,37 @@ function renderHotell(){
         </div>
       </div>
       <div class="field-grid">
-        <label>Hotellnavn</label><input class="h-navn" value="${escapeHtml(f.hotellnavn)}">
+        <label>Hotellnavn</label><input class="h-navn" style="max-width:75%;" value="${escapeHtml(f.hotellnavn)}">
         <label>Antall stjerner</label>
-        <div class="stjerne-radio-group">
-          ${[2,3,4,5].map(n=>`
-            <label class="stjerne-radio-opt">
-              <input type="radio" class="h-stjerner" name="h-stjerner-${item_uid(card)}" value="${n}" ${f.stjerner===n?"checked":""}>
-              ${"★".repeat(n)}
-            </label>`).join("")}
-        </div>
-        <label>Sted</label><input class="h-sted" value="${escapeHtml(f.sted)}" placeholder="F.eks. Split">
-        <label>Antall netter</label><input type="number" class="h-netter" value="${f.netter??""}" min="0">
-        <label class="span-full">Fra- / til-dato</label>
-        <div class="span-full" style="display:flex; gap:8px;">
-          <input type="date" class="h-fra" value="${f.fra_dato||""}" style="flex:1;">
-          <input type="date" class="h-til" value="${f.til_dato||""}" style="flex:1;">
+        <select class="h-stjerner-select" style="max-width:110px;">${[2,3,4,5].map(n=>`<option value="${n}" ${Number(f.stjerner||3)===n?"selected":""}>${"★".repeat(n)}</option>`).join("")}</select>
+        <label>Reisemål</label><input class="h-sted" value="${escapeHtml(f.sted)}" placeholder="F.eks. Kroatia-kysten">
+        <label>Land</label><input class="h-land" value="${escapeHtml(f.land)}" placeholder="F.eks. Kroatia">
+        <label>Antall netter</label><input type="number" class="h-netter" style="max-width:110px;" value="${f.netter??""}" min="0">
+        <label>Datoer</label>
+        <div style="display:flex; gap:6px;">
+          <input type="date" class="h-fra" value="${f.fra_dato||""}" style="flex:1; min-width:128px;">
+          <input type="date" class="h-til" value="${f.til_dato||""}" style="flex:1; min-width:128px;">
         </div>
         <label>Standard romtype</label>
-        <select class="h-standard-romtype">${ROOM_TYPE_OPTIONS.map(rt=>`<option value="${rt}" ${rt===(f.romtype_standard||"Dobbeltrom")?"selected":""}>${rt}</option>`).join("")}</select>
-        <label>Måltider</label><input class="h-maltider" value="${escapeHtml(f.maltider)}" placeholder="F.eks. Frokost inkludert">
-        <label class="span-full">Andre romtyper</label>
-        <div class="romtype-andre-wrap span-full"></div>
+        <select class="h-standard-romtype" style="max-width:50%;">${ROOM_TYPE_OPTIONS.map(rt=>`<option value="${rt}" ${rt===(f.romtype_standard||"Dobbeltrom")?"selected":""}>${rt}</option>`).join("")}</select>
+        <label>Måltider</label>
+        <select class="h-maltider" style="max-width:50%;">${MALTIDER_OPTIONS.map(m=>`<option value="${escapeHtml(m.value)}" ${(f.maltider||"")===m.value?"selected":""}>${m.label}</option>`).join("")}</select>
+        <label class="span-full">Hotellegenskaper</label>
+        <div class="egenskaper-wrap span-full h-egenskaper-wrap"></div>
         <label class="span-full">Kort beskrivelse</label><textarea class="h-beskrivelse span-full">${escapeHtml(f.beskrivelse)}</textarea>
-        <label>Intern prisinfo</label><input class="h-prisinfo" value="${escapeHtml(f.prisinfo)}">
-        <label>Tilgjengelighet</label><input class="h-tilgjengelighet" value="${escapeHtml(f.tilgjengelighet_merknad)}" placeholder="F.eks. Ikke reservert - sjekkes ved bestilling">
+        <label class="span-full">Intern kommentar</label><textarea class="h-prisinfo span-full">${escapeHtml(f.prisinfo)}</textarea>
       </div>
     `;
     wrap.appendChild(card);
     const bind = (cls, field)=> card.querySelector(cls).addEventListener("change", e=>{ f[field] = e.target.value || null; });
-    bind(".h-sted","sted"); bind(".h-fra","fra_dato"); bind(".h-til","til_dato");
+    bind(".h-sted","sted"); bind(".h-land","land"); bind(".h-fra","fra_dato"); bind(".h-til","til_dato");
     card.querySelector(".h-netter").addEventListener("change", e=>{ f.netter = numOrNull(e.target.value); });
     bind(".h-navn","hotellnavn");
     bind(".h-maltider","maltider"); bind(".h-beskrivelse","beskrivelse"); bind(".h-prisinfo","prisinfo");
-    bind(".h-tilgjengelighet","tilgjengelighet_merknad");
-    card.querySelectorAll(".h-stjerner").forEach(radio=>{
-      radio.addEventListener("change", e=>{ f.stjerner = Number(e.target.value); });
-    });
-    const romtypeWrap = card.querySelector(".romtype-andre-wrap");
-    renderRomtypeAndre(romtypeWrap, f);
+    card.querySelector(".h-stjerner-select").addEventListener("change", e=>{ f.stjerner = Number(e.target.value); });
+    renderHotellegenskaper(card.querySelector(".h-egenskaper-wrap"), f);
     card.querySelector(".h-standard-romtype").addEventListener("change", e=>{
-      const nyStandard = e.target.value;
-      f.romtype_andre = (f.romtype_andre||[]).filter(t=>t!==nyStandard);
-      f.romtype_standard = nyStandard;
-      renderRomtypeAndre(romtypeWrap, f);
+      f.romtype_standard = e.target.value;
     });
     card.querySelector(".item-remove").addEventListener("click", ()=>{
       const removedKey = item.clientKey;
@@ -1262,7 +1222,7 @@ el("addHotellBtn").addEventListener("click", ()=>{
   // Hotell 1 - et fornuftig utgangspunkt, fritt redigerbart.
   state.hotellopphold.push({
     id:null, clientKey:newClientKey(),
-    fields:{ sortering: state.hotellopphold.length, fra_dato: state.forslag.fra_dato||null, til_dato: state.forslag.til_dato||null },
+    fields:{ sortering: state.hotellopphold.length, fra_dato: state.forslag.fra_dato||null, til_dato: state.forslag.til_dato||null, stjerner:3 },
   });
   renderHotell();
   renderBilder(); // v: ny hotell-underboks i Bilder-fanen med en gang
@@ -1313,15 +1273,20 @@ function velgHotellFraOversiktInn(item, id){
   const h = hotellOversikt.find(x=>x.id===id);
   if(!h) return;
   const f = item.fields;
-  const sted = [h.by, h.land].filter(Boolean).join(", ");
+  // v: "Sted" er erstattet med "Reisemål" - hentes fra hotellets koblede
+  // reisemål (hoteller.reisemaal_id), ikke fra by/land-feltene lenger.
+  // Fritekstkopi, samme mønster som resten av "Velg fra hotelloversikt".
+  const reisemaal = h.reisemaal_id ? reisemaalOversikt.find(r=>r.id===h.reisemaal_id) : null;
   f.hotellnavn = h.navn || null;
-  f.sted = sted || null;
+  f.sted = (reisemaal && reisemaal.navn) || null;
+  f.land = h.land || null;
   f.beskrivelse = h.beskrivelse || null;
   f.hotell_id = h.id;
+  f.hotellegenskaper = (h.hotellegenskaper && h.hotellegenskaper.length) ? [...h.hotellegenskaper] : [];
   // v: Antall stjerner følger med fra hotelloversikten hvis satt der, ellers
-  // står feltet blankt og klart til å velges manuelt (jf. Vidar: "er det
-  // ikke lagt inn antall stjerner på hotellet står den blank").
-  f.stjerner = h.stjerner || null;
+  // beholdes standardvalget (3 stjerner) i stedet for å stå blankt (endret
+  // etter ønske om at feltet alltid skal ha en verdi).
+  f.stjerner = h.stjerner || f.stjerner || 3;
   // Bytter man hotell i en blokk som allerede har bilder fra et tidligere
   // valgt hotell, erstattes disse også - de hørte til det GAMLE hotellet og
   // ville ellers vist feil bilder under det nye hotellnavnet. Bilder lastet
@@ -1348,11 +1313,8 @@ function velgHotellFraOversiktInn(item, id){
 function renderPris(){
   const f = state.forslag;
   el("pr-per-person").value = f.pris_per_person ?? "";
-  el("pr-fra").checked = !!f.er_fra_pris;
   el("pr-antall").value = f.pris_antall_personer ?? "";
   el("pr-enkeltrom").value = f.enkeltromstillegg ?? "";
-  el("pr-valuta").value = f.valuta || "NOK";
-  el("pr-kursgrunnlag").value = f.kursgrunnlag || "";
   el("pr-forklaring").value = f.prisgrunnlag_forklaring || "";
   el("pr-intern").value = f.pris_intern_kommentar || "";
 }
@@ -1417,12 +1379,8 @@ el("addIkkeInkludertBtn").addEventListener("click", ()=>{
 
 function renderPresentasjon(){
   const f = state.forslag;
-  el("pres-ingress").value = f.ingress || "";
   el("pres-omreisen").value = f.om_reisen || "";
   el("pres-reisemal").value = f.om_reisemalet || "";
-  el("pres-hotell").value = f.om_hotellet || "";
-  el("pres-muligheter").value = f.muligheter_opplevelser || "";
-  el("pres-hvorfor").value = f.hvorfor_passer || "";
   renderHoydepunkter();
 }
 
@@ -1472,7 +1430,6 @@ function velgReisemaalInn(id){
   if(f.reisemaal_id !== r.id) state.hoydepunkter = [];
   f.reisemaal_id = r.id;
   f.om_reisemalet = r.om_reisemaalet || "";
-  f.muligheter_opplevelser = r.muligheter_opplevelser || "";
   renderPresentasjon();
   el("presReisemaalWrap").style.display = "none";
 }
@@ -1891,14 +1848,16 @@ function renderBilder(){
   const hotellWrap = el("bildeHotellSubboxes");
   hotellWrap.innerHTML = "";
   if(!state.hotellopphold.length){
-    hotellWrap.innerHTML = '<div class="field-hint">Ingen hotellopphold lagt til i Hotellopphold-fanen ennå.</div>';
+    hotellWrap.innerHTML = '<div class="field-hint">Ingen hotellopphold lagt til i Hotell-fanen ennå.</div>';
   } else {
     state.hotellopphold.forEach((h, idx)=>{
       const sub = document.createElement("div");
       sub.className = "bilde-subbox";
       const title = document.createElement("div");
       title.className = "bilde-subbox-title";
-      title.textContent = `Hotell ${idx+1}`;
+      // v: viser hotellnavnet (f.eks. "Art Place Hotel") i stedet for
+      // generisk "Hotell N" når det er satt.
+      title.textContent = h.fields.hotellnavn || `Hotell ${idx+1}`;
       sub.appendChild(title);
       const box = document.createElement("div");
       box.className = "bilde-dropbox";
@@ -1971,22 +1930,15 @@ function collectForslagFields(){
     kalkyle_id: f.kalkyle_id || null,
     kalkyle_sist_endret_ved_kobling: f.kalkyle_sist_endret_ved_kobling || null,
     pris_per_person: f.pris_per_person ?? null,
-    er_fra_pris: !!f.er_fra_pris,
     pris_antall_personer: f.pris_antall_personer ?? null,
-    valuta: f.valuta || "NOK",
-    kursgrunnlag: f.kursgrunnlag || null,
     enkeltromstillegg: f.enkeltromstillegg ?? null,
     prisgrunnlag_forklaring: f.prisgrunnlag_forklaring || null,
     pris_intern_kommentar: f.pris_intern_kommentar || null,
     inkludert: f.inkludert || [],
     ikke_inkludert: f.ikke_inkludert || [],
-    ingress: f.ingress || null,
     om_reisen: f.om_reisen || null,
     reisemaal_id: f.reisemaal_id || null,
     om_reisemalet: f.om_reisemalet || null,
-    om_hotellet: f.om_hotellet || null,
-    muligheter_opplevelser: f.muligheter_opplevelser || null,
-    hvorfor_passer: f.hvorfor_passer || null,
     forbehold_tekst: f.forbehold_tekst || "",
     veien_videre_tekst: f.veien_videre_tekst || "",
     hovedbilde_url: f.hovedbilde_url || null,
@@ -2012,20 +1964,13 @@ function collectFieldsFromForm(){
   if(f.kundetype !== "Skole") f.skole_id = null;
 
   f.pris_per_person = numOrNull(el("pr-per-person").value);
-  f.er_fra_pris = el("pr-fra").checked;
   f.pris_antall_personer = numOrNull(el("pr-antall").value);
   f.enkeltromstillegg = numOrNull(el("pr-enkeltrom").value);
-  f.valuta = el("pr-valuta").value || "NOK";
-  f.kursgrunnlag = el("pr-kursgrunnlag").value;
   f.prisgrunnlag_forklaring = el("pr-forklaring").value;
   f.pris_intern_kommentar = el("pr-intern").value;
 
-  f.ingress = el("pres-ingress").value;
   f.om_reisen = el("pres-omreisen").value;
   f.om_reisemalet = el("pres-reisemal").value;
-  f.om_hotellet = el("pres-hotell").value;
-  f.muligheter_opplevelser = el("pres-muligheter").value;
-  f.hvorfor_passer = el("pres-hvorfor").value;
 
   f.veien_videre_tekst = el("vv-tekst").value;
   f.forbehold_tekst = el("fb-tekst").value;

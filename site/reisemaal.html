@@ -509,7 +509,6 @@ function renderProfile(id){
       <div class="upload-hint">Standardiserte tekster som hentes inn ved «Velg fra reisemål-oversikt» i Forslag - fritt redigerbare per forslag etterpå.</div>
       <div class="fact-grid">
         <label>Om reisemålet</label><textarea id="f-om-reisemaalet" class="tall">${escapeHtml(r.om_reisemaalet)}</textarea>
-        <label>Muligheter og opplevelser</label><textarea id="f-muligheter" class="tall">${escapeHtml(r.muligheter_opplevelser)}</textarea>
       </div>
     </div>
 
@@ -549,7 +548,7 @@ function renderProfile(id){
   };
   bind("f-navn","navn"); bind("f-by","by"); bind("f-land","land");
   bind("f-valuta","valuta"); bind("f-folketall","folketall");
-  bind("f-om-reisemaalet","om_reisemaalet"); bind("f-muligheter","muligheter_opplevelser");
+  bind("f-om-reisemaalet","om_reisemaalet");
 
   document.getElementById("f-flagg").addEventListener("change", async (e)=>{
     const kode = e.target.value;
