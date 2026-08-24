@@ -283,37 +283,60 @@
   }
   .span-full{ grid-column:1 / -1; }
 
-  /* v11: Priser i full bredde, kolonnene byttet fra forrige runde -
-     Inkludert/Ikke inkludert står nå til HØYRE i en FAST bredde (407px,
-     samme bredde boksene allerede hadde), tallfelt/kommentarfelt står til
-     VENSTRE og fyller resten av den nå fulle skjermbredden (flex:1). */
+  /* v13: Hotell i full skjermbredde - siste fanen som fortsatt var begrenset
+     til standard-bredden. Selve innholdet (hotellkortene) er uendret, kun
+     ytre panel-bredden. */
+  .tab-panel[data-tab="hotell"]{ max-width:none; }
+
+  /* v13: Priser i TRE kolonner i stedet for to - Inkludert og Ikke inkludert
+     har hver sin kolonne til høyre (i stedet for stablet i én felles
+     kolonne), Priser-kortet + kommentarkortene under står fortsatt samlet i
+     venstre kolonne. Alle tre kolonnene er nå like brede (flex:1) i stedet
+     for at høyrekolonnen(e) hadde en fast pikselbredde - med tre kolonner
+     ga en fast bredde per kolonne enten for smal venstrekolonne eller
+     unødvendig brede høyrekolonner ved vanlig skjermbredde. */
   .tab-panel[data-tab="pris"]{ max-width:none; }
   .pris-row{ display:flex; gap:18px; align-items:flex-start; }
   .pris-col-felt{ flex:1; min-width:0; }
   .pris-col-felt .card:last-child{ margin-bottom:0; }
-  .pris-col-inkludert{ flex:0 0 407px; min-width:0; }
-  .pris-col-inkludert .card:last-child{ margin-bottom:0; }
+  .pris-col-inkludert{ flex:1; min-width:0; }
+  .pris-col-ikke-inkludert{ flex:1; min-width:0; }
+  /* v13-RETTELSE: venstre kolonne er nå smal igjen (~340px innhold, samme
+     årsak som v11-rettelsen på Grunninfo - tre like brede kolonner deler nå
+     bredden som tallfelt-kortet før hadde for seg selv), og den delte
+     120px/1fr/120px/1fr-malen (fra Hotell/Priser-regelen over) fikk ikke
+     plass til "Antall personer"-feltet, som rant ut til høyre for kortet.
+     Egen, smalere mal (120px 1fr, ett felt per rad) scopet til akkurat
+     denne kolonnen - må ha høyere spesifisitet enn fellesregelen over for å
+     faktisk slå igjennom (.tab-panel[attr] + to klasser > .tab-panel[attr] +
+     én klasse). */
+  .tab-panel[data-tab="pris"] .pris-col-felt .field-grid{
+    grid-template-columns:120px 1fr;
+  }
 
   /* v11: Grunninfo (slått sammen med Flyinformasjon) i full bredde, tre
      kolonner. Venstre kolonne (feltene) er nå EN smalere .field-grid-mal
-     (120px 1fr - ett felt-par per rad, "boksene under hverandre") i stedet
-     for delt med Hotell/Priser sin 4-kolonners mal over. Utreise/Retur
-     beholder sin faste 407px-bredde fra tidligere (samme teknikk som
+     i stedet for delt med Hotell/Priser sin 4-kolonners mal over. Utreise/
+     Retur beholder sin faste 407px-bredde fra tidligere (samme teknikk som
      Priser sin høyrekolonne over). */
   .tab-panel[data-tab="grunninfo"]{ max-width:none; }
-  /* v11-RETTELSE: venstre kolonne ble for smal (334px ved 1440px
-     skjermbredde, siden Utreise/Retur til sammen tar 2×407px+luft) til å
-     ha plass til en 120px-labelkolonne OG en 1fr-feltkolonne side om side -
-     Datoer-paret (to datofelt á min. 128px) fikk rett og slett ikke plass
-     og overlappet Utreise-kortet. Løst med ÉN kolonne (grid-template-
-     columns:1fr) i stedet for 120px 1fr - da havner hvert label OVER sitt
-     felt (samme grid, bare uten en egen labelkolonne), som uansett var
-     poenget med "alle boksene under hverandre". */
+  /* v13: to felt (i stedet for ett) per rad der det er naturlig - Reisemål+
+     Avreiseflyplass, Kontaktperson+Kundetype, Antall personer+Reiserådgiver.
+     Bygget med et wrapper-div per felt (.gi-field, label over felt) i stedet
+     for den gamle flate label/input-vekslende .field-grid-strukturen, som
+     ikke støtter blandet full bredde/halv bredde på samme rad. Felt som
+     fortsatt skal stå alene på egen rad (Kunde, Datoer, Interne notater)
+     får klassen .span-full, samme mønster som ellers i appen.
+     v11-RETTELSE (fortsatt gyldig): venstre kolonne er kun ~334px ved
+     1440px skjermbredde (Utreise/Retur tar til sammen 2×407px+luft) - hver
+     av de to feltkolonnene under blir dermed ganske smale (~160px), men det
+     er nok til korte tekst-/tall-/nedtrekksfelt. */
   .tab-panel[data-tab="grunninfo"] .field-grid{
-    grid-template-columns:1fr;
-    row-gap:14px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
   }
-  .tab-panel[data-tab="grunninfo"] .field-grid label{ padding-top:0; margin-bottom:-6px; }
+  .tab-panel[data-tab="grunninfo"] .field-grid label{ display:block; padding-top:0; margin-bottom:4px; }
   .grunninfo-row{ display:flex; gap:18px; align-items:flex-start; }
   .grunninfo-col-felt{ flex:1; min-width:0; }
   .grunninfo-col-fly{ flex:0 0 407px; min-width:0; }
@@ -595,7 +618,7 @@
   </div>
 
   <div class="tab-nav" id="tabNav">
-    <button class="tab-btn active" data-tab="grunninfo">Grunninfo</button>
+    <button class="tab-btn active" data-tab="grunninfo">Reiseinfo</button>
     <button class="tab-btn" data-tab="hotell">Hotell</button>
     <button class="tab-btn" data-tab="pris">Priser</button>
     <button class="tab-btn" data-tab="presentasjon">Presentasjon</button>
@@ -604,16 +627,20 @@
 
   <!-- ===== Grunninfo (slått sammen med Flyinformasjon) =====
        v11: Grunninfo og Flyinformasjon er slått sammen til én fane, i tre
-       kolonner over full skjermbredde. Venstre kolonne: alle Grunninfo-
-       feltene stablet ETT PER LINJE (egen, smalere .field-grid-mal, se CSS)
-       i rekkefølgen Kunde/Reisemål/Datoer/Antall personer/Avreiseflyplass/
-       Kontaktperson/Kundetype/Reiserådgiver/Interne notater. Midt- og høyre
-       kolonne: Utreise/Retur, flyttet hit fra den nå fjernede Flyinformasjon-
-       fanen, MED SAMME bredde de allerede hadde (fast 407px per kolonne,
+       kolonner over full skjermbredde. Midt- og høyre kolonne: Utreise/
+       Retur, flyttet hit fra den nå fjernede Flyinformasjon-fanen, MED
+       SAMME bredde de allerede hadde (fast 407px per kolonne,
        .grunninfo-col-fly) - kun venstre kolonne vokser med skjermbredden.
        "Destinasjon / reiseidé" er omdøpt til "Reisemål" og "Ansvarlig hos
        Caminante" til "Reiserådgiver" (kun visningstekst - id/felt/
-       datamodell er uendret begge steder, se merknad ved feltene). -->
+       datamodell er uendret begge steder, se merknad ved feltene).
+       v13: venstre kolonne har nå to felt per rad der det er naturlig
+       (Reisemål+Avreiseflyplass, Kontaktperson+Kundetype, Antall
+       personer+Reiserådgiver står parvis på samme linje), i stedet for ett
+       felt per rad. Rekkefølgen er derfor endret fra forrige runde - Kunde,
+       Datoer og Interne notater står fortsatt alene på egen rad, de seks
+       andre feltene er omordnet for å få de tre ønskede parene på samme
+       linje (Avreiseflyplass og Reiserådgiver er flyttet tidligere enn før). -->
   <div class="tab-panel active" data-tab="grunninfo">
     <div class="grunninfo-row">
       <div class="grunninfo-col-felt">
@@ -630,41 +657,68 @@
                  skole_id. Nå er det ETT felt, alltid synlig, samme mønster som
                  "Kundenavn" i kalkyle-editor.html - fritekst med skolesøk-
                  autocomplete i samme felt når Kundetype=Skole. -->
-            <label for="g-kunde-navn">Kunde</label>
-            <div>
-              <div style="position:relative;">
-                <input type="text" id="g-kunde-navn" placeholder="Kundenavn, eller søk skolenavn…" autocomplete="off" style="width:100%; box-sizing:border-box; padding-right:24px;">
-                <button type="button" id="gKundeSkoleClear" title="Fjern kobling til skole" style="display:none; position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none; cursor:pointer; font-size:13px; color:var(--ink-muted); line-height:1; padding:3px 5px;">✕</button>
-                <div id="g-skole-dropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:200px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
+            <div class="gi-field span-full">
+              <label for="g-kunde-navn">Kunde</label>
+              <div>
+                <div style="position:relative;">
+                  <input type="text" id="g-kunde-navn" placeholder="Kundenavn, eller søk skolenavn…" autocomplete="off" style="width:100%; box-sizing:border-box; padding-right:24px;">
+                  <button type="button" id="gKundeSkoleClear" title="Fjern kobling til skole" style="display:none; position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none; cursor:pointer; font-size:13px; color:var(--ink-muted); line-height:1; padding:3px 5px;">✕</button>
+                  <div id="g-skole-dropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:200px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
+                </div>
+                <div class="field-hint" id="g-skole-link" style="margin-top:3px;"></div>
               </div>
-              <div class="field-hint" id="g-skole-link" style="margin-top:3px;"></div>
             </div>
             <!-- v11: "Destinasjon / reiseidé" er omdøpt til "Reisemål" - id
-                 (g-destinasjon) og databasefeltet (destinasjon) er uendret. -->
-            <label for="g-destinasjon">Reisemål</label><input type="text" id="g-destinasjon">
-            <label class="g-datoer-label">Datoer</label>
-            <div style="display:flex; gap:6px;">
-              <input type="date" id="g-fra" style="flex:1; min-width:128px;">
-              <input type="date" id="g-til" style="flex:1; min-width:128px;">
+                 (g-destinasjon) og databasefeltet (destinasjon) er uendret.
+                 v13: står nå på samme linje som Avreiseflyplass. -->
+            <div class="gi-field">
+              <label for="g-destinasjon">Reisemål</label>
+              <input type="text" id="g-destinasjon">
             </div>
-            <!-- v11: "Antall reisende" er omdøpt til "Antall personer" - id
-                 (g-antall) er uendret. -->
-            <label for="g-antall">Antall personer</label><input type="number" id="g-antall" min="0">
             <!-- v: label endret fra "Avreisested" til "Avreiseflyplass" - id/felt
                  (g-avreisested / avreisested) uendret, kun visningstekst. -->
-            <label for="g-avreisested">Avreiseflyplass</label><input type="text" id="g-avreisested">
-            <label for="g-kontaktperson">Kontaktperson</label><input type="text" id="g-kontaktperson">
-            <label for="g-kundetype">Kundetype</label>
-            <select id="g-kundetype">
-              <option value="Firma">Firma</option>
-              <option value="Skole">Skole</option>
-              <option value="Forening">Forening</option>
-              <option value="Annen gruppe">Annen gruppe</option>
-            </select>
+            <div class="gi-field">
+              <label for="g-avreisested">Avreiseflyplass</label>
+              <input type="text" id="g-avreisested">
+            </div>
+            <div class="gi-field span-full">
+              <label class="g-datoer-label">Datoer</label>
+              <div style="display:flex; gap:6px;">
+                <input type="date" id="g-fra" style="flex:1; min-width:128px;">
+                <input type="date" id="g-til" style="flex:1; min-width:128px;">
+              </div>
+            </div>
+            <!-- v11: "Antall reisende" er omdøpt til "Antall personer" - id
+                 (g-antall) er uendret. v13: står nå på samme linje som
+                 Reiserådgiver. -->
+            <div class="gi-field">
+              <label for="g-antall">Antall personer</label>
+              <input type="number" id="g-antall" min="0">
+            </div>
             <!-- v11: "Ansvarlig hos Caminante" er omdøpt til "Reiserådgiver" -
                  id (g-ansvarlig) og databasefeltet (ansvarlig) er uendret. -->
-            <label for="g-ansvarlig">Reiserådgiver</label><select id="g-ansvarlig"></select>
-            <label for="g-notater" class="span-full">Interne notater</label><textarea id="g-notater" class="span-full"></textarea>
+            <div class="gi-field">
+              <label for="g-ansvarlig">Reiserådgiver</label>
+              <select id="g-ansvarlig"></select>
+            </div>
+            <!-- v13: Kontaktperson og Kundetype står nå på samme linje. -->
+            <div class="gi-field">
+              <label for="g-kontaktperson">Kontaktperson</label>
+              <input type="text" id="g-kontaktperson">
+            </div>
+            <div class="gi-field">
+              <label for="g-kundetype">Kundetype</label>
+              <select id="g-kundetype">
+                <option value="Firma">Firma</option>
+                <option value="Skole">Skole</option>
+                <option value="Forening">Forening</option>
+                <option value="Annen gruppe">Annen gruppe</option>
+              </select>
+            </div>
+            <div class="gi-field span-full">
+              <label for="g-notater">Interne notater</label>
+              <textarea id="g-notater"></textarea>
+            </div>
           </div>
         </div>
       </div>
@@ -708,14 +762,10 @@
   </div>
 
   <!-- ===== Pris ===== -->
-  <!-- v11: kolonnene byttet - Inkludert/Ikke inkludert står nå til HØYRE, i
-       en fast bredde (samme 407px de allerede hadde), tallfeltene/
-       kommentarfeltene står til VENSTRE og fyller resten av (nå fulle)
-       skjermbredden. Ny "Priser"-overskrift i tallfelt-kortet (blå
-       .card-title, samme stil som resten av appen). Den smalere
-       .pris-col-feltgrid-malen fra forrige runde er fjernet igjen - venstre
-       kolonne er nå bred nok til at tallfeltenes opprinnelige
-       120px/1fr/120px/1fr-mal (delt med Grunninfo/Hotell) passer fint. -->
+  <!-- v13: tre kolonner i stedet for to - Inkludert og Ikke inkludert har nå
+       hver sin kolonne (like brede) til høyre, i stedet for stablet i én
+       felles høyrekolonne. Priser-kortet + kommentarkortene under står
+       samlet i venstre kolonne, uendret fra forrige runde. -->
   <div class="tab-panel" data-tab="pris">
     <div class="pris-row">
       <div class="pris-col-felt">
@@ -740,6 +790,8 @@
           <div class="list-editor" id="inkludertList"></div>
           <button class="add-item-btn" id="addInkludertBtn">+ Legg til punkt</button>
         </div>
+      </div>
+      <div class="pris-col-ikke-inkludert">
         <div class="card">
           <div class="card-title">Ikke inkludert</div>
           <div class="list-editor" id="ikkeInkludertList"></div>
@@ -837,15 +889,15 @@
   <div class="tab-panel" data-tab="bilder">
     <div class="card">
       <div class="card-title">Hovedbilde</div>
-      <!-- v11: samme prikkete dropbox-stil (og dra-og-slipp) som de andre
-           bildeboksene, i stedet for et rått, stilløst filvelger-felt. Selve
-           datamodellen (forslag.hovedbilde_url, ETT bilde, ingen kategori-
-           kobling i forslag_bilder) er uendret - kun visning/opplasting er
-           lagt om til dropbox-mønsteret, se handleHovedbildeFile(). -->
-      <div class="bilde-dropbox" id="hovedbildeDropbox">
-        <div id="hovedbildePreview" style="margin-bottom:8px;"></div>
-        <div class="bilde-dropbox-hint">Dra bilde hit, eller <label class="bilde-dropbox-browse">velg fil<input type="file" id="hovedbildeFile" accept="image/*"></label></div>
-      </div>
+      <!-- v13: Hovedbilde er nå bygget nøyaktig som de andre bildeboksene
+           (Hotell/Reisemål/Avslutningsbilde) - egen kategori ("Hovedbilde")
+           i forslag_bilder via samme buildBildeDropbox()-mekanisme, i stedet
+           for den forrige særløsningen (ett felt direkte på forslag-raden,
+           kun stylet til å SE ut som en dropbox). Se renderBilder() for
+           kobling til kategorien og loadForslag() for bakoverkompatibilitet
+           mot eldre forslag som har hovedbilde_url satt uten en tilhørende
+           forslag_bilder-rad. -->
+      <div class="bilde-dropbox" id="bildeBoxHovedbilde"></div>
     </div>
 
     <div class="card">
@@ -1019,6 +1071,21 @@ async function loadForslag(id){
       hotellopphold_client_key: (b.hotellopphold_id && hotellIdSet.has(b.hotellopphold_id)) ? b.hotellopphold_id : null,
     };
   });
+
+  // v13: bakoverkompatibilitet - eldre forslag har hovedbilde_url satt
+  // direkte på forslag-raden (den gamle mekanismen), men ingen
+  // forslag_bilder-rad med kategori="Hovedbilde" (det nye, ensartede
+  // dropbox-mønsteret skrev aldri dit før nå). Syntetiserer én virtuell rad
+  // her (id:null, migreres inn i forslag_bilder ved neste lagring) slik at
+  // et eksisterende hovedbilde ikke "forsvinner" fra editoren første gang
+  // forslaget åpnes etter denne runden.
+  if(f.hovedbilde_url && !state.bilder.some(b=> b.fields.kategori==="Hovedbilde")){
+    state.bilder.push({
+      id:null, clientKey:newClientKey(),
+      fields:{ kategori:"Hovedbilde", bilde_url:f.hovedbilde_url, alt_tekst:null, sortering:0 },
+      hotellopphold_client_key:null,
+    });
+  }
 
   state.hoydepunkter = (hpRows||[]).map(h=>({ id:h.id, clientKey:h.id, fields: stripMeta(h) }));
 
@@ -1792,42 +1859,6 @@ async function uploadImageFile(file){
   return data.publicUrl;
 }
 
-function renderHovedbilde(){
-  const wrap = el("hovedbildePreview");
-  const harBilde = !!state.forslag.hovedbilde_url;
-  wrap.innerHTML = harBilde
-    ? `<img src="${escapeHtml(state.forslag.hovedbilde_url)}" style="max-width:220px; border-radius:8px; display:block;">`
-    : '';
-  // v11: skjuler "Dra bilde hit..."-hintet når et bilde allerede er satt,
-  // samme oppførsel som de andre dropboksene når maks er nådd (her: maks 1).
-  const hint = document.querySelector("#hovedbildeDropbox .bilde-dropbox-hint");
-  if(hint) hint.style.display = harBilde ? "none" : "";
-}
-// v11: delt opplastingslogikk for Hovedbilde - brukt av både fil-input-
-// endring og drag-and-slipp under, i stedet for duplisert kode. Datamodellen
-// (forslag.hovedbilde_url) er uendret fra før dropbox-stilen ble lagt til.
-async function handleHovedbildeFile(file){
-  if(!file) return;
-  try{
-    el("saveStatus").textContent = "Laster opp bilde…";
-    state.forslag.hovedbilde_url = await uploadImageFile(file);
-    renderHovedbilde();
-    el("saveStatus").textContent = "Bilde lastet opp – husk å lagre.";
-  } catch(err){ alert("Kunne ikke laste opp: " + err.message); }
-}
-el("hovedbildeFile").addEventListener("change", async (e)=>{
-  await handleHovedbildeFile(e.target.files[0]);
-  e.target.value = "";
-});
-const hovedbildeDropboxEl = el("hovedbildeDropbox");
-hovedbildeDropboxEl.addEventListener("dragover", e=>{ e.preventDefault(); hovedbildeDropboxEl.classList.add("drag-over"); });
-hovedbildeDropboxEl.addEventListener("dragleave", ()=> hovedbildeDropboxEl.classList.remove("drag-over"));
-hovedbildeDropboxEl.addEventListener("drop", e=>{
-  e.preventDefault();
-  hovedbildeDropboxEl.classList.remove("drag-over");
-  handleHovedbildeFile(e.dataTransfer.files[0]);
-});
-
 /* v: Bilder-fanen bygget om fra "last opp, velg kategori i nedtrekk" til én
    boks per kategori/underkategori man kan dra bilder rett inn i (native
    HTML5 drag-and-drop) eller klikke "velg fil" på. Hvilken boks bildet
@@ -2053,7 +2084,15 @@ const DESTINASJON_BILDER_MAKS = 3;
 const HOTELL_BILDER_MAKS = 4;
 
 function renderBilder(){
-  renderHovedbilde();
+  // v13: Hovedbilde bruker nå samme buildBildeDropbox()-mekanisme som
+  // Hotell/Reisemål/Avslutningsbilde (kategori "Hovedbilde", maks 1), i
+  // stedet for den forrige særløsningen. forslag.hovedbilde_url holdes i
+  // synk her (i stedet for å bli satt direkte fra en egen opplastings-
+  // funksjon) slik at forslag-print.html og collectForslagFields(), som
+  // begge leser denne kolonnen direkte, fortsatt fungerer uendret.
+  buildBildeDropbox(el("bildeBoxHovedbilde"), b=> b.fields.kategori==="Hovedbilde", "Hovedbilde", null, null, 1);
+  const hovedbildeItem = state.bilder.find(b=> b.fields.kategori==="Hovedbilde");
+  state.forslag.hovedbilde_url = hovedbildeItem ? hovedbildeItem.fields.bilde_url : null;
 
   buildBildeDropbox(el("bildeBoxDestinasjon"), b=> b.fields.kategori==="Destinasjon", "Destinasjon", null,
     { mappe:"destinations", slugGetter: ()=> slugifyBildebank(state.forslag.destinasjon) },
