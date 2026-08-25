@@ -310,14 +310,21 @@
      er lengre enn skjermhøyden. 189px = avstand fra toppen av vinduet til
      radens toppkant (editor-header + fane-rad + fanens toppmarg), 60px er
      fanens bunnmarg (.tab-panel padding-bottom) - målt ved 1440px bredde. */
-  .pris-row{ display:flex; gap:18px; align-items:stretch; min-height:calc(100vh - 249px); }
+  /* v15: 10% kortere enn "hele skjermhøyden" fra forrige runde, etter
+     eksplisitt ønske - selve formelen (100vh - 249px) er uendret, bare
+     gjort 10% kortere med en *0.9-faktor. */
+  .pris-row{ display:flex; gap:18px; align-items:stretch; min-height:calc((100vh - 249px) * 0.9); }
   .pris-row > div{ display:flex; flex-direction:column; }
   .pris-col-felt{ flex:1; min-width:0; }
   .pris-col-felt .card{ flex:1; display:flex; flex-direction:column; margin-bottom:0; }
   .pris-col-inkludert{ flex:1; min-width:0; }
   .pris-col-ikke-inkludert{ flex:1; min-width:0; }
-  /* v14: Kommentar angående priser/Intern kommentar er nå tydelig høyere. */
-  .field-grid textarea#pr-forklaring, .field-grid textarea#pr-intern{ min-height:150px; }
+  /* v14: Kommentar angående priser/Intern kommentar er nå tydelig høyere.
+     v15: Intern kommentar redusert med 10% igjen (150px -> 135px), tilsvarende
+     Priser-boksens 10% reduksjon over - Kommentar angående priser er uendret
+     på 150px (kun Intern kommentar ble nevnt). */
+  .field-grid textarea#pr-forklaring{ min-height:150px; }
+  .field-grid textarea#pr-intern{ min-height:135px; }
   /* v13-RETTELSE: venstre kolonne er nå smal igjen (~340px innhold, samme
      årsak som v11-rettelsen på Grunninfo - tre like brede kolonner deler nå
      bredden som tallfelt-kortet før hadde for seg selv), og den delte
@@ -527,9 +534,11 @@
     background:var(--surface-1);
   }
   .img-card .img-remove{ font-size:11px; color:#b04a4a; background:none; border:none; cursor:pointer; padding:0; }
-  /* v14: "Bruk som hovedbilde"/"Bruk som avslutningsbilde" - avkrysning med
-     tekst ved siden av, i stedet for et fullbredt input/select (som
-     .img-card select, .img-card input{width:100%} over er ment for). */
+  /* v14: "Hovedbilde"/"Avslutningsbilde" - avkrysning med tekst ved siden
+     av, i stedet for et fullbredt input/select (som .img-card select,
+     .img-card input{width:100%} over er ment for). (v15: teksten på selve
+     avkrysningene forkortet fra "Bruk som hovedbilde"/"Bruk som
+     avslutningsbilde" til bare "Hovedbilde"/"Avslutningsbilde".) */
   .img-card .img-flagg-opt{
     display:flex; align-items:center; gap:5px; width:auto;
     font-size:11px; color:var(--ink-primary); cursor:pointer; margin-bottom:5px;
@@ -1904,8 +1913,8 @@ function bildeThumbCard(b, thumbOpts){
     <img src="${escapeHtml(b.fields.bilde_url)}">
     <div class="img-body">
       ${visFlagg ? `
-      <label class="img-flagg-opt"><input type="checkbox" class="b-hovedbilde" ${b.fields.er_hovedbilde?"checked":""}> Bruk som hovedbilde</label>
-      <label class="img-flagg-opt"><input type="checkbox" class="b-avslutningsbilde" ${b.fields.er_avslutningsbilde?"checked":""}> Bruk som avslutningsbilde</label>
+      <label class="img-flagg-opt"><input type="checkbox" class="b-hovedbilde" ${b.fields.er_hovedbilde?"checked":""}> Hovedbilde</label>
+      <label class="img-flagg-opt"><input type="checkbox" class="b-avslutningsbilde" ${b.fields.er_avslutningsbilde?"checked":""}> Avslutningsbilde</label>
       ` : ""}
       <button class="img-remove">Fjern</button>
     </div>
@@ -2132,13 +2141,16 @@ function wireBildebankVelger(boxEl, kategori, extra, bildebankInfo, matchFn, mak
 // v: faste kapasitetsgrenser for de kategoriene der print-malen (design v6g)
 // har et fast antall bildeplasser - hotellbildene (per hotellopphold) har et
 // bestemt antall faste posisjoner i layouten.
-// v14: DESTINASJON_BILDER_MAKS økt fra 3 til 8 - Reisemål-boksen huser nå
-// BÅDE PDF-galleriets bilder (maks 4, se forslag-print.html) OG hovedbilde/
-// avslutningsbilde-utvalget, som er egne avkrysninger på de samme bildene
-// (ikke lenger separate bokser/kategorier). Et realistisk sett - 4 til
-// galleriet + hovedbilde + avslutningsbilde, med litt slingringsmonn - er
-// dermed 6-8, ikke 3.
-const DESTINASJON_BILDER_MAKS = 8;
+// v14/v15: Reisemål-boksen huser BÅDE PDF-galleriets bilder (maks 4, se
+// forslag-print.html) OG hovedbilde/avslutningsbilde-utvalget, som er egne
+// avkrysninger på de samme bildene (ikke separate bokser/kategorier). Vidar
+// har eksplisitt bedt om nøyaktig 6 bilder totalt her - hverken mer eller
+// mindre (4 til galleriet + 1 hovedbilde + 1 avslutningsbilde) - så taket er
+// nøyaktig 6, ikke et løst "opptil". MERK: dette er kun et TAK (blokkerer
+// opplasting/bildebank-valg utover 6, samme mekanisme som før) - det finnes
+// ingen lagre-sperre som hindrer at man lagrer med FÆRRE enn 6 ennå, se
+// runde-notatet for vurderingen bak dette valget.
+const DESTINASJON_BILDER_MAKS = 6;
 const HOTELL_BILDER_MAKS = 4;
 
 function renderBilder(){
