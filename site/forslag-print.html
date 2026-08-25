@@ -348,13 +348,21 @@ async function main(){
   document.title = `${f.tittel || "Reiseforslag"} – Caminante`;
 
   const hotellIdSet = new Set(hoteller.map(h=>h.id));
-  const bilderDestinasjon = bilder.filter(b=> b.kategori === "Destinasjon").slice(0,4);
-  const bilderAvslutning = bilder.filter(b=> b.kategori === "Avslutning");
+  // v14: Hovedbilde/Avslutningsbilde er ikke lenger egne kategorier - de er
+  // nå avhukingsvalg (er_hovedbilde/er_avslutningsbilde) PÅ et Reisemål-bilde
+  // (kategori "Destinasjon"). "Om reisemålet"-galleriet skal IKKE vise bilder
+  // som er flagget som hovedbilde eller avslutningsbilde - kun de resterende,
+  // uflaggede bildene (maks 4). Samme bilde kan i prinsippet være flagget
+  // begge deler samtidig - filtreringen håndterer det uansett riktig, siden
+  // begge flaggene ekskluderer fra galleriet.
+  const bilderReisemaal = bilder.filter(b=> b.kategori === "Destinasjon");
+  const bilderAvslutning = bilderReisemaal.filter(b=> b.er_avslutningsbilde);
+  const bilderDestinasjon = bilderReisemaal.filter(b=> !b.er_hovedbilde && !b.er_avslutningsbilde).slice(0,4);
   const bilderForHotell = (hotellId)=> bilder.filter(b=> b.kategori==="Hotell" && b.hotellopphold_id===hotellId).slice(0,4);
 
-  // Avslutningsbilde (side 3, flush mot bunnbanner) - eget felt hvis satt,
-  // ellers et grasiøst fall tilbake til første destinasjonsbilde, så siden
-  // ikke fremstår tom nederst for forslag laget før dette feltet fantes.
+  // Avslutningsbilde (side 3, flush mot bunnbanner) - eget flagg hvis satt,
+  // ellers et grasiøst fall tilbake til første (uflaggede) reisemålsbilde, så
+  // siden ikke fremstår tom nederst for forslag der ingen bilde er flagget.
   const avslutningsbildeUrl = (bilderAvslutning[0] && bilderAvslutning[0].bilde_url)
     || (bilderDestinasjon[0] && bilderDestinasjon[0].bilde_url)
     || f.hovedbilde_url || null;

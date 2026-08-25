@@ -196,6 +196,11 @@
      matche/overgå spesifisiteten til ".field-grid textarea" over for å
      faktisk slå igjennom. */
   .field-grid textarea.h-beskrivelse{ min-height:90px; }
+  /* v14: Hotellbeskrivelse/Interne notater smalnes inn til ca. der
+     Klimaanlegg-avkrysningen (i egenskaper-raden over) starter, i stedet for
+     å strekke seg over hele kortbredden - målt til ca. 830px ved 1440px
+     skjermbredde. */
+  .field-grid textarea.h-beskrivelse, .field-grid textarea.h-prisinfo{ max-width:830px; }
   .field-hint{ font-size:11px; color:var(--ink-muted); margin-top:3px; }
 
   /* v8: Forbehold-fanens to bokser ("Veien videre"/"Forbehold") - tekstfeltet
@@ -296,11 +301,23 @@
      ga en fast bredde per kolonne enten for smal venstrekolonne eller
      unødvendig brede høyrekolonner ved vanlig skjermbredde. */
   .tab-panel[data-tab="pris"]{ max-width:none; }
-  .pris-row{ display:flex; gap:18px; align-items:flex-start; }
+  /* v14: venstrekortet (Priser + Kommentar-felt, nå slått sammen til ett
+     kort) skal dekke hele skjermhøyden - align-items endret til stretch, og
+     kortet strekkes til å fylle kolonnen (samme flex-column-teknikk som
+     Reiseinfo over). min-height på selve raden setter et gulv på
+     (nesten) full skjermhøyde selv når Inkludert/Ikke inkludert-listene er
+     korte, mens raden fortsatt vokser forbi det gulvet hvis de to listene
+     er lengre enn skjermhøyden. 189px = avstand fra toppen av vinduet til
+     radens toppkant (editor-header + fane-rad + fanens toppmarg), 60px er
+     fanens bunnmarg (.tab-panel padding-bottom) - målt ved 1440px bredde. */
+  .pris-row{ display:flex; gap:18px; align-items:stretch; min-height:calc(100vh - 249px); }
+  .pris-row > div{ display:flex; flex-direction:column; }
   .pris-col-felt{ flex:1; min-width:0; }
-  .pris-col-felt .card:last-child{ margin-bottom:0; }
+  .pris-col-felt .card{ flex:1; display:flex; flex-direction:column; margin-bottom:0; }
   .pris-col-inkludert{ flex:1; min-width:0; }
   .pris-col-ikke-inkludert{ flex:1; min-width:0; }
+  /* v14: Kommentar angående priser/Intern kommentar er nå tydelig høyere. */
+  .field-grid textarea#pr-forklaring, .field-grid textarea#pr-intern{ min-height:150px; }
   /* v13-RETTELSE: venstre kolonne er nå smal igjen (~340px innhold, samme
      årsak som v11-rettelsen på Grunninfo - tre like brede kolonner deler nå
      bredden som tallfelt-kortet før hadde for seg selv), og den delte
@@ -337,7 +354,16 @@
     gap:14px;
   }
   .tab-panel[data-tab="grunninfo"] .field-grid label{ display:block; padding-top:0; margin-bottom:4px; }
-  .grunninfo-row{ display:flex; gap:18px; align-items:flex-start; }
+  /* v14: Reiseinfo-boksen (venstre) skal være like høy som Utreise/Retur til
+     høyre - align-items endret fra flex-start til stretch slik at alle tre
+     kolonnene får samme høyde som den høyeste av dem (i praksis Reiseinfo,
+     som har flest felt). Selve .card-elementet må også strekke seg for å
+     fylle den strekte kolonnehøyden (flex:1 i en flex-column-wrapper),
+     ellers ville bare selve kolonne-div-en blitt høyere uten at det blå
+     kortet fulgte med. */
+  .grunninfo-row{ display:flex; gap:18px; align-items:stretch; }
+  .grunninfo-row > div{ display:flex; flex-direction:column; }
+  .grunninfo-row > div > .card{ flex:1; display:flex; flex-direction:column; }
   .grunninfo-col-felt{ flex:1; min-width:0; }
   .grunninfo-col-fly{ flex:0 0 407px; min-width:0; }
 
@@ -501,6 +527,14 @@
     background:var(--surface-1);
   }
   .img-card .img-remove{ font-size:11px; color:#b04a4a; background:none; border:none; cursor:pointer; padding:0; }
+  /* v14: "Bruk som hovedbilde"/"Bruk som avslutningsbilde" - avkrysning med
+     tekst ved siden av, i stedet for et fullbredt input/select (som
+     .img-card select, .img-card input{width:100%} over er ment for). */
+  .img-card .img-flagg-opt{
+    display:flex; align-items:center; gap:5px; width:auto;
+    font-size:11px; color:var(--ink-primary); cursor:pointer; margin-bottom:5px;
+  }
+  .img-card .img-flagg-opt input{ width:auto; margin:0; }
   .upload-hint{ font-size:11.5px; color:var(--ink-muted); margin-bottom:14px; }
 
   /* v: Bilder-fanen bygget om fra rullegardin-basert kategorisering til én
@@ -645,6 +679,7 @@
     <div class="grunninfo-row">
       <div class="grunninfo-col-felt">
         <div class="card">
+          <div class="card-title">Reiseinfo</div>
           <div class="field-grid">
             <!-- v5-RETTELSE: "Kunde" var tidligere TO separate felt som byttet på
                  å vises basert på Kundetype (fritekst g-kunde-navn vs. skolesøk
@@ -769,16 +804,15 @@
   <div class="tab-panel" data-tab="pris">
     <div class="pris-row">
       <div class="pris-col-felt">
+        <!-- v14: de to kortene (tallfelt + kommentarfelt) er slått sammen til
+             ett kort, i ett felles field-grid, i stedet for to kort under
+             hverandre. -->
         <div class="card">
           <div class="card-title">Priser</div>
           <div class="field-grid">
             <label for="pr-per-person">Pris per person</label><input type="number" id="pr-per-person" step="1">
             <label for="pr-antall">Antall personer</label><input type="number" id="pr-antall" min="0">
             <label for="pr-enkeltrom">Enkeltromstillegg</label><input type="number" id="pr-enkeltrom" step="1">
-          </div>
-        </div>
-        <div class="card">
-          <div class="field-grid">
             <label for="pr-forklaring" class="span-full">Kommentar angående priser</label><textarea id="pr-forklaring" class="span-full" placeholder="Vises i PDF, kort og kundevennlig"></textarea>
             <label for="pr-intern" class="span-full">Intern kommentar</label><textarea id="pr-intern" class="span-full" placeholder="Vises IKKE i PDF - kun til internt bruk"></textarea>
           </div>
@@ -876,46 +910,23 @@
   </div>
 
   <!-- ===== Bilder ===== -->
-  <!-- v10: full bredde, én boks per linje i stedet for to-og-to side om side
-       - rekkefølge Hovedbilde (1 bilde) - Hotell (4 bilder) - Reisemål
-       (3 bilder) - Avslutningsbilde (1 bilde). Alle fire boksene har nå
-       samme, rene stil som Hotell: kun tittel + selve bildeområdet, ingen
-       forklarende hjelpetekst under tittelen. "Andre bilder" (det gamle
-       fangnett-kortet for bilder som ikke passer tydelig i noen kategori,
-       f.eks. gjenglemte bilder fra den fjernede Program-fanen) er fjernet
-       fra UI-et etter eksplisitt ønske - se renderBilder() for hvordan de
-       underliggende bildene fortsatt håndteres trygt (slettes IKKE, blir
-       bare ikke lenger vist noe sted i editoren). -->
+  <!-- v14: kun to bokser igjen - Reisemål og Hotell, i den rekkefølgen.
+       Hovedbilde og Avslutningsbilde er ikke lenger egne bokser/kategorier -
+       de er nå avhukingsvalg PÅ det enkelte Reisemål-bildet (se
+       bildeThumbCard()), lagret som er_hovedbilde/er_avslutningsbilde på
+       forslag_bilder-raden (uavhengige flagg - samme bilde kan være begge
+       deler samtidig). Bilder flagget hovedbilde/avslutningsbilde vises ikke
+       i "Om reisemålet"-galleriet i PDF-en (se forslag-print.html), kun de
+       resterende, uflaggede Reisemål-bildene (maks 4 der). -->
   <div class="tab-panel" data-tab="bilder">
-    <div class="card">
-      <div class="card-title">Hovedbilde</div>
-      <!-- v13: Hovedbilde er nå bygget nøyaktig som de andre bildeboksene
-           (Hotell/Reisemål/Avslutningsbilde) - egen kategori ("Hovedbilde")
-           i forslag_bilder via samme buildBildeDropbox()-mekanisme, i stedet
-           for den forrige særløsningen (ett felt direkte på forslag-raden,
-           kun stylet til å SE ut som en dropbox). Se renderBilder() for
-           kobling til kategorien og loadForslag() for bakoverkompatibilitet
-           mot eldre forslag som har hovedbilde_url satt uten en tilhørende
-           forslag_bilder-rad. -->
-      <div class="bilde-dropbox" id="bildeBoxHovedbilde"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Hotell</div>
-      <div id="bildeHotellSubboxes"></div>
-    </div>
-
     <div class="card">
       <div class="card-title">Reisemål</div>
       <div class="bilde-dropbox" id="bildeBoxDestinasjon"></div>
     </div>
 
-    <!-- v: Avslutningsbilde - side 3 sitt avsluttende stemningsbilde (flex-
-         vokser til å fylle resten av siden over bunnbanneret i print-malen).
-         Kategori 'Avslutning', maks 1 bilde. -->
     <div class="card">
-      <div class="card-title">Avslutningsbilde</div>
-      <div class="bilde-dropbox" id="bildeBoxAvslutning"></div>
+      <div class="card-title">Hotell</div>
+      <div id="bildeHotellSubboxes"></div>
     </div>
   </div>
 
@@ -1072,17 +1083,20 @@ async function loadForslag(id){
     };
   });
 
-  // v13: bakoverkompatibilitet - eldre forslag har hovedbilde_url satt
-  // direkte på forslag-raden (den gamle mekanismen), men ingen
-  // forslag_bilder-rad med kategori="Hovedbilde" (det nye, ensartede
-  // dropbox-mønsteret skrev aldri dit før nå). Syntetiserer én virtuell rad
-  // her (id:null, migreres inn i forslag_bilder ved neste lagring) slik at
-  // et eksisterende hovedbilde ikke "forsvinner" fra editoren første gang
-  // forslaget åpnes etter denne runden.
-  if(f.hovedbilde_url && !state.bilder.some(b=> b.fields.kategori==="Hovedbilde")){
+  // v13/v14: bakoverkompatibilitet - eldre forslag kan ha hovedbilde_url satt
+  // direkte på forslag-raden (den gamle mekanismen) uten noen tilhørende,
+  // riktig flagget forslag_bilder-rad. Syntetiserer i så fall én virtuell
+  // Reisemål-rad her (id:null, migreres inn i forslag_bilder ved neste
+  // lagring) med er_hovedbilde=true, slik at et eksisterende hovedbilde ikke
+  // "forsvinner" fra editoren. (De to radene som fantes fra FØR v14 - med
+  // kategori "Hovedbilde"/"Avslutning" - er migrert til denne ordningen
+  // direkte i databasen, se migrasjonen "forslag_bilder_hoved_avslutning_
+  // flagg"; denne koden er nå kun et sikkerhetsnett for fremtidige edge
+  // cases, ikke den vanlige veien.)
+  if(f.hovedbilde_url && !state.bilder.some(b=> b.fields.kategori==="Destinasjon" && b.fields.er_hovedbilde)){
     state.bilder.push({
       id:null, clientKey:newClientKey(),
-      fields:{ kategori:"Hovedbilde", bilde_url:f.hovedbilde_url, alt_tekst:null, sortering:0 },
+      fields:{ kategori:"Destinasjon", bilde_url:f.hovedbilde_url, alt_tekst:null, sortering:0, er_hovedbilde:true, er_avslutningsbilde:false },
       hotellopphold_client_key:null,
     });
   }
@@ -1382,7 +1396,15 @@ function renderHotell(){
       <div class="kv-row">
         <div class="kv-field h-field-navn"><label>Hotellnavn</label><input class="h-navn" value="${escapeHtml(f.hotellnavn)}"></div>
         <div class="kv-field h-field-stjerner"><label>Stjerner</label>
-          <select class="h-stjerner-select">${[2,3,4,5].map(n=>`<option value="${n}" ${Number(f.stjerner||3)===n?"selected":""}>${"★".repeat(n)}</option>`).join("")}</select>
+          <!-- v14: lagt til "1 stjerne" og "blank" (ingen stjerner/omtale vist
+               etter hotellnavnet i PDF-en, se forslag-print.html linje ~448
+               som allerede skjuler stjerne-spennet når stjerner er tomt).
+               selected-sjekken bruker nå f.stjerner direkte (ingen "||3"-
+               fallback), slik at "blank" faktisk kan være valgt/vist. -->
+          <select class="h-stjerner-select">
+            <option value="" ${f.stjerner==null?"selected":""}>Blank (ingen stjerner)</option>
+            ${[1,2,3,4,5].map(n=>`<option value="${n}" ${Number(f.stjerner)===n?"selected":""}>${"★".repeat(n)}</option>`).join("")}
+          </select>
         </div>
         <div class="kv-field h-field-netter"><label>Antall netter</label><input type="number" class="h-netter" value="${f.netter??""}" min="0"></div>
       </div>
@@ -1421,7 +1443,7 @@ function renderHotell(){
     card.querySelector(".h-netter").addEventListener("change", e=>{ f.netter = numOrNull(e.target.value); });
     bind(".h-navn","hotellnavn");
     bind(".h-maltider","maltider"); bind(".h-beskrivelse","beskrivelse"); bind(".h-prisinfo","prisinfo");
-    card.querySelector(".h-stjerner-select").addEventListener("change", e=>{ f.stjerner = Number(e.target.value); });
+    card.querySelector(".h-stjerner-select").addEventListener("change", e=>{ f.stjerner = e.target.value ? Number(e.target.value) : null; });
     renderHotellegenskaper(card.querySelector(".h-egenskaper-wrap"), f);
     card.querySelector(".h-standard-romtype").addEventListener("change", e=>{
       f.romtype_standard = e.target.value;
@@ -1865,18 +1887,50 @@ async function uploadImageFile(file){
    havner i AVGJØR kategori og evt. tilknytning til hotellopphold/dag - man
    trenger ikke lenger sette dette manuelt i et eget felt. */
 
-function bildeThumbCard(b){
+// v14: "Bildetekst"-feltet (alt_tekst) er fjernet fra kortet etter ønske -
+// kolonnen består i databasen (skadefritt, blir bare ikke lenger satt/vist),
+// men editoren tilbyr ikke lenger noe felt for den. I stedet får bilder i
+// Reisemål-boksen (visHovedAvslutning=true, se renderBilder()) to uavhengige
+// avkrysninger, "Bruk som hovedbilde"/"Bruk som avslutningsbilde" - kun ett
+// bilde kan være hovedbilde om gangen (og tilsvarende for avslutningsbilde),
+// men samme bilde kan godt være begge deler samtidig, derfor to separate
+// checkbox-grupper i stedet for én felles radioknapp-gruppe.
+function bildeThumbCard(b, thumbOpts){
+  const visFlagg = !!(thumbOpts && thumbOpts.visHovedAvslutning);
   const card = document.createElement("div");
   card.className = "img-card";
   card.dataset.clientKey = b.clientKey;
   card.innerHTML = `
     <img src="${escapeHtml(b.fields.bilde_url)}">
     <div class="img-body">
-      <input class="b-alt" value="${escapeHtml(b.fields.alt_tekst)}" placeholder="Bildetekst">
+      ${visFlagg ? `
+      <label class="img-flagg-opt"><input type="checkbox" class="b-hovedbilde" ${b.fields.er_hovedbilde?"checked":""}> Bruk som hovedbilde</label>
+      <label class="img-flagg-opt"><input type="checkbox" class="b-avslutningsbilde" ${b.fields.er_avslutningsbilde?"checked":""}> Bruk som avslutningsbilde</label>
+      ` : ""}
       <button class="img-remove">Fjern</button>
     </div>
   `;
-  card.querySelector(".b-alt").addEventListener("change", e=>{ b.fields.alt_tekst = e.target.value || null; });
+  if(visFlagg){
+    // v: håndhever "kun ett bilde om gangen" INNENFOR hver av de to
+    // flaggtypene - fjerner flagget fra alle andre Reisemål-bilder før det
+    // settes på dette, men rører aldri den ANDRE flaggtypen (uavhengige).
+    card.querySelector(".b-hovedbilde").addEventListener("change", e=>{
+      const checked = e.target.checked;
+      if(checked){
+        state.bilder.filter(x=> x.fields.kategori==="Destinasjon").forEach(x=>{ x.fields.er_hovedbilde = false; });
+      }
+      b.fields.er_hovedbilde = checked;
+      renderBilder();
+    });
+    card.querySelector(".b-avslutningsbilde").addEventListener("change", e=>{
+      const checked = e.target.checked;
+      if(checked){
+        state.bilder.filter(x=> x.fields.kategori==="Destinasjon").forEach(x=>{ x.fields.er_avslutningsbilde = false; });
+      }
+      b.fields.er_avslutningsbilde = checked;
+      renderBilder();
+    });
+  }
   card.querySelector(".img-remove").addEventListener("click", ()=>{
     const i = state.bilder.indexOf(b);
     if(i > -1) state.bilder.splice(i,1);
@@ -1936,7 +1990,7 @@ async function uploadFilesIntoBox(fileList, kategori, extra, matchFn, maks){
       const url = await uploadImageFile(file);
       state.bilder.push({
         id:null, clientKey:newClientKey(),
-        fields:{ kategori, bilde_url:url, alt_tekst:null, sortering: state.bilder.length },
+        fields:{ kategori, bilde_url:url, alt_tekst:null, sortering: state.bilder.length, er_hovedbilde:false, er_avslutningsbilde:false },
         hotellopphold_client_key: (extra && extra.hotellopphold_client_key) || null,
       });
     } catch(err){ alert("Kunne ikke laste opp: " + err.message); }
@@ -1964,7 +2018,7 @@ async function uploadFilesIntoBox(fileList, kategori, extra, matchFn, maks){
 // klikktidspunktet (ikke et antall fanget da boksen sist ble tegnet, som fort
 // blir foreldet siden faste bokser (Destinasjon/Andre/Avslutning) kun wires
 // én gang - se dataset.wired-guarden under).
-function buildBildeDropbox(boxEl, matchFn, kategori, extra, bildebankInfo, maks){
+function buildBildeDropbox(boxEl, matchFn, kategori, extra, bildebankInfo, maks, thumbOpts){
   // v-RETTELSE: dra-og-slipp-reorder (wireGridReorder) oppdaterer kun
   // .fields.sortering på boksens egne bilder, ikke selve rekkefølgen i
   // state.bilder-arrayet (som er delt på tvers av ALLE kategorier/bokser,
@@ -1980,7 +2034,7 @@ function buildBildeDropbox(boxEl, matchFn, kategori, extra, bildebankInfo, maks)
   }
   grid.innerHTML = "";
   grid.style.display = items.length ? "grid" : "none";
-  items.forEach(b=> grid.appendChild(bildeThumbCard(b)));
+  items.forEach(b=> grid.appendChild(bildeThumbCard(b, thumbOpts)));
   wireGridReorder(grid, matchFn);
 
   const capReached = maks!=null && items.length >= maks;
@@ -2061,7 +2115,7 @@ function wireBildebankVelger(boxEl, kategori, extra, bildebankInfo, matchFn, mak
           }
           state.bilder.push({
             id:null, clientKey:newClientKey(),
-            fields:{ kategori, bilde_url:b.url, alt_tekst:null, sortering: state.bilder.length },
+            fields:{ kategori, bilde_url:b.url, alt_tekst:null, sortering: state.bilder.length, er_hovedbilde:false, er_avslutningsbilde:false },
             hotellopphold_client_key: (extra && extra.hotellopphold_client_key) || null,
           });
           el("saveStatus").textContent = "Bilde lagt til fra bildebanken – husk å lagre.";
@@ -2076,27 +2130,32 @@ function wireBildebankVelger(boxEl, kategori, extra, bildebankInfo, matchFn, mak
 }
 
 // v: faste kapasitetsgrenser for de kategoriene der print-malen (design v6g)
-// har et fast antall bildeplasser - Destinasjon-galleriet på side 2 og
-// hotellbildene (per hotellopphold) har begge et bestemt antall faste
-// posisjoner i layouten. Program/Andre/Avslutning har egne grenser eller
-// ingen (Avslutning: nøyaktig 1, se renderBilder()).
-const DESTINASJON_BILDER_MAKS = 3;
+// har et fast antall bildeplasser - hotellbildene (per hotellopphold) har et
+// bestemt antall faste posisjoner i layouten.
+// v14: DESTINASJON_BILDER_MAKS økt fra 3 til 8 - Reisemål-boksen huser nå
+// BÅDE PDF-galleriets bilder (maks 4, se forslag-print.html) OG hovedbilde/
+// avslutningsbilde-utvalget, som er egne avkrysninger på de samme bildene
+// (ikke lenger separate bokser/kategorier). Et realistisk sett - 4 til
+// galleriet + hovedbilde + avslutningsbilde, med litt slingringsmonn - er
+// dermed 6-8, ikke 3.
+const DESTINASJON_BILDER_MAKS = 8;
 const HOTELL_BILDER_MAKS = 4;
 
 function renderBilder(){
-  // v13: Hovedbilde bruker nå samme buildBildeDropbox()-mekanisme som
-  // Hotell/Reisemål/Avslutningsbilde (kategori "Hovedbilde", maks 1), i
-  // stedet for den forrige særløsningen. forslag.hovedbilde_url holdes i
-  // synk her (i stedet for å bli satt direkte fra en egen opplastings-
-  // funksjon) slik at forslag-print.html og collectForslagFields(), som
-  // begge leser denne kolonnen direkte, fortsatt fungerer uendret.
-  buildBildeDropbox(el("bildeBoxHovedbilde"), b=> b.fields.kategori==="Hovedbilde", "Hovedbilde", null, null, 1);
-  const hovedbildeItem = state.bilder.find(b=> b.fields.kategori==="Hovedbilde");
-  state.forslag.hovedbilde_url = hovedbildeItem ? hovedbildeItem.fields.bilde_url : null;
-
+  // v14: Bilder-fanen har nå kun to bokser - Reisemål (kategori
+  // "Destinasjon") og Hotell. Hovedbilde/Avslutningsbilde er ikke lenger
+  // egne kategorier/bokser, men avkrysninger PÅ det enkelte Reisemål-bildet
+  // (thumbOpts.visHovedAvslutning, se bildeThumbCard()). forslag.hovedbilde_url
+  // holdes fortsatt i synk her (i stedet for å settes direkte fra en egen
+  // opplastingsfunksjon) slik at forslag-print.html og
+  // collectForslagFields(), som begge leser denne kolonnen direkte, fortsatt
+  // fungerer uendret.
   buildBildeDropbox(el("bildeBoxDestinasjon"), b=> b.fields.kategori==="Destinasjon", "Destinasjon", null,
     { mappe:"destinations", slugGetter: ()=> slugifyBildebank(state.forslag.destinasjon) },
-    DESTINASJON_BILDER_MAKS);
+    DESTINASJON_BILDER_MAKS, { visHovedAvslutning:true });
+
+  const hovedbildeItem = state.bilder.find(b=> b.fields.kategori==="Destinasjon" && b.fields.er_hovedbilde);
+  state.forslag.hovedbilde_url = hovedbildeItem ? hovedbildeItem.fields.bilde_url : null;
 
   const hotellWrap = el("bildeHotellSubboxes");
   hotellWrap.innerHTML = "";
@@ -2121,9 +2180,6 @@ function renderBilder(){
         HOTELL_BILDER_MAKS);
     });
   }
-
-  // Avslutningsbilde - side 3 sitt avsluttende stemningsbilde, nøyaktig 1.
-  buildBildeDropbox(el("bildeBoxAvslutning"), b=> b.fields.kategori==="Avslutning", "Avslutning", null, null, 1);
 
   // v8: "Andre bilder"-boksen (det tidligere fangnettet for bilder som ikke
   // tydelig hørte hjemme i Destinasjon/Hotell/Avslutning - f.eks. eldre
