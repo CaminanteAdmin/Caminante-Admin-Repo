@@ -448,7 +448,7 @@ async function createHotell(){
     kontaktperson: "", telefon: "", epost: "", nettside: "", opprettet_av: currentUserId,
   }).select().single();
   if(error){ alert("Kunne ikke opprette hotell: " + error.message); return; }
-  hotels.push({ ...data, kommentarer:[] });
+  hotels.push({ ...data, kommentarer:[], bilder:[] });
   refreshLandFilter();
   renderList();
   openProfile(data.id);
