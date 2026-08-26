@@ -654,8 +654,7 @@
     </div>
     <div class="right">
       <select id="f-status"></select>
-      <button id="btnLagre" class="primary">Lagre</button>
-      <a id="btnPdf" href="#" target="_blank" style="text-decoration:none;"><button type="button">Forhåndsvis / PDF</button></a>
+      <a id="btnPdf" href="#" target="_blank" style="text-decoration:none;"><button type="button" class="primary">Forhåndsvis / PDF</button></a>
       <button id="btnSlett" class="danger">Slett forslag</button>
     </div>
   </div>
@@ -949,15 +948,56 @@
 <script>
 /* ============================================================
    Forslag-editor - v1
-   Ett forslag, åtte faner. Én global "Lagre" som synkroniserer
-   hovedraden og alle underlister (transport/hotellopphold/
-   bilder) mot Supabase i én operasjon.
+   Ett forslag, åtte faner. All lagring synkroniserer hovedraden og
+   alle underlister (transport/hotellopphold/bilder) mot Supabase i
+   én operasjon.
 
    v: Program-fanen (dagsprogram) er fjernet herfra - den ble aldri
    brukt av forslag-print.html, og feltene var i praksis dødvekt i
    editoren. forslag_dagsprogram-tabellen og evt. eksisterende data
    er IKKE slettet eller rørt - kan gjenbrukes i en fremtidig
    Tilbud-editor om det trengs der.
+
+   v16: Autolagring lagt til (og den manuelle Lagre-knappen fjernet,
+   se v17 under). Bakgrunn: det fantes tidligere INGEN form for
+   automatisk lagring - kun det manuelle Lagre-klikket - og en bruker
+   mistet reell data (innlagte fly) fordi de trodde det lagret seg
+   selv. Løsningen gjenbruker lagre-logikken 100 % uendret
+   (utforLagring/syncChildTable) og legger kun til NÅR den kalles
+   automatisk:
+     - Enhver "input"/"change"/"drop"/"click" et sted i dokumentet
+       (utenom Slett-knappen og fane-knappene, se
+       autolagringDelegert() nedenfor) setter en "skitten"-flagg og
+       nullstiller en 2,5s debounce-timer - man trenger altså ikke
+       vite nøyaktig HVILKE knapper som endrer state (det er mange,
+       spredt i hele filen); alt som kan tenkes å endre noe fanges
+       opp, på bekostning av noen få harmløse ekstra lagringer ved
+       rene navigasjonsklikk.
+     - Et fallback-intervall hvert 45. sekund lagrer uansett hvis
+       skitten-flagget står, som et sikkerhetsnett dersom brukeren
+       skriver sammenhengende lenge nok til at debouncen aldri får ro
+       til å utløses.
+     - performSave() kjeder alle lagringer (autolagring OG manuelt
+       fremtvunget, se v17) etter hverandre via ett delt promise
+       (currentSaveChain), slik at det ALDRI kjører to lagringer
+       samtidig (ville kunnet gi dupliserte rader for nye elementer,
+       siden syncChildTable setter item.id først når innsettingen er
+       ferdig) - en ny forespørsel legges bakerst i køen i stedet for
+       å kjøre parallelt, og den som kalte performSave() kan trygt
+       `await` resultatet og vite at AKKURAT DEN lagringen faktisk er
+       ferdig når den resolver (brukes av v17 til å garantere fersk
+       PDF-forhåndsvisning).
+
+   v17: Den manuelle Lagre-knappen er fjernet - autolagringen over
+   dekker allerede formålet "ikke miste data" helt på egen hånd, og en
+   egen knapp for akkurat det ble overflødig. Det eneste stedet en
+   eksplisitt, umiddelbar lagring fortsatt trengs er rett før
+   "Forhåndsvis / PDF" åpnes (den leser direkte fra databasen, og
+   uten dette kunne en helt fersk endring i sjeldne tilfeller mangle i
+   forhåndsvisningen pga. autolagringens korte debounce-forsinkelse) -
+   se click-lytteren på #btnPdf lenger ned, som nå selv kaller
+   performSave("manuell") og venter på at den er helt ferdig FØR den
+   åpner forhåndsvisningen i ny fane.
    ============================================================ */
 
 const STATUSER = ["Utkast","Sendt","Kunde interessert","Gått videre til tilbud","Avslått","Arkivert"];
@@ -986,6 +1026,12 @@ let state = {
   hoydepunkter: [],
 };
 let originalIds = { transport:new Set(), hotellopphold:new Set(), bilder:new Set(), hoydepunkter:new Set() };
+
+// v16/v17: se autolagrings-innledningen over.
+let currentSaveChain = Promise.resolve(); // kjeder alle lagringer etter hverandre, se performSave()
+let autosaveDirty = false;
+let autosaveDebounceTimer = null;
+let autosaveKlar = false; // satt til true når siden er ferdig lastet, se init nederst
 
 /* ---------- Helpers ---------- */
 
@@ -1226,7 +1272,7 @@ async function oppdaterPrisFraKalkyle(){
   f.kalkyle_sist_endret_ved_kobling = data.sist_endret;
   renderPris();
   renderKalkyleInfo();
-  el("saveStatus").textContent = "Pris hentet fra kalkylen – husk å lagre.";
+  el("saveStatus").textContent = "Pris hentet fra kalkylen.";
 }
 
 /* ---------- Rendering: Flyinformasjon ----------
@@ -1866,7 +1912,7 @@ async function opprettHoydepunktInline(){
   if(error){ alert("Kunne ikke opprette høydepunkt: " + error.message); el("saveStatus").textContent = ""; return; }
   hoydepunktBankOversikt.push(data);
   leggTilHoydepunktFraBank(data.id);
-  el("saveStatus").textContent = "Høydepunkt opprettet i banken – husk å lagre forslaget.";
+  el("saveStatus").textContent = "Høydepunkt opprettet i banken.";
 }
 el("hpNyttBtn").addEventListener("click", opprettHoydepunktInline);
 
@@ -2004,7 +2050,7 @@ async function uploadFilesIntoBox(fileList, kategori, extra, matchFn, maks){
       });
     } catch(err){ alert("Kunne ikke laste opp: " + err.message); }
   }
-  el("saveStatus").textContent = "Bilde lastet opp – husk å lagre.";
+  el("saveStatus").textContent = "Bilde lastet opp.";
   renderBilder();
 }
 
@@ -2127,7 +2173,7 @@ function wireBildebankVelger(boxEl, kategori, extra, bildebankInfo, matchFn, mak
             fields:{ kategori, bilde_url:b.url, alt_tekst:null, sortering: state.bilder.length, er_hovedbilde:false, er_avslutningsbilde:false },
             hotellopphold_client_key: (extra && extra.hotellopphold_client_key) || null,
           });
-          el("saveStatus").textContent = "Bilde lagt til fra bildebanken – husk å lagre.";
+          el("saveStatus").textContent = "Bilde lagt til fra bildebanken.";
           renderBilder();
         });
         panel.appendChild(thumb);
@@ -2318,9 +2364,14 @@ async function syncChildTable(table, fkField, items, originalIdSet, extraResolve
   return keyToId;
 }
 
-async function lagreAlt(){
+// v16: selve lagringen - uendret innhold fra før autolagring, bortsett fra
+// "trigger"-parameteren som kun styrer statusteksten (og dermed viser
+// tydelig om det var et automatisk eller manuelt lagringspunkt). Kalles
+// ALDRI direkte lenger - se performSave() rett under, som sikrer at to
+// lagringer aldri kjører samtidig.
+async function utforLagring(trigger){
   collectFieldsFromForm();
-  el("saveStatus").textContent = "Lagrer…";
+  el("saveStatus").textContent = trigger === "auto" ? "Autolagrer…" : "Lagrer…";
   try{
     const { error: e0 } = await window.sb.from("forslag").update(collectForslagFields()).eq("id", forslagId);
     if(e0) throw new Error("forslag: " + e0.message);
@@ -2354,12 +2405,65 @@ async function lagreAlt(){
     const { data: fresh } = await window.sb.from("forslag").select("forslagsnummer,sist_endret").eq("id", forslagId).single();
     if(fresh){ el("f-nr").textContent = fresh.forslagsnummer || ""; }
 
-    el("saveStatus").textContent = "Lagret " + new Date().toLocaleString("nb-NO");
+    const tid = new Date().toLocaleString("nb-NO");
+    el("saveStatus").textContent = (trigger === "auto" ? "Autolagret " : "Lagret ") + tid;
   } catch(err){
     console.error(err);
-    el("saveStatus").textContent = "Kunne ikke lagre: " + err.message;
+    el("saveStatus").textContent = (trigger === "auto" ? "Autolagring feilet: " : "Kunne ikke lagre: ") + err.message;
   }
 }
+
+// v16/v17: kjeder alle lagringer (autolagring OG den fremtvungne lagringen
+// foran PDF-forhåndsvisning) etter hverandre via ett delt promise, slik at
+// det ALDRI kjører to lagringer samtidig (ville kunnet gi dupliserte rader
+// for nye elementer, siden syncChildTable setter item.id først når
+// innsettingen er ferdig). En ny forespørsel legges bakerst i køen i stedet
+// for å kjøre parallelt - og siden hvert kall returnerer nøyaktig DEN
+// lenken i kjeden, kan en kaller trygt `await performSave(...)` og vite at
+// akkurat sin egen lagring faktisk er ferdig når den resolver. utforLagring()
+// fanger selv alle feil internt (viser dem i #saveStatus) og forkaster
+// derfor aldri - kjeden brytes altså ikke av en mislykket lagring.
+function performSave(trigger){
+  currentSaveChain = currentSaveChain.then(()=> utforLagring(trigger));
+  return currentSaveChain;
+}
+
+// v16: kalles av både debounce-timeren og fallback-intervallet - se
+// innledningskommentaren øverst i filen. Gjør ingenting hvis ingenting er
+// endret siden forrige (auto- eller fremtvungne) lagring.
+function utlosAutolagring(){
+  if(!autosaveDirty) return;
+  autosaveDirty = false;
+  performSave("auto");
+}
+
+// v16: én enkelt, delegert lyttegruppe på hele dokumentet i stedet for å
+// måtte huske å koble "skitten"-varsling til hver eneste knapp som endrer
+// state (det finnes svært mange, spredt i alle fanene - fly, hotellopphold,
+// bilder, høydepunkter, ...). Fanger dermed opp ALT som kan endre data,
+// inkludert strukturelle endringer (Legg til/Fjern-knapper, drag-and-drop
+// bildeopplasting) som ikke nødvendigvis trigger "input"/"change". Unntak:
+// Slett-knappen, PDF-knappen (den har sin egen umiddelbare lagring, se
+// under) og fane-bryterne (rene navigasjons-/lagreklikk, ingen datainnhold
+// å autolagre av de i seg selv).
+function autolagringDelegert(e){
+  if(!autosaveKlar) return;
+  const target = e.target;
+  if(target.closest && target.closest("#btnSlett, #btnPdf, .tab-btn")) return;
+  autosaveDirty = true;
+  clearTimeout(autosaveDebounceTimer);
+  autosaveDebounceTimer = setTimeout(utlosAutolagring, 2500);
+}
+document.addEventListener("input", autolagringDelegert, true);
+document.addEventListener("change", autolagringDelegert, true);
+document.addEventListener("drop", autolagringDelegert, true);
+document.addEventListener("click", autolagringDelegert, true);
+
+// v16: sikkerhetsnett - garanterer at ulagrede endringer aldri kan bli
+// stående uautolagret lenger enn ca. 45 sekunder, selv om brukeren skriver
+// sammenhengende så lenge at debounce-timeren over stadig blir nullstilt
+// (og dermed aldri i praksis får "ro" til å utløse lagring på egen hånd).
+setInterval(utlosAutolagring, 45000);
 
 async function slettForslag(){
   if(!confirm("Slette dette forslaget permanent, inkludert transport, hotellopphold, program og bilder?")) return;
@@ -2370,7 +2474,20 @@ async function slettForslag(){
 
 /* ---------- Wiring ---------- */
 
-el("btnLagre").addEventListener("click", lagreAlt);
+// v17: "Forhåndsvis / PDF" lagrer alltid ferdig FØRST (samme lagre-logikk
+// som før, se performSave()), og åpner forhåndsvisningen i ny fane bare når
+// den lagringen faktisk er fullført - forhåndsvisningen leser direkte fra
+// databasen, og uten dette kunne den i sjeldne tilfeller vist en litt
+// utdatert versjon pga. autolagringens korte debounce-forsinkelse. Selve
+// href-en er fortsatt satt på vanlig måte i renderAll() over, men klikket
+// fanges opp og navigeringen gjøres manuelt etter lagringen er bekreftet.
+el("btnPdf").addEventListener("click", async (e)=>{
+  e.preventDefault();
+  clearTimeout(autosaveDebounceTimer);
+  autosaveDirty = false;
+  await performSave("manuell");
+  window.open(el("btnPdf").href, "_blank", "noopener");
+});
 el("btnSlett").addEventListener("click", slettForslag);
 el("oppdaterPrisBtn").addEventListener("click", oppdaterPrisFraKalkyle);
 el("g-kundetype").addEventListener("change", ()=>{
@@ -2428,6 +2545,7 @@ el("gKundeSkoleClear").addEventListener("click", ()=>{
   }
   document.getElementById("editorArea").style.display = "block";
   renderAll();
+  autosaveKlar = true; // v16: fra nå av utløser klikk/endringer autolagring - se autolagringDelegert()
 })();
 </script>
 </body>
