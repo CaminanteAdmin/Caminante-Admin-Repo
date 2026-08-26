@@ -648,7 +648,7 @@
       <div class="kalkyle-info" id="kalkyleInfo"></div>
       <div class="kalkyle-drift" id="kalkyleDrift" style="display:none;">
         <span>Kalkylen er endret siden Forslaget ble opprettet.</span>
-        <button id="oppdaterPrisBtn">Oppdater pris fra kalkyle</button>
+        <button id="oppdaterPrisBtn">Oppdater pris og datoer fra kalkyle</button>
       </div>
       <div class="save-status" id="saveStatus"></div>
     </div>
@@ -1257,10 +1257,19 @@ function renderKalkyleInfo(){
   });
 }
 
-async function oppdaterPrisFraKalkyle(){
+// v18: het tidligere oppdaterPrisFraKalkyle() - henter nå i tillegg
+// reisedatoene (reise_start_dato/reise_slutt_dato) fra den koblede kalkylen,
+// og skriver dem inn i Reiseinfo-fanens fra/til-felt OG datofeltene på HVERT
+// hotellopphold og hver Utreise/Retur-flight, uansett hvordan de oppsto
+// (kalkyle-overføringen ved opprettelse, "Velg fra hotelloversikt" eller ren
+// manuell utfylling) - kalkylens datoer er ment å være fasit. Bevisst en
+// eksplisitt, manuell handling (samme knapp som prisoppdateringen, ikke noe
+// som skjer stille i bakgrunnen) nettopp fordi den overskriver datoer brukeren
+// kan ha satt selv - se drøftingen i forslag-editor-tiende-runde.md.
+async function oppdaterFraKalkyle(){
   const f = state.forslag;
   if(!f.kalkyle_id) return;
-  const { data, error } = await window.sb.from("kalkyler").select("kalkyle_data, sist_endret").eq("id", f.kalkyle_id).single();
+  const { data, error } = await window.sb.from("kalkyler").select("kalkyle_data, sist_endret, reise_start_dato, reise_slutt_dato").eq("id", f.kalkyle_id).single();
   if(error || !data){ alert("Kunne ikke hente kalkylen."); return; }
   const counts = (data.kalkyle_data && data.kalkyle_data.counts) || {};
   f.pris_per_person = (counts.kundepris!=null) ? counts.kundepris : f.pris_per_person;
@@ -1269,10 +1278,35 @@ async function oppdaterPrisFraKalkyle(){
   // betalende deltakere (counts.anslattVisning = p.anslatt i kalkylen) -
   // ikke antall_reisende, som også teller med reiseledere.
   f.pris_antall_personer = (counts.anslattVisning!=null) ? counts.anslattVisning : f.pris_antall_personer;
+
+  let datoerOppdatert = false;
+  if(data.reise_start_dato || data.reise_slutt_dato){
+    f.fra_dato = data.reise_start_dato || null;
+    f.til_dato = data.reise_slutt_dato || null;
+    el("g-fra").value = f.fra_dato || "";
+    el("g-til").value = f.til_dato || "";
+    state.hotellopphold.forEach(item=>{
+      item.fields.fra_dato = f.fra_dato;
+      item.fields.til_dato = f.til_dato;
+    });
+    state.transport.forEach(item=>{
+      // "intern" (og evt. andre/ukjente kategorier) berøres ikke - kalkylens
+      // reisedatoer sier ingenting om interne forflytninger underveis.
+      if(item.fields.kategori !== "utreise" && item.fields.kategori !== "retur") return;
+      const dato = item.fields.kategori === "retur" ? f.til_dato : f.fra_dato;
+      const stempel = dato ? dato + "T00:00" : null;
+      item.fields.avreise_tidspunkt = stempel;
+      item.fields.ankomst_tidspunkt = stempel;
+    });
+    renderHotell();
+    renderTransport();
+    datoerOppdatert = true;
+  }
+
   f.kalkyle_sist_endret_ved_kobling = data.sist_endret;
   renderPris();
   renderKalkyleInfo();
-  el("saveStatus").textContent = "Pris hentet fra kalkylen.";
+  el("saveStatus").textContent = datoerOppdatert ? "Pris og datoer hentet fra kalkylen." : "Pris hentet fra kalkylen.";
 }
 
 /* ---------- Rendering: Flyinformasjon ----------
@@ -1457,7 +1491,11 @@ function renderHotell(){
                selected-sjekken bruker nå f.stjerner direkte (ingen "||3"-
                fallback), slik at "blank" faktisk kan være valgt/vist. -->
           <select class="h-stjerner-select">
-            <option value="" ${f.stjerner==null?"selected":""}>Blank (ingen stjerner)</option>
+            <!-- v: "Blank"-alternativet skal vises helt uten synlig tekst (kun
+                 mulig å velge det ved å vite det er der/via title-hint) - man
+                 skal ikke tvinges til å ha stjerner med, men "Blank (ingen
+                 stjerner)" som synlig valgt tekst så rart ut. -->
+            <option value="" title="Blank (ingen stjerner)" ${f.stjerner==null?"selected":""}></option>
             ${[1,2,3,4,5].map(n=>`<option value="${n}" ${Number(f.stjerner)===n?"selected":""}>${"★".repeat(n)}</option>`).join("")}
           </select>
         </div>
@@ -2489,7 +2527,7 @@ el("btnPdf").addEventListener("click", async (e)=>{
   window.open(el("btnPdf").href, "_blank", "noopener");
 });
 el("btnSlett").addEventListener("click", slettForslag);
-el("oppdaterPrisBtn").addEventListener("click", oppdaterPrisFraKalkyle);
+el("oppdaterPrisBtn").addEventListener("click", oppdaterFraKalkyle);
 el("g-kundetype").addEventListener("change", ()=>{
   state.forslag.kundetype = el("g-kundetype").value;
   // Skolekobling gir bare mening for Kundetype=Skole - fjernes ved bytte til

@@ -347,6 +347,13 @@ async function main(){
 
   document.title = `${f.tittel || "Reiseforslag"} – Caminante`;
 
+  // v: reisemålLand skal ikke gjentas i H1 hvis destinasjonsteksten allerede
+  // ER landnavnet (f.eks. "Malta, Malta") - sammenlignes uten hensyn til
+  // store/små bokstaver og innledende/avsluttende mellomrom. Blir
+  // sammenligningen lik, droppes landdelen helt og kun destinasjonen vises.
+  const reisemaalLandSkalVises = reisemaalLand
+    && (f.destinasjon || "").trim().toLowerCase() !== reisemaalLand.trim().toLowerCase();
+
   const hotellIdSet = new Set(hoteller.map(h=>h.id));
   // v14: Hovedbilde/Avslutningsbilde er ikke lenger egne kategorier - de er
   // nå avhukingsvalg (er_hovedbilde/er_avslutningsbilde) PÅ et Reisemål-bilde
@@ -402,7 +409,7 @@ async function main(){
   if(f.hovedbilde_url) side1 += `<img class="hero-img" src="${esc(f.hovedbilde_url)}" alt="">`;
   side1 += `<div class="hero-text">
     <div class="kicker">Reiseforslag</div>
-    <h1>${esc(f.destinasjon || f.tittel || "Reiseforslag")}${reisemaalLand ? `, ${esc(reisemaalLand)}` : ""}</h1>
+    <h1>${esc(f.destinasjon || f.tittel || "Reiseforslag")}${reisemaalLandSkalVises ? `, ${esc(reisemaalLand)}` : ""}</h1>
     ${f.kunde_navn ? `<div class="utarbeidet">Utarbeidet for ${esc(f.kunde_navn)}${f.kontaktperson ? `, v/ ${esc(f.kontaktperson)}` : ""}</div>` : ""}
   </div>`;
 

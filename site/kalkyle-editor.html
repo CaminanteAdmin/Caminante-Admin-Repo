@@ -2511,6 +2511,11 @@ function bygHotellopphold(gm1){
         romtype_andre: romtypeAndre,
         romtype_egendefinert: [],
         maltider: MATPLAN_TEKST[h.matPlan] || null,
+        // v: samme standardverdi (3 stjerner) som når et hotellopphold legges
+        // til manuelt i selve Forslag-editoren ("+ Legg til hotellopphold") -
+        // uten dette feltet fikk kalkyle-overførte hotellopphold ingen
+        // stjerner satt i det hele tatt (vises som "blank" i editoren).
+        stjerner: 3,
       };
     });
 }
