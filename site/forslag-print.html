@@ -362,9 +362,16 @@ async function main(){
   // uflaggede bildene (maks 4). Samme bilde kan i prinsippet være flagget
   // begge deler samtidig - filtreringen håndterer det uansett riktig, siden
   // begge flaggene ekskluderer fra galleriet.
+  // v21: bilder som er valgt som høydepunkt-bilde (Bilder-fanen) skal heller
+  // ikke dukke opp på nytt i "Om reisemålet"-galleriet - de vises allerede i
+  // sin egen høydepunkt-seksjon.
+  const hoydepunktBrukteIder = new Set((hpRows || []).map(h=>h.valgt_bilde_id).filter(Boolean));
   const bilderReisemaal = bilder.filter(b=> b.kategori === "Destinasjon");
   const bilderAvslutning = bilderReisemaal.filter(b=> b.er_avslutningsbilde);
-  const bilderDestinasjon = bilderReisemaal.filter(b=> !b.er_hovedbilde && !b.er_avslutningsbilde).slice(0,4);
+  const bilderDestinasjon = bilderReisemaal
+    .filter(b=> !b.er_hovedbilde && !b.er_avslutningsbilde)
+    .filter(b=> !(b.reisemaal_bilde_id && hoydepunktBrukteIder.has(b.reisemaal_bilde_id)))
+    .slice(0,4);
   const bilderForHotell = (hotellId)=> bilder.filter(b=> b.kategori==="Hotell" && b.hotellopphold_id===hotellId).slice(0,4);
 
   // Avslutningsbilde (side 3, flush mot bunnbanner) - eget flagg hvis satt,
