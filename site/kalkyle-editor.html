@@ -2543,21 +2543,19 @@ function bygTransportrader(gm1){
   return rader;
 }
 
+// v19: hotell- og fly-linjer er FJERNET herfra (var tidligere med i
+// listeposter/hotel-løkken over) - forslag-print.html bygger nå disse to
+// linjetypene automatisk og LEVENDE, direkte fra forslag_hotellopphold/
+// forslag_transport (se hotellNetterLinjer/flyLinjer der), i stedet for en
+// engangs-kopi tatt herfra ved opprettelsestidspunktet. Det unngår at
+// Inkludert-listen viser utdatert hotellnavn/flyinfo hvis Vidar endrer
+// hotell eller flightrute i selve Forslaget etterpå (tidligere kunne BEGGE
+// - den gamle, statiske teksten herfra OG den nye, korrekte - stå oppført
+// samtidig i PDF-en). Buss/aktiviteter/andre kostnader har ingen tilsvarende
+// strukturert kilde i Forslaget og overføres derfor fortsatt som før.
 function bygInkludertFraKalkyle(gm1){
   const linjer = [];
-  const MATPLAN_INLINE = {
-    ingen: '',
-    frokost: ' (frokost inkludert)',
-    halvpensjon: ' (halvpensjon inkludert)',
-    helpensjon: ' (helpensjon inkludert)',
-  };
-  (gm1.hotels||[]).filter(h=>h.netter>0).forEach(h=>{
-    const maltiderTxt = MATPLAN_INLINE[h.matPlan] || '';
-    const navn = h.navn ? h.navn : 'hotell';
-    linjer.push(`${h.netter} ${h.netter===1?'natt':'netter'} ${navn}${maltiderTxt}`.trim());
-  });
   const listeposter = [
-    ...(gm1.flyItems||[]),
     ...(gm1.transport||[]),
     ...(gm1.aktiviteter||[]),
     ...(gm1.andreFasteKostnader||[]),

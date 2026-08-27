@@ -1330,6 +1330,14 @@ function flightsInKategori(kategori){
   return state.transport.filter(item => item.fields.kategori === kategori);
 }
 
+// v19: Bagasje - nedtrekksmeny per flight, samme fire alternativer for både
+// Utreise og Retur. Lagres i `bagasje_info` - en allerede eksisterende, men
+// tidligere ubrukt fritekstkolonne på forslag_transport (fra en eldre
+// skjemaversjon) - ingen ny databasemigrasjon nødvendig. Brukes av
+// forslag-print.html til å bygge Inkludert-listens fly-linje automatisk
+// (se flyLinjer der) - "Uten bagasje" gir ingen ekstra tekst på linjen.
+const BAGASJE_OPTIONS = ["Uten bagasje", "Liten veske under sete", "Håndbagasje", "Innsjekket bagasje"];
+
 // v7: hvert flightkort er nå fire kv-rader (se .kv-row/.kv-field i CSS) -
 // Strekning/Avreise/Ankomst hver på sin egen linje (samme label-til-venstre-
 // stil som resten av skjemaet, f.eks. "Kunde" i Grunninfo, i stedet for den
@@ -1365,6 +1373,11 @@ function renderFlySection(kategori, containerId, placeholder){
         <div class="kv-field fl-field-selskap"><label>Flyselskap</label><input class="fl-selskap" value="${escapeHtml(f.selskap)}" placeholder="Norwegian"></div>
         <div class="kv-field fl-field-nr"><label>Flight.nr</label><input class="fl-nr" value="${escapeHtml(f.flightnr)}" placeholder="SK1234"></div>
       </div>
+      <div class="kv-row">
+        <div class="kv-field fl-field-bagasje"><label>Bagasje</label>
+          <select class="fl-bagasje">${BAGASJE_OPTIONS.map(b=>`<option value="${escapeHtml(b)}" ${(f.bagasje_info||BAGASJE_OPTIONS[0])===b?"selected":""}>${escapeHtml(b)}</option>`).join("")}</select>
+        </div>
+      </div>
     `;
     wrap.appendChild(card);
     const bind = (cls, field)=>{
@@ -1375,6 +1388,7 @@ function renderFlySection(kategori, containerId, placeholder){
     bind(".fl-rute","beskrivelse");
     bind(".fl-nr","flightnr");
     bind(".fl-selskap","selskap");
+    bind(".fl-bagasje","bagasje_info");
     card.querySelector(".item-remove").addEventListener("click", ()=>{
       const realIdx = state.transport.indexOf(item);
       if(realIdx > -1) state.transport.splice(realIdx, 1);
