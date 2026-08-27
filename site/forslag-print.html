@@ -527,46 +527,15 @@ async function main(){
     </section>`;
   }
 
-  // v: Netter+hotellnavn utledes automatisk fra forslag_hotellopphold i
-  // stedet for å måtte skrives inn manuelt i Inkludert-listen - unngår at
-  // linjen blir stående med feil/generisk hotellnavn.
-  // v19: linjeteksten er endret til "<netter> netter på <navn> i delt
-  // <romtype>, inkl. <måltid>." etter ønske fra Vidar (var tidligere kun
-  // "<netter> netter <navn>"). Romtype/måltider hentes fra hotelloppholdets
-  // egne felt (samme kilde som Hotell-fanen i editoren) - "Dobbeltrom" er
-  // samme standardverdi som Hotell-fanens eget nedtrekksvalg bruker når
-  // ingenting er valgt ennå.
-  const HOTELL_MALTID_INLINE = {
-    "Frokost inkludert": "frokost",
-    "Halvpensjon inkludert": "halvpensjon",
-    "Helpensjon inkludert": "helpensjon",
-  };
-  const hotellNetterLinjer = hoteller
-    .filter(h=> h.hotellnavn && h.netter)
-    .map(h=>{
-      const romtype = (h.romtype_standard || "Dobbeltrom").toLowerCase();
-      const maltidTxt = HOTELL_MALTID_INLINE[h.maltider] || "";
-      let linje = `${h.netter} ${h.netter===1?"natt":"netter"} på ${h.hotellnavn} i delt ${romtype}`;
-      if(maltidTxt) linje += `, inkl. ${maltidTxt}`;
-      return linje + ".";
-    });
-  // v19: samme prinsipp for fly - "Flyreise <strekning> t/r[, inkl. <bagasje>]",
-  // utledet LEVENDE fra hver Utreise-flight sin egen Strekning-tekst
-  // (forslag_transport.beskrivelse, f.eks. "Tromsø - Malta") og valgt
-  // bagasje (bagasje_info - "Uten bagasje" gir ingen ekstra tekst). Kun
-  // Utreise-radene brukes (ikke Retur eller Intern) - "t/r" i teksten dekker
-  // allerede returen, og en tur/retur-reise har normalt kun ÉN utreiserute å
-  // beskrive. Tomme/ubenevnte flightkort (uten Strekning fylt ut) hoppes over.
-  const flyLinjer = transport
-    .filter(t=> t.kategori === "utreise" && t.beskrivelse && t.beskrivelse.trim())
-    .map(t=>{
-      let linje = `Flyreise ${t.beskrivelse.trim()} t/r`;
-      if(t.bagasje_info && t.bagasje_info !== "Uten bagasje"){
-        linje += `, inkl. ${t.bagasje_info.charAt(0).toLowerCase()}${t.bagasje_info.slice(1)}`;
-      }
-      return linje;
-    });
-  const inkl = [...hotellNetterLinjer, ...flyLinjer, ...(f.inkludert || [])];
+  // v20: hotell-/fly-linjene ble tidligere utledet LEVENDE her ved hver
+  // PDF-visning (uavhengig av f.inkludert) - det gjorde dem umulige å
+  // overstyre/rette manuelt (Vidar: "man må alltid kunne overstyre
+  // informasjonen som er hentet"). De foreslås nå i stedet automatisk inn i
+  // selve Inkludert-listen av forslag-editor.html (se
+  // syncAutoInkludertLinjer() der), og er dermed fritt redigerbare/slettbare
+  // i Priser-fanen som alle andre linjer. Her rendres derfor bare f.inkludert
+  // direkte igjen, uten noen egen utledning.
+  const inkl = f.inkludert || [];
   const ikkeInkl = f.ikke_inkludert || [];
   if(inkl.length || ikkeInkl.length){
     const klasser = (utreise.length||retur.length||intern.length) ? "blokk" : "blokk side-start";

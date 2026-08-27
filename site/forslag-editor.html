@@ -1337,6 +1337,11 @@ function flightsInKategori(kategori){
 // forslag-print.html til å bygge Inkludert-listens fly-linje automatisk
 // (se flyLinjer der) - "Uten bagasje" gir ingen ekstra tekst på linjen.
 const BAGASJE_OPTIONS = ["Uten bagasje", "Liten veske under sete", "Håndbagasje", "Innsjekket bagasje"];
+// v20: standardvalget for et NYTT flightkort er "Innsjekket bagasje" (var
+// tidligere BAGASJE_OPTIONS[0]/"Uten bagasje") - de aller fleste av
+// Caminantes reiser inkluderer innsjekket bagasje, så det er det mest
+// realistiske utgangspunktet.
+const BAGASJE_STANDARD = "Innsjekket bagasje";
 
 // v7: hvert flightkort er nå fire kv-rader (se .kv-row/.kv-field i CSS) -
 // Strekning/Avreise/Ankomst hver på sin egen linje (samme label-til-venstre-
@@ -1375,7 +1380,7 @@ function renderFlySection(kategori, containerId, placeholder){
       </div>
       <div class="kv-row">
         <div class="kv-field fl-field-bagasje"><label>Bagasje</label>
-          <select class="fl-bagasje">${BAGASJE_OPTIONS.map(b=>`<option value="${escapeHtml(b)}" ${(f.bagasje_info||BAGASJE_OPTIONS[0])===b?"selected":""}>${escapeHtml(b)}</option>`).join("")}</select>
+          <select class="fl-bagasje">${BAGASJE_OPTIONS.map(b=>`<option value="${escapeHtml(b)}" ${(f.bagasje_info||BAGASJE_STANDARD)===b?"selected":""}>${escapeHtml(b)}</option>`).join("")}</select>
         </div>
       </div>
     `;
@@ -1389,10 +1394,15 @@ function renderFlySection(kategori, containerId, placeholder){
     bind(".fl-nr","flightnr");
     bind(".fl-selskap","selskap");
     bind(".fl-bagasje","bagasje_info");
+    // v20: Strekning og Bagasje kan begge påvirke den auto-foreslåtte
+    // fly-linjen i Inkludert - synk på nytt når en av dem endres.
+    card.querySelector(".fl-rute").addEventListener("change", syncOgRenderInkludert);
+    card.querySelector(".fl-bagasje").addEventListener("change", syncOgRenderInkludert);
     card.querySelector(".item-remove").addEventListener("click", ()=>{
       const realIdx = state.transport.indexOf(item);
       if(realIdx > -1) state.transport.splice(realIdx, 1);
       renderTransport();
+      syncOgRenderInkludert();
     });
   });
 }
@@ -1412,6 +1422,7 @@ function addFlight(kategori){
   const dato = defaultFlightDato(kategori);
   state.transport.push({ id:null, clientKey:newClientKey(), fields:{ kategori, sortering: state.transport.length, avreise_tidspunkt: dato, ankomst_tidspunkt: dato } });
   renderTransport();
+  syncOgRenderInkludert();
 }
 
 function renderTransport(){
@@ -1547,13 +1558,20 @@ function renderHotell(){
     wrap.appendChild(card);
     const bind = (cls, field)=> card.querySelector(cls).addEventListener("change", e=>{ f[field] = e.target.value || null; });
     bind(".h-sted","sted"); bind(".h-land","land"); bind(".h-fra","fra_dato"); bind(".h-til","til_dato");
-    card.querySelector(".h-netter").addEventListener("change", e=>{ f.netter = numOrNull(e.target.value); });
+    card.querySelector(".h-netter").addEventListener("change", e=>{ f.netter = numOrNull(e.target.value); syncOgRenderInkludert(); });
     bind(".h-navn","hotellnavn");
     bind(".h-maltider","maltider"); bind(".h-beskrivelse","beskrivelse"); bind(".h-prisinfo","prisinfo");
+    // v20: Hotellnavn, Netter, Romtype og Måltider kan alle påvirke den
+    // auto-foreslåtte hotell-linjen i Inkludert - synk på nytt når en av dem
+    // endres (Netter/Romtype har egne addEventListener-kall like ved siden
+    // av selve feltoppdateringen, se over/under).
+    card.querySelector(".h-navn").addEventListener("change", syncOgRenderInkludert);
+    card.querySelector(".h-maltider").addEventListener("change", syncOgRenderInkludert);
     card.querySelector(".h-stjerner-select").addEventListener("change", e=>{ f.stjerner = e.target.value ? Number(e.target.value) : null; });
     renderHotellegenskaper(card.querySelector(".h-egenskaper-wrap"), f);
     card.querySelector(".h-standard-romtype").addEventListener("change", e=>{
       f.romtype_standard = e.target.value;
+      syncOgRenderInkludert();
     });
     card.querySelector(".item-remove").addEventListener("click", ()=>{
       const removedKey = item.clientKey;
@@ -1561,6 +1579,7 @@ function renderHotell(){
       state.bilder.forEach(b=>{ if(b.hotellopphold_client_key === removedKey) b.hotellopphold_client_key = null; });
       renderHotell();
       renderBilder();
+      syncOgRenderInkludert();
     });
 
     // "Velg fra hotelloversikt" for akkurat denne blokken.
@@ -1592,6 +1611,7 @@ el("addHotellBtn").addEventListener("click", ()=>{
   });
   renderHotell();
   renderBilder(); // v: ny hotell-underboks i Bilder-fanen med en gang
+  syncOgRenderInkludert();
 });
 
 /* ---------- "Velg fra hotelloversikt" ----------
@@ -1672,6 +1692,7 @@ function velgHotellFraOversiktInn(item, id){
   });
   renderHotell();
   renderBilder();
+  syncOgRenderInkludert();
 }
 
 /* ---------- Rendering: Pris ---------- */
@@ -1683,6 +1704,134 @@ function renderPris(){
   el("pr-enkeltrom").value = f.enkeltromstillegg ?? "";
   el("pr-forklaring").value = f.prisgrunnlag_forklaring || "";
   el("pr-intern").value = f.pris_intern_kommentar || "";
+}
+
+/* ---------- Inkludert: automatisk forslått hotell-/fly-linje, med
+   mulighet for å overstyre ----------
+   v20: het tidligere "levende sync" der linjene KUN ble utledet ved
+   PDF-visning (forslag-print.html) og aldri lå i selve inkludert-listen -
+   Vidar ønsket i stedet at de skal komme opp SOM FORESLÅTT i Priser-fanens
+   Inkludert-liste (redigerbar/slettbar som alle andre linjer der), og at en
+   manuell endring av akkurat den linjen skal respekteres for godt (linjen
+   slutter da å bli automatisk oppdatert når hotell/fly endres videre).
+
+   Løsning: hotell-linjer og fly-linjer spores hver for seg som EGNE
+   "auto-blokker" (forslag.auto_hotell_linjer / auto_fly_linjer - de nøyaktige
+   tekstene som sist ble skrevet inn automatisk). Ved hver relevant
+   hotell-/fly-feltendring beregnes de nye foreslåtte linjene på nytt:
+   - Er de GAMLE auto-linjene fortsatt uendret til stede i inkludert-listen
+     (uansett rekkefølge - dra-og-slipp skal ikke telle som en overstyring)?
+     Da erstattes de med de nye linjene, og sporingen oppdateres.
+   - Mangler en av de gamle auto-linjene (brukeren har redigert eller
+     slettet den i Priser-fanen)? Da anses blokken som overstyrt
+     (forslag.hotell_linje_overstyrt/fly_linje_overstyrt settes til true),
+     og den blokken røres ikke automatisk igjen. */
+
+const HOTELL_MALTID_INLINE = {
+  "Frokost inkludert": "frokost",
+  "Halvpensjon inkludert": "halvpensjon",
+  "Helpensjon inkludert": "helpensjon",
+};
+
+function beregnAutoHotellLinjer(){
+  return state.hotellopphold
+    .map(item=>item.fields)
+    .filter(h=> h.hotellnavn && h.netter)
+    .map(h=>{
+      const romtype = (h.romtype_standard || "Dobbeltrom").toLowerCase();
+      const maltidTxt = HOTELL_MALTID_INLINE[h.maltider] || "";
+      let linje = `${h.netter} ${h.netter===1?"natt":"netter"} på ${h.hotellnavn} i delt ${romtype}`;
+      if(maltidTxt) linje += `, inkl. ${maltidTxt}`;
+      return linje + ".";
+    });
+}
+
+// v20: kun Utreise-radene brukes (ikke Retur/Intern) - "t/r" i teksten
+// dekker allerede returen. v20-rettelse: ved mellomlanding har man FLERE
+// Utreise-kort (ett per fly-bein, f.eks. "Tromsø - København" og
+// "København - Malta") - disse skal IKKE bli to separate "t/r"-linjer, men
+// slås sammen til ÉN linje for hele utreisen: avreiseflyplassen fra det
+// FØRSTE beinet til reisemålet i det SISTE beinet ("Flyreise Tromsø - Malta
+// t/r"). Strekning-feltet er fritekst på formen "<avreise> - <ankomst>" -
+// samme " - "-konvensjon som placeholder-teksten i feltet selv bruker.
+function beregnAutoFlyLinjer(){
+  const bein = state.transport
+    .filter(item=> item.fields.kategori === "utreise" && item.fields.beskrivelse && item.fields.beskrivelse.trim())
+    .map(item=> item.fields);
+  if(!bein.length) return [];
+  const avreise = bein[0].beskrivelse.trim().split(" - ")[0].trim();
+  const sisteStrekning = bein[bein.length-1].beskrivelse.trim();
+  const sisteDeler = sisteStrekning.split(" - ");
+  const reisemaal = (sisteDeler.length > 1 ? sisteDeler[sisteDeler.length-1] : sisteStrekning).trim();
+  let linje = `Flyreise ${avreise} - ${reisemaal} t/r`;
+  // Bagasje: bruker det første beinet som faktisk har et valg satt (normalt
+  // samme valg på alle bein i én reise uansett).
+  const bagasje = bein.map(b=>b.bagasje_info).find(b=> b && b !== "Uten bagasje");
+  if(bagasje){
+    linje += `, inkl. ${bagasje.charAt(0).toLowerCase()}${bagasje.slice(1)}`;
+  }
+  return [linje];
+}
+
+// Er alle linjene i `gamle` fortsatt til stede i `curr` (som multisett -
+// rekkefølge er likegyldig, men antall forekomster må stemme)?
+function alleLinjerFortsattTilstede(gamle, curr){
+  const rest = [...curr];
+  for(const v of gamle){
+    const i = rest.indexOf(v);
+    if(i === -1) return false;
+    rest.splice(i,1);
+  }
+  return true;
+}
+
+// Bytter ut forekomstene av `gamle`-linjene i `arr` med `nye`-linjene, satt
+// inn samlet der den FØRSTE gamle linjen lå (bevarer brukerens plassering av
+// blokken ved en oppdatering).
+function erstattAutoLinjerIArray(arr, gamle, nye){
+  const gjenstaende = {};
+  gamle.forEach(v=> gjenstaende[v] = (gjenstaende[v]||0) + 1);
+  const resultat = [];
+  let satt_inn = false;
+  arr.forEach(v=>{
+    if(gjenstaende[v] > 0){
+      gjenstaende[v]--;
+      if(!satt_inn){ resultat.push(...nye); satt_inn = true; }
+    } else {
+      resultat.push(v);
+    }
+  });
+  if(!satt_inn) resultat.push(...nye);
+  return resultat;
+}
+
+function syncAutoInkludertBlokk(f, nyeKey, overstyrtKey, beregnFn){
+  if(f[overstyrtKey]) return;
+  const nye = beregnFn();
+  const gamle = f[nyeKey] || [];
+  if(alleLinjerFortsattTilstede(gamle, f.inkludert)){
+    if(JSON.stringify(nye) !== JSON.stringify(gamle)){
+      f.inkludert = gamle.length ? erstattAutoLinjerIArray(f.inkludert, gamle, nye) : [...f.inkludert, ...nye];
+      f[nyeKey] = nye;
+    }
+  } else {
+    // Linjen(e) er endret eller fjernet av brukeren i Priser-fanen - dette
+    // regnes som en bevisst overstyring, og blokken forvaltes ikke
+    // automatisk lenger.
+    f[overstyrtKey] = true;
+  }
+}
+
+function syncAutoInkludertLinjer(){
+  const f = state.forslag;
+  f.inkludert = f.inkludert || [];
+  syncAutoInkludertBlokk(f, "auto_hotell_linjer", "hotell_linje_overstyrt", beregnAutoHotellLinjer);
+  syncAutoInkludertBlokk(f, "auto_fly_linjer", "fly_linje_overstyrt", beregnAutoFlyLinjer);
+}
+
+function syncOgRenderInkludert(){
+  syncAutoInkludertLinjer();
+  renderListEditor("inkludertList","inkludert");
 }
 
 /* ---------- Rendering: Inkludert / ikke inkludert ---------- */
@@ -2309,7 +2458,7 @@ function renderAll(){
   renderTransport();
   renderHotell();
   renderPris();
-  renderListEditor("inkludertList","inkludert");
+  syncOgRenderInkludert();
   renderListEditor("ikkeInkludertList","ikke_inkludert");
   renderPresentasjon();
   renderForbehold();
@@ -2350,6 +2499,13 @@ function collectForslagFields(){
     pris_intern_kommentar: f.pris_intern_kommentar || null,
     inkludert: f.inkludert || [],
     ikke_inkludert: f.ikke_inkludert || [],
+    // v20: sporing for auto-foreslåtte hotell-/fly-linjer i Inkludert (se
+    // syncAutoInkludertLinjer() over) - må lagres slik at overstyring
+    // respekteres også etter en reload, ikke bare i den ene økten.
+    auto_hotell_linjer: f.auto_hotell_linjer || [],
+    auto_fly_linjer: f.auto_fly_linjer || [],
+    hotell_linje_overstyrt: !!f.hotell_linje_overstyrt,
+    fly_linje_overstyrt: !!f.fly_linje_overstyrt,
     om_reisen: f.om_reisen || null,
     reisemaal_id: f.reisemaal_id || null,
     om_reisemalet: f.om_reisemalet || null,
