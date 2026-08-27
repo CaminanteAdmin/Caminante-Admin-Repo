@@ -544,11 +544,18 @@
     font-size:11px; color:var(--ink-primary); cursor:pointer; margin-bottom:5px;
   }
   .img-card .img-flagg-opt input{ width:auto; margin:0; }
-  /* v21: "Høydepunkt"-nedtrekket i samme rad-stil som Hovedbilde/
-     Avslutningsbilde-avkrysningene, men tar hele bredden siden select-en må
-     ha plass til høydepunktnavnet. */
-  .img-card .img-flagg-opt.img-hoydepunkt-opt{ width:100%; justify-content:space-between; }
-  .img-card .img-flagg-opt select{ width:auto; flex:1; margin:0 0 0 6px; font-size:11px; padding:2px 4px; }
+  /* v21 (rettet etter tilbakemelding - opprinnelig forsøk klemte "Høydepunkt"
+     og selve nedtrekket inn på samme smale rad, som gjorde select-en for
+     smal til å faktisk fungere som en dropdown i det trange bildekortet).
+     Label og select stables nå under hverandre i stedet, og select-en bruker
+     den vanlige, fullbredde `.img-card select`-stilen - samme mønster som
+     resten av kortets felter. */
+  .img-card .img-hoydepunkt-opt{ margin-bottom:5px; }
+  .img-card .img-hoydepunkt-opt label{
+    display:block; font-size:11px; color:var(--ink-primary); margin-bottom:2px;
+  }
+  .img-card .img-hoydepunkt-opt select{ margin-bottom:0; }
+  .img-card .img-hoydepunkt-opt select:disabled{ background:var(--page); color:var(--ink-muted); cursor:not-allowed; }
   .upload-hint{ font-size:11.5px; color:var(--ink-muted); margin-bottom:14px; }
 
   /* v: Bilder-fanen bygget om fra rullegardin-basert kategorisering til én
@@ -2205,12 +2212,13 @@ function bildeThumbCard(b, thumbOpts){
       <label class="img-flagg-opt"><input type="checkbox" class="b-hovedbilde" ${b.fields.er_hovedbilde?"checked":""}> Hovedbilde</label>
       <label class="img-flagg-opt"><input type="checkbox" class="b-avslutningsbilde" ${b.fields.er_avslutningsbilde?"checked":""}> Avslutningsbilde</label>
       ${state.hoydepunkter.length ? `
-      <label class="img-flagg-opt img-hoydepunkt-opt">Høydepunkt
-        <select class="b-hoydepunkt" ${!b.fields.reisemaal_bilde_id ? `disabled title='Bildet må velges/lastes opp via reisemålets bildebank for å kunne brukes som høydepunkt-bilde'` : ""}>
+      <div class="img-hoydepunkt-opt">
+        <label>Høydepunkt</label>
+        <select class="b-hoydepunkt" ${!b.fields.reisemaal_bilde_id ? `disabled title='Dette er et eldre bilde som ikke er koblet til reisemålets bildebank ennå, og kan derfor ikke velges som høydepunkt-bilde. Fjern det og legg det til på nytt via «Velg fra bildebank» for å koble det.'` : ""}>
           <option value="">(ingen)</option>
           ${state.hoydepunkter.map(hp=>`<option value="${escapeHtml(hp.clientKey)}" ${gjeldendeHp===hp?"selected":""}>${escapeHtml(hoydepunktNavn(hp))}</option>`).join("")}
         </select>
-      </label>` : ""}
+      </div>` : ""}
       ` : ""}
       <button class="img-remove">Fjern</button>
     </div>
@@ -2693,7 +2701,7 @@ function collectFieldsFromForm(){
   f.forbehold_tekst = el("fb-tekst").value;
 }
 
-async function syncChildTable(table, fkField, items, originalIdSet, extraResolver){
+async function syncChildTable(table, fkField, items, originalIdSet, extraResolver, conflictCols){
   const keyToId = {};
   const keepIds = new Set();
   for(const item of items){
@@ -2703,6 +2711,20 @@ async function syncChildTable(table, fkField, items, originalIdSet, extraResolve
       const { error } = await window.sb.from(table).update(payload).eq("id", item.id);
       if(error) throw new Error(table + ": " + error.message);
       keepIds.add(item.id);
+    } else if(conflictCols){
+      // v21-rettelse: for tabeller med en ekte unik naturlig nøkkel (i
+      // praksis kun forslag_hoydepunkter, unik på forslag_id+hoydepunkt_id) -
+      // et rent insert() ville krasje HELE autolagringen med en
+      // "duplicate key"-feil hvis en rad med samme nøkkel allerede finnes i
+      // databasen mens denne nettleser-fanens minne (av en eller annen grunn,
+      // f.eks. en annen fane/økt som lagret i mellomtiden) fortsatt tror
+      // raden er ny (item.id er null). upsert() på selve nøkkelen slår i
+      // stedet sammen med den eksisterende raden i stedet for å krasje, og
+      // gir uansett riktig id tilbake.
+      const { data, error } = await window.sb.from(table).upsert(payload, { onConflict: conflictCols.join(",") }).select().single();
+      if(error) throw new Error(table + ": " + error.message);
+      item.id = data.id;
+      keepIds.add(data.id);
     } else {
       const { data, error } = await window.sb.from(table).insert(payload).select().single();
       if(error) throw new Error(table + ": " + error.message);
@@ -2749,7 +2771,7 @@ async function utforLagring(trigger){
     // v: sortering settes eksplisitt fra listens rekkefølge rett før lagring
     // (opp/ned-knappene bytter kun plass i arrayet, ikke .sortering-verdien).
     state.hoydepunkter.forEach((item, idx)=>{ item.fields.sortering = idx; });
-    await syncChildTable("forslag_hoydepunkter", "forslag_id", state.hoydepunkter, originalIds.hoydepunkter);
+    await syncChildTable("forslag_hoydepunkter", "forslag_id", state.hoydepunkter, originalIds.hoydepunkter, null, ["forslag_id","hoydepunkt_id"]);
 
     originalIds.transport = new Set(state.transport.map(i=>i.id));
     originalIds.hotellopphold = new Set(state.hotellopphold.map(i=>i.id));
