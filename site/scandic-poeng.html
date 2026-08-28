@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Scandic Bonusnetter – Caminante Admin</title>
 <link rel="stylesheet" href="shared/style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
   /* v1: rent oppslagsverk (se sql/spec) - ingen skjema for å opprette/slette
      rader, kun søk/filter/sortering av en tabell som allerede finnes i
@@ -73,11 +74,17 @@
   }
   .land-chip:hover{ border-color:var(--accent); }
   .land-chip.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .toolbar select{
+    padding:7px 8px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:13px;
+    background:var(--surface-1);
+    color:var(--ink-primary);
+  }
   .poeng-slider-wrap{ display:flex; align-items:center; gap:8px; }
   .poeng-slider-wrap input[type="range"]{ width:130px; }
   .poeng-slider-val{ font-size:12.5px; color:var(--ink-secondary); white-space:nowrap; font-variant-numeric:tabular-nums; min-width:88px; }
-  .toolbar label.kampanje-filter{ display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--ink-secondary); cursor:pointer; white-space:nowrap; }
-  .toolbar label.kampanje-filter input{ width:auto; margin:0; }
   .toolbar button.reset{
     padding:7px 12px;
     border:1px solid var(--hairline);
@@ -90,13 +97,60 @@
   .toolbar button.reset:hover{ background:var(--page); }
   .count-pill{ font-size:12.5px; color:var(--ink-muted); margin-left:auto; padding-left:8px; white-space:nowrap; }
 
-  .main{ padding:16px 24px 8px; }
+  .main{ display:flex; gap:16px; padding:16px 24px 8px; align-items:flex-start; }
+  .map-panel{
+    flex:0 0 380px;
+    background:var(--surface-1);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:14px;
+  }
+  .map-panel h2{
+    font-size:13px;
+    font-weight:650;
+    margin:0 0 10px;
+    color:var(--ink-secondary);
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  #hotelMap{
+    width:100%;
+    height:520px;
+    display:block;
+    background:#e9f1f6;
+    border-radius:8px;
+    overflow:hidden;
+  }
+  #hotelMap .leaflet-container{ font-family:inherit; border-radius:8px; }
+  .map-dot{ cursor:pointer; stroke:#fff; }
+  .map-legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    margin-top:10px;
+    font-size:12px;
+    color:var(--ink-secondary);
+  }
+  .legend-item{ display:flex; align-items:center; gap:5px; }
+  .legend-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .map-note{
+    font-size:11px;
+    color:var(--ink-muted);
+    margin-top:8px;
+    line-height:1.4;
+  }
   .list-panel{
+    flex:1 1 auto;
+    min-width:0;
     background:var(--surface-1);
     border:1px solid var(--hairline);
     border-radius:var(--radius);
     padding:14px;
     overflow-x:auto;
+  }
+  @media (max-width:900px){
+    .main{ flex-direction:column; }
+    .map-panel{ flex:1 1 auto; width:100%; }
   }
   table{ width:100%; border-collapse:collapse; font-size:13px; }
   thead th{
@@ -113,13 +167,10 @@
   thead th .arrow{ font-size:10px; color:var(--ink-muted); margin-left:3px; }
   tbody td{ padding:8px 8px; border-bottom:1px solid var(--hairline); vertical-align:middle; }
   tbody tr:hover{ background:var(--page); }
+  tbody tr.row-highlight{ background:#eaf1fb; }
   .hotel-name{ font-weight:600; }
   .land-flag{ width:20px; height:14px; object-fit:cover; border-radius:2px; vertical-align:middle; margin-right:6px; border:1px solid var(--hairline); }
   .ikke-bonusnatt{ color:var(--ink-muted); }
-  .kampanje-poeng{ color:var(--good); font-weight:650; font-variant-numeric:tabular-nums; }
-  .kampanje-rabatt{ font-weight:500; }
-  .kampanje-periode{ font-size:11px; color:var(--ink-muted); margin-top:1px; }
-  .kampanje-tom{ color:var(--ink-muted); }
   .empty-row td{ text-align:center; color:var(--ink-muted); padding:30px 8px; }
 
   .footnote{
@@ -160,10 +211,6 @@
         <div class="metric-value" id="mLavest">–</div>
         <div class="metric-sub" id="mLavestHotell"></div>
       </div>
-      <div class="metric-card">
-        <div class="metric-label">Med kampanjepris akkurat nå</div>
-        <div class="metric-value" id="mKampanje">–</div>
-      </div>
     </div>
 
     <div class="info-box">
@@ -171,9 +218,8 @@
       er forskjellen fra de fleste andre kjeder. En bonusnatt gjelder ett standard dobbeltrom for to
       personer, én natt. Tallene under er Scandics offisielle poengpris, regnet om til
       <strong>EuroBonus-poeng</strong> etter SAS/Scandic sin faste, gebyrfrie vekslingskurs
-      (2 Scandic Friends-poeng = 1 EuroBonus-poeng). Kampanjeprisene <strong>rullerer månedlig</strong>
-      og er et øyeblikksbilde fra datoen i fotnoten under — og selv en lav pris forutsetter at
-      hotellet faktisk har bonusnattrom ledig på datoen du ønsker.
+      (2 Scandic Friends-poeng = 1 EuroBonus-poeng) — og selv en lav pris forutsetter at hotellet
+      faktisk har bonusnattrom ledig på datoen du ønsker.
     </div>
   </div>
 
@@ -183,17 +229,31 @@
       <span class="toolbar-group-label">Land</span>
       <div class="land-chips" id="landChips"></div>
     </div>
+    <div class="toolbar-group">
+      <span class="toolbar-group-label">Fylke (Norge)</span>
+      <select id="filterFylke"><option value="">Alle fylker</option></select>
+    </div>
     <div class="toolbar-group poeng-slider-wrap">
       <span class="toolbar-group-label">Maks EuroBonus-poeng</span>
       <input type="range" id="poengSlider" min="5000" max="40000" step="500" value="40000">
       <span class="poeng-slider-val" id="poengSliderVal"></span>
     </div>
-    <label class="kampanje-filter"><input type="checkbox" id="kunKampanje"> Bare hoteller med kampanje</label>
     <button class="reset" id="resetFilters">Nullstill filter</button>
     <span class="count-pill" id="countPill"></span>
   </div>
 
   <div class="main">
+    <div class="map-panel">
+      <h2>Kart</h2>
+      <div id="hotelMap"></div>
+      <div class="map-legend">
+        <span class="legend-item"><span class="legend-dot" style="background:#0ca30c"></span>≤ 12 500 poeng</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#e6a817"></span>12 500–19 999 poeng</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#d03b3b"></span>≥ 20 000 poeng</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#898781"></span>Ikke bonusnatt</span>
+      </div>
+      <div class="map-note">Fargen viser EuroBonus-poeng per natt. Flere hoteller i samme by vises som en liten klynge rundt byen — klikk et punkt for å finne hotellet i listen til høyre.</div>
+    </div>
     <div class="list-panel">
       <table>
         <thead>
@@ -202,7 +262,6 @@
             <th data-key="by">By <span class="arrow"></span></th>
             <th data-key="land">Land <span class="arrow"></span></th>
             <th data-key="poeng_per_natt">EuroBonus-poeng/natt <span class="arrow"></span></th>
-            <th data-key="kampanje_poeng">Kampanje <span class="arrow"></span></th>
           </tr>
         </thead>
         <tbody id="listBody"></tbody>
@@ -218,6 +277,7 @@
 <script src="shared/supabase-client.js"></script>
 <script src="shared/auth.js"></script>
 <script src="shared/nav.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 /* ---------- State ---------- */
 
@@ -232,11 +292,102 @@ function tilEurobonus(scandicPoeng){
   return scandicPoeng == null ? null : Math.round(scandicPoeng / SCANDIC_PR_EUROBONUS);
 }
 const POENG_SLIDER_MAKS = tilEurobonus(80000); // høyeste Scandic-nivå i banken (spec pkt. 1)
+
+/* ---------- Kart: byposisjoner og fylkesoppslag ----------
+   `by` i tabellen er Scandics egen by-gruppering (se spec pkt. 1), ikke en
+   presis adresse - punktene under er derfor bysentrum, ikke det enkelte
+   hotellet. Flere hoteller i samme by spres med en liten, deterministisk
+   forskyvning i renderMap() heller enn å ligge nøyaktig oldenpå hverandre. */
+const CITY_COORDS = {
+  "Norge|Ålesund": [62.4722, 6.1549], "Norge|Alta": [69.9689, 23.2717],
+  "Norge|Bergen": [60.3913, 5.3221], "Norge|Bodø": [67.2804, 14.4049],
+  "Norge|Drammen": [59.7440, 10.2045], "Norge|Fagernes": [61.0000, 9.2500],
+  "Norge|Fauske": [67.2588, 15.3928], "Norge|Florø": [61.5996, 5.0328],
+  "Norge|Førde": [61.4522, 5.8558], "Norge|Fredrikstad": [59.2181, 10.9298],
+  "Norge|Hamar": [60.7945, 11.0680], "Norge|Hammerfest": [70.6634, 23.6821],
+  "Norge|Harstad": [68.7986, 16.5417], "Norge|Haugesund": [59.4138, 5.2680],
+  "Norge|Hønefoss": [60.1690, 10.2570], "Norge|Honningsvåg": [70.9821, 25.9704],
+  "Norge|Karasjok": [69.4693, 25.5107], "Norge|Kirkenes": [69.7269, 30.0454],
+  "Norge|Kristiansand": [58.1467, 7.9956], "Norge|Kristiansund": [63.1105, 7.7278],
+  "Norge|Lillehammer": [61.1153, 10.4662], "Norge|Lofoten": [68.2341, 14.5686],
+  "Norge|Mo i Rana": [66.3128, 14.1428], "Norge|Molde": [62.7372, 7.1607],
+  "Norge|Mysen": [59.5522, 11.3312], "Norge|Namsos": [64.4667, 11.5000],
+  "Norge|Narvik": [68.4385, 17.4272], "Norge|Oslo": [59.9139, 10.7522],
+  "Norge|Sandefjord": [59.1313, 10.2167], "Norge|Sandnessjøen": [66.0192, 12.6316],
+  "Norge|Sarpsborg": [59.2839, 11.1096], "Norge|Sortland": [68.6959, 15.4136],
+  "Norge|Stavanger": [58.9700, 5.7331], "Norge|Tromsø": [69.6492, 18.9553],
+  "Norge|Trondheim": [63.4305, 10.3951], "Norge|Vadsø": [70.0740, 29.7488],
+  "Norge|Voss": [60.6293, 6.4254],
+
+  "Sverige|Arvika": [59.6552, 12.5868], "Sverige|Bollnäs": [61.3486, 16.3928],
+  "Sverige|Borås": [57.7210, 12.9401], "Sverige|Borlänge": [60.4858, 15.4341],
+  "Sverige|Falun": [60.6065, 15.6355], "Sverige|Gällivare": [67.1372, 20.6567],
+  "Sverige|Gävle": [60.6749, 17.1413], "Sverige|Göteborg": [57.7089, 11.9746],
+  "Sverige|Halmstad": [56.6745, 12.8570], "Sverige|Helsingborg": [56.0465, 12.6945],
+  "Sverige|Jönköping": [57.7826, 14.1618], "Sverige|Kalmar": [56.6634, 16.3566],
+  "Sverige|Karlskrona": [56.1612, 15.5869], "Sverige|Karlstad": [59.3793, 13.5036],
+  "Sverige|Kiruna": [67.8558, 20.2253], "Sverige|Linköping": [58.4108, 15.6214],
+  "Sverige|Luleå": [65.5848, 22.1567], "Sverige|Lund": [55.7047, 13.1910],
+  "Sverige|Malmö": [55.6050, 13.0038], "Sverige|Norrköping": [58.5877, 16.1924],
+  "Sverige|Nyköping": [58.7531, 17.0087], "Sverige|Örebro": [59.2753, 15.2134],
+  "Sverige|Örnsköldsvik": [63.2909, 18.7153], "Sverige|Östersund": [63.1792, 14.6357],
+  "Sverige|Skellefteå": [64.7507, 20.9528], "Sverige|Skövde": [58.3910, 13.8454],
+  "Sverige|Södertälje": [59.1955, 17.6252], "Sverige|Stockholm": [59.3293, 18.0686],
+  "Sverige|Strömstad": [58.9354, 11.1747], "Sverige|Sundsvall": [62.3908, 17.3069],
+  "Sverige|Trollhättan": [58.2837, 12.2886], "Sverige|Umeå": [63.8258, 20.2630],
+  "Sverige|Uppsala": [59.8586, 17.6389], "Sverige|Värnamo": [57.1833, 14.0333],
+  "Sverige|Västerås": [59.6099, 16.5448], "Sverige|Växjö": [56.8777, 14.8091],
+
+  "Finland|Espoo": [60.2055, 24.6559], "Finland|Hämeenlinna": [60.9959, 24.4643],
+  "Finland|Helsinki": [60.1699, 24.9384], "Finland|Hyvinkää": [60.6306, 24.8594],
+  "Finland|Joensuu": [62.6010, 29.7636], "Finland|Jyväskylä": [62.2426, 25.7473],
+  "Finland|Kemi": [65.7361, 24.5636], "Finland|Kouvola": [60.8681, 26.7042],
+  "Finland|Kuopio": [62.8924, 27.6770], "Finland|Lahti": [60.9827, 25.6615],
+  "Finland|Lappeenranta": [61.0587, 28.1887], "Finland|Mikkeli": [61.6886, 27.2723],
+  "Finland|Nokia": [61.4781, 23.5090], "Finland|Oulu": [65.0121, 25.4651],
+  "Finland|Pori": [61.4851, 21.7972], "Finland|Rauma": [61.1298, 21.5111],
+  "Finland|Rovaniemi": [66.5039, 25.7294], "Finland|Ruka Kuusamo": [65.9500, 29.1500],
+  "Finland|Seinäjoki": [62.7877, 22.8407], "Finland|Tampere": [61.4978, 23.7610],
+  "Finland|Turku": [60.4518, 22.2666], "Finland|Vaasa": [63.0951, 21.6165],
+
+  "Danmark|Aalborg": [57.0488, 9.9217], "Danmark|Aarhus": [56.1629, 10.2039],
+  "Danmark|Esbjerg": [55.4765, 8.4594], "Danmark|Herning": [56.1362, 8.9744],
+  "Danmark|Horsens": [55.8607, 9.8503], "Danmark|København": [55.6761, 12.5683],
+  "Danmark|Kolding": [55.4904, 9.4722], "Danmark|Odense": [55.4038, 10.4024],
+  "Danmark|Ringsted": [55.4419, 11.7903], "Danmark|Roskilde": [55.6415, 12.0803],
+  "Danmark|Silkeborg": [56.1697, 9.5461], "Danmark|Sønderborg": [54.9092, 9.7907],
+
+  "Tyskland|Berlin": [52.5200, 13.4050], "Tyskland|Frankfurt": [50.1109, 8.6821],
+  "Tyskland|Hamburg": [53.5511, 9.9937], "Tyskland|München": [48.1351, 11.5820],
+  "Tyskland|Nürnberg": [49.4521, 11.0767], "Tyskland|Stuttgart": [48.7758, 9.1829],
+
+  "Polen|Gdansk": [54.3520, 18.6466], "Polen|Wroclaw": [51.1079, 17.0385],
+};
+
+// Fylkesinndeling (2024-strukturen, 15 fylker) - samme liste som brukes i
+// skoler.html, for konsistens på tvers av admin-sidene.
+const FYLKER_NO = ["Agder","Akershus","Buskerud","Finnmark","Innlandet","Møre og Romsdal","Nordland","Oslo","Rogaland","Telemark","Troms","Trøndelag","Vestfold","Vestland","Østfold"];
+
+// Fylke finnes ikke som egen kolonne i scandic_poengpriser (kun `by`) - slås
+// opp lokalt for de norske byene i banken. Kun relevant når land="Norge".
+const BY_TIL_FYLKE = {
+  "Ålesund":"Møre og Romsdal", "Alta":"Finnmark", "Bergen":"Vestland", "Bodø":"Nordland",
+  "Drammen":"Buskerud", "Fagernes":"Innlandet", "Fauske":"Nordland", "Florø":"Vestland",
+  "Førde":"Vestland", "Fredrikstad":"Østfold", "Hamar":"Innlandet", "Hammerfest":"Finnmark",
+  "Harstad":"Troms", "Haugesund":"Rogaland", "Hønefoss":"Buskerud", "Honningsvåg":"Finnmark",
+  "Karasjok":"Finnmark", "Kirkenes":"Finnmark", "Kristiansand":"Agder", "Kristiansund":"Møre og Romsdal",
+  "Lillehammer":"Innlandet", "Lofoten":"Nordland", "Mo i Rana":"Nordland", "Molde":"Møre og Romsdal",
+  "Mysen":"Østfold", "Namsos":"Trøndelag", "Narvik":"Nordland", "Oslo":"Oslo",
+  "Sandefjord":"Vestfold", "Sandnessjøen":"Nordland", "Sarpsborg":"Østfold", "Sortland":"Nordland",
+  "Stavanger":"Rogaland", "Tromsø":"Troms", "Trondheim":"Trøndelag", "Vadsø":"Finnmark",
+  "Voss":"Vestland",
+};
+
 const state = {
   search: "",
   land: new Set(["Norge"]),   // v: multivalg, Norge forhåndsvalgt (spec pkt. 2b)
+  fylke: "",                  // v: fylkesfilter, kun relevant for Norge (Vidar 2026-08-28)
   maksPoeng: POENG_SLIDER_MAKS,
-  kunKampanje: false,
   sortKey: "poeng_per_natt",
   sortDir: 1,
 };
@@ -255,7 +406,7 @@ function formatPoeng(n){
 async function loadAllData(){
   const { data, error } = await window.sb
     .from("scandic_poengpriser")
-    .select("hotell, by, land, landkode, poeng_per_natt, kampanje_poeng, kampanje_periode, hentet_dato")
+    .select("hotell, by, land, landkode, poeng_per_natt, hentet_dato")
     .order("poeng_per_natt", { ascending:true, nullsFirst:false })
     .order("hotell");
   if(error){
@@ -285,9 +436,6 @@ function renderMetrics(){
   } else {
     document.getElementById("mLavest").textContent = "–";
   }
-
-  const kampanjeAntall = rows.filter(r=> r.kampanje_poeng != null).length;
-  document.getElementById("mKampanje").textContent = kampanjeAntall.toLocaleString("nb-NO");
 }
 
 /* ---------- Filter-UI: land-chips og poeng-slider ---------- */
@@ -305,8 +453,18 @@ function renderLandChips(){
       if(state.land.has(l)) state.land.delete(l); else state.land.add(l);
       chip.classList.toggle("active");
       renderList();
+      renderMap();
     });
     wrap.appendChild(chip);
+  });
+}
+
+function fillFylkeSelect(){
+  const el = document.getElementById("filterFylke");
+  FYLKER_NO.forEach(fy=>{
+    const o = document.createElement("option");
+    o.value = fy; o.textContent = fy;
+    el.appendChild(o);
   });
 }
 
@@ -328,6 +486,11 @@ function filteredRows(){
     // som de fleste fasettfiltre (Amazon o.l.) bruker, og unngår en
     // tilsynelatende "ødelagt", tom side hvis man ved et uhell fjerner alle.
     if(state.land.size && !state.land.has(r.land)) return false;
+    // Fylkesfilter - kun meningsfullt for Norge, siden det er der vi har
+    // fylkesoppslag (BY_TIL_FYLKE). Velger man et fylke mens Norge er slått
+    // av i land-filteret, blir resultatet bevisst tomt - se change-listeren
+    // for filterFylke, som derfor slår Norge på igjen automatisk.
+    if(state.fylke && (r.land !== "Norge" || BY_TIL_FYLKE[r.by] !== state.fylke)) return false;
     // Rader uten bonusnatt (poeng_per_natt=NULL) har ikke noe poengnivå å
     // filtrere på - de påvirkes bevisst ikke av "Maks poeng"-glideren, se
     // spec pkt. 2b/2c (vises uansett, markert "Ikke bonusnatt" i tabellen).
@@ -335,7 +498,6 @@ function filteredRows(){
     // regnes derfor om til Scandic-poeng her, ikke omvendt, siden det er
     // r.poeng_per_natt (rådata fra banken) som faktisk sammenlignes.
     if(r.poeng_per_natt != null && r.poeng_per_natt > state.maksPoeng * SCANDIC_PR_EUROBONUS) return false;
-    if(state.kunKampanje && r.kampanje_poeng == null) return false;
     return true;
   });
 
@@ -345,7 +507,7 @@ function filteredRows(){
     const aNull = av == null, bNull = bv == null;
     // v: NULL havner alltid sist, uansett sorteringsretning (samme prinsipp
     // som "order by poeng_per_natt nulls last" i spec-spørringen pkt. 3) -
-    // gjelder både Poeng/natt (Charlottenburg) og Kampanje (ingen kampanje).
+    // gjelder Poeng/natt (Charlottenburg er eneste raden uten verdi).
     if(aNull && bNull) return 0;
     if(aNull) return 1;
     if(bNull) return -1;
@@ -364,17 +526,6 @@ function poengCelle(r){
   if(r.poeng_per_natt == null) return `<span class="ikke-bonusnatt">Ikke bonusnatt</span>`;
   return formatPoeng(tilEurobonus(r.poeng_per_natt));
 }
-function kampanjeCelle(r){
-  if(r.kampanje_poeng == null) return `<span class="kampanje-tom">–</span>`;
-  // v: rabatt-% er identisk uansett om man regner den ut i Scandic-poeng
-  // eller EuroBonus-poeng (samme forhold, siden begge tall deles på samme
-  // faste kurs) - trygt å bruke rå-verdiene direkte her.
-  const rabatt = r.poeng_per_natt ? Math.round((1 - r.kampanje_poeng / r.poeng_per_natt) * 100) : null;
-  return `
-    <div class="kampanje-poeng">${formatPoeng(tilEurobonus(r.kampanje_poeng))} poeng${rabatt != null ? ` <span class="kampanje-rabatt">(−${rabatt}%)</span>` : ""}</div>
-    ${r.kampanje_periode ? `<div class="kampanje-periode">${escapeHtml(r.kampanje_periode)}</div>` : ""}
-  `;
-}
 
 /* ---------- Rendering: liste ---------- */
 
@@ -384,23 +535,104 @@ function renderList(){
   body.innerHTML = "";
 
   if(!list.length){
-    body.innerHTML = `<tr class="empty-row"><td colspan="5">Ingen hoteller matcher filteret.</td></tr>`;
+    body.innerHTML = `<tr class="empty-row"><td colspan="4">Ingen hoteller matcher filteret.</td></tr>`;
   } else {
     list.forEach(r=>{
       const tr = document.createElement("tr");
+      tr.dataset.hotell = r.hotell;
       const lc = (r.landkode||"").toLowerCase();
       tr.innerHTML = `
         <td class="hotel-name">${escapeHtml(r.hotell)}</td>
         <td>${escapeHtml(r.by)}</td>
         <td>${lc ? `<img class="land-flag" src="flags/${lc}.svg" alt="" onerror="this.style.display='none'">` : ""}${escapeHtml(r.land)}</td>
         <td>${poengCelle(r)}</td>
-        <td>${kampanjeCelle(r)}</td>
       `;
       body.appendChild(tr);
     });
   }
 
   document.getElementById("countPill").textContent = `${list.length} av ${rows.length} hoteller vises`;
+}
+
+/* ---------- Rendering: kart ---------- */
+
+let leafletMap = null;
+let mapMarkerLayer = null;
+
+function ensureLeafletMap(){
+  if(leafletMap) return;
+  // Senter/zoom valgt for å romme hele spennet i banken - fra Sør-Tyskland
+  // (München) til Nord-Norge (Vadsø/Hammerfest) og øst til Finland/Polen.
+  leafletMap = L.map("hotelMap", { scrollWheelZoom:true }).setView([59.5, 15], 4);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-bidragsytere &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    maxZoom: 19,
+  }).addTo(leafletMap);
+  mapMarkerLayer = L.layerGroup().addTo(leafletMap);
+  // Sikrer riktig opptegning selv om kartet ble initialisert mens siden lastet.
+  setTimeout(()=> leafletMap.invalidateSize(), 0);
+}
+
+function markerFarge(r){
+  if(r.poeng_per_natt == null) return "#898781"; // ikke bonusnatt
+  const eb = tilEurobonus(r.poeng_per_natt);
+  if(eb <= 12500) return "#0ca30c";
+  if(eb < 20000) return "#e6a817";
+  return "#d03b3b";
+}
+
+// Sprer flere hoteller i samme by i en liten, deterministisk klynge rundt
+// bysenteret (gyllen vinkel => jevn spredning uten overlapp), i stedet for
+// at de ligger nøyaktig oldenpå hverandre på kartet.
+function klyngeposisjon(baseLat, baseLon, indeks, antall){
+  if(antall <= 1) return [baseLat, baseLon];
+  const vinkel = indeks * 2.399963229728653; // gyllen vinkel, radianer
+  const avstand = 0.006 * Math.sqrt(indeks + 1); // grader
+  const latRad = baseLat * Math.PI / 180;
+  return [
+    baseLat + avstand * Math.cos(vinkel),
+    baseLon + (avstand * Math.sin(vinkel)) / Math.cos(latRad),
+  ];
+}
+
+function highlightRow(hotell){
+  document.querySelectorAll("#listBody tr.row-highlight").forEach(el=> el.classList.remove("row-highlight"));
+  const tr = document.querySelector(`#listBody tr[data-hotell="${CSS.escape(hotell)}"]`);
+  if(tr){
+    tr.classList.add("row-highlight");
+    tr.scrollIntoView({ behavior:"smooth", block:"center" });
+  }
+}
+
+function renderMap(){
+  const list = filteredRows();
+  ensureLeafletMap();
+  mapMarkerLayer.clearLayers();
+
+  const grupper = {}; // by-nøkkel -> rader i den byen (for klyngeposisjon)
+  list.forEach(r=>{
+    const key = `${r.land}|${r.by}`;
+    (grupper[key] = grupper[key] || []).push(r);
+  });
+
+  Object.keys(grupper).forEach(key=>{
+    const base = CITY_COORDS[key];
+    if(!base){ console.warn("Mangler kartposisjon for", key); return; }
+    grupper[key].forEach((r, i)=>{
+      const [lat, lon] = klyngeposisjon(base[0], base[1], i, grupper[key].length);
+      const marker = L.circleMarker([lat, lon], {
+        radius: 4.5,
+        color: "#ffffff",
+        weight: 1,
+        fillColor: markerFarge(r),
+        fillOpacity: 0.9,
+      });
+      const poengTekst = r.poeng_per_natt == null ? "Ikke bonusnatt" : `${formatPoeng(tilEurobonus(r.poeng_per_natt))} poeng`;
+      marker.bindTooltip(`${escapeHtml(r.hotell)} (${escapeHtml(r.by)}) – ${poengTekst}`, { direction:"top", offset:[0,-5] });
+      marker.on("click", ()=> highlightRow(r.hotell));
+      marker.addTo(mapMarkerLayer);
+    });
+  });
 }
 
 /* ---------- Fotnote ---------- */
@@ -413,31 +645,44 @@ function renderFootnote(){
     `Grunntallene er Scandics egen poengpris for bonusnatt, hentet fra Scandics bookingmotor (søk med
      «Bonusnatt» avhuket som innlogget Scandic Friends-medlem) ${escapeHtml(dato)}, og regnet om til
      EuroBonus-poeng etter SAS/Scandic sin faste vekslingskurs (2 Scandic-poeng = 1 EuroBonus-poeng).
-     Tallene blir utdatert etter hvert - særlig kampanjeprisene, som rullerer månedlig. Se
+     Tallene blir utdatert etter hvert - sjekk
      <a href="https://www.scandichotels.no" target="_blank" rel="noopener">scandichotels.com</a> for
      oppdaterte priser og faktisk ledighet på ønsket dato.`;
 }
 
 /* ---------- Wire up toolbar ---------- */
 
-document.getElementById("searchInput").addEventListener("input", (e)=>{ state.search = e.target.value; renderList(); });
+document.getElementById("searchInput").addEventListener("input", (e)=>{ state.search = e.target.value; renderList(); renderMap(); });
+document.getElementById("filterFylke").addEventListener("change", (e)=>{
+  state.fylke = e.target.value;
+  // Et valgt fylke er meningsløst uten at Norge også er aktivt i land-filteret
+  // - sikrer at man faktisk ser noe når man velger et fylke, i stedet for en
+  // forvirrende tom liste/tomt kart.
+  if(state.fylke && !state.land.has("Norge")){
+    state.land.add("Norge");
+    renderLandChips();
+  }
+  renderList();
+  renderMap();
+});
 document.getElementById("poengSlider").addEventListener("input", (e)=>{
   state.maksPoeng = Number(e.target.value);
   updatePoengSliderLabel();
   renderList();
+  renderMap();
 });
-document.getElementById("kunKampanje").addEventListener("change", (e)=>{ state.kunKampanje = e.target.checked; renderList(); });
 document.getElementById("resetFilters").addEventListener("click", ()=>{
   state.search = "";
   state.land = new Set(["Norge"]);
+  state.fylke = "";
   state.maksPoeng = POENG_SLIDER_MAKS;
-  state.kunKampanje = false;
   document.getElementById("searchInput").value = "";
+  document.getElementById("filterFylke").value = "";
   document.getElementById("poengSlider").value = POENG_SLIDER_MAKS;
-  document.getElementById("kunKampanje").checked = false;
   updatePoengSliderLabel();
   renderLandChips();
   renderList();
+  renderMap();
 });
 
 document.querySelectorAll("thead th[data-key]").forEach(th=>{
@@ -463,9 +708,11 @@ document.querySelectorAll("thead th[data-key]").forEach(th=>{
   document.getElementById("mainArea").style.display = "block";
   renderMetrics();
   renderLandChips();
+  fillFylkeSelect();
   updatePoengSliderLabel();
   document.querySelector('thead th[data-key="poeng_per_natt"] .arrow').textContent = "▲";
   renderList();
+  renderMap();
   renderFootnote();
 })();
 </script>
