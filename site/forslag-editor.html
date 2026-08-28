@@ -544,18 +544,16 @@
     font-size:11px; color:var(--ink-primary); cursor:pointer; margin-bottom:5px;
   }
   .img-card .img-flagg-opt input{ width:auto; margin:0; }
-  /* v21 (rettet etter tilbakemelding - opprinnelig forsøk klemte "Høydepunkt"
-     og selve nedtrekket inn på samme smale rad, som gjorde select-en for
-     smal til å faktisk fungere som en dropdown i det trange bildekortet).
-     Label og select stables nå under hverandre i stedet, og select-en bruker
-     den vanlige, fullbredde `.img-card select`-stilen - samme mønster som
-     resten av kortets felter. */
+  /* v21g: høydepunkt-valget var opprinnelig et fullbredt <select> (v21b,
+     rettet fra en for smal inline-rad), men er nå bygget om til avkrysning -
+     én linje PER høydepunkt, samme mønster/klasse (.img-flagg-opt) som
+     Hovedbilde/Avslutningsbilde bruker - se merknaden ved bildeThumbCard()
+     i scriptet. Gruppe-etiketten ("Høydepunkter") beholdes over selve
+     avkrysningslinjene. */
   .img-card .img-hoydepunkt-opt{ margin-bottom:5px; }
-  .img-card .img-hoydepunkt-opt label{
-    display:block; font-size:11px; color:var(--ink-primary); margin-bottom:2px;
+  .img-card .img-hoydepunkt-opt > label{
+    display:block; font-size:11px; color:var(--ink-primary); margin-bottom:3px;
   }
-  .img-card .img-hoydepunkt-opt select{ margin-bottom:0; }
-  .img-card .img-hoydepunkt-opt select:disabled{ background:var(--page); color:var(--ink-muted); cursor:not-allowed; }
   .upload-hint{ font-size:11.5px; color:var(--ink-muted); margin-bottom:14px; }
 
   /* v: Bilder-fanen bygget om fra rullegardin-basert kategorisering til én
@@ -2314,11 +2312,10 @@ function bildeThumbCard(b, thumbOpts){
       <label class="img-flagg-opt"><input type="checkbox" class="b-avslutningsbilde" ${b.fields.er_avslutningsbilde?"checked":""}> Avslutningsbilde</label>
       ${state.hoydepunkter.length ? `
       <div class="img-hoydepunkt-opt">
-        <label>Høydepunkt</label>
-        <select class="b-hoydepunkt" ${!b.fields.reisemaal_bilde_id ? `disabled title='Dette er et eldre bilde som ikke er koblet til reisemålets bildebank ennå, og kan derfor ikke velges som høydepunkt-bilde. Fjern det og legg det til på nytt via «Velg fra bildebank» for å koble det.'` : ""}>
-          <option value="">(ingen)</option>
-          ${state.hoydepunkter.map(hp=>`<option value="${escapeHtml(hp.clientKey)}" ${gjeldendeHp===hp?"selected":""}>${escapeHtml(hoydepunktNavn(hp))}</option>`).join("")}
-        </select>
+        <label>Høydepunkter</label>
+        ${state.hoydepunkter.map(hp=>`
+        <label class="img-flagg-opt"><input type="checkbox" class="b-hoydepunkt-chk" data-hp-key="${escapeHtml(hp.clientKey)}" ${gjeldendeHp===hp?"checked":""}
+          ${!b.fields.reisemaal_bilde_id ? `disabled title='Dette er et eldre bilde som ikke er koblet til reisemålets bildebank ennå, og kan derfor ikke velges som høydepunkt-bilde. Fjern det og legg det til på nytt via «Velg fra bildebank» for å koble det.'` : ""}> ${escapeHtml(hoydepunktNavn(hp))}</label>`).join("")}
       </div>` : ""}
       ` : ""}
       <button class="img-remove">Fjern</button>
@@ -2335,14 +2332,19 @@ function bildeThumbCard(b, thumbOpts){
       renderBilder();
       renderHoydepunkter();
     });
-    const hpSelect = card.querySelector(".b-hoydepunkt");
-    if(hpSelect){
-      hpSelect.addEventListener("change", e=>{
-        settBilderolle(b, e.target.value || "ingen");
+    // v21g: én avkrysning PER høydepunkt (erstatter det tidligere <select>-
+    // valget) - samme ett-om-gangen-prinsipp som Hovedbilde/Avslutningsbilde,
+    // håndhevet av settBilderolle() (nullstiller alltid bildets forrige rolle
+    // først). Krysses én av, ryddes automatisk opp i markeringen ved neste
+    // renderBilder() - de andre avkrysningene på DETTE bildet, og en evt.
+    // tidligere avkrysning på et ANNET bilde for samme høydepunkt.
+    card.querySelectorAll(".b-hoydepunkt-chk").forEach(chk=>{
+      chk.addEventListener("change", e=>{
+        settBilderolle(b, e.target.checked ? e.target.dataset.hpKey : "ingen");
         renderBilder();
         renderHoydepunkter();
       });
-    }
+    });
   }
   card.querySelector(".img-remove").addEventListener("click", ()=>{
     // v21: fjernes et bilde som er i bruk som høydepunkt-bilde, frigjøres

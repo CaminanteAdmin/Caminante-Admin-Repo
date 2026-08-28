@@ -178,17 +178,10 @@
   .hp-order-btns button:disabled{ opacity:0.3; cursor:default; }
   .hp-delete{ font-size:11px; color:#b04a4a; background:none; border:none; cursor:pointer; padding:2px 4px; white-space:nowrap; }
   .hp-korttekst{ width:100%; box-sizing:border-box; border:1px solid var(--hairline); border-radius:6px; padding:6px 8px; font-size:12.5px; font-family:inherit; min-height:44px; resize:vertical; margin-bottom:8px; }
-  .hp-bilde-rad{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-  .hp-bilde-thumb{ position:relative; width:56px; height:56px; border-radius:6px; overflow:hidden; border:1px solid var(--hairline); }
-  .hp-bilde-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
-  .hp-bilde-thumb .hp-bilde-fjern{ position:absolute; top:0; right:0; background:rgba(20,20,20,0.65); color:#fff; border:none; font-size:11px; line-height:1; width:18px; height:18px; cursor:pointer; }
-  .hp-legg-til-bilde{ width:56px; height:56px; border-radius:6px; border:1px dashed var(--hairline); background:none; color:var(--ink-muted); font-size:11px; cursor:pointer; }
-  .hp-legg-til-bilde:hover{ background:var(--page); }
-  .hp-picker{ display:none; flex-wrap:wrap; gap:6px; margin-top:8px; padding:8px; border:1px solid var(--hairline); border-radius:6px; background:var(--page); }
-  .hp-picker.open{ display:flex; }
-  .hp-picker .hp-picker-thumb{ width:48px; height:48px; border-radius:5px; overflow:hidden; border:1px solid var(--hairline); cursor:pointer; background:none; padding:0; }
-  .hp-picker .hp-picker-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
-  .hp-picker .hp-picker-empty{ font-size:11.5px; color:var(--ink-muted); }
+  /* v21f: kortets tidligere egen bilde-kobling (kandidatbilder pre-lenket
+     til høydepunktet) er fjernet - bildet velges nå per forslag, se
+     merknaden ved renderHoydepunkter() i scriptet. */
+  .hp-bilde-hint{ font-size:11.5px; color:var(--ink-muted); }
   .hp-ny-btn{ font-size:12.5px; padding:7px 12px; border:1px solid var(--hairline); border-radius:7px; background:var(--surface-1); color:var(--ink-secondary); cursor:pointer; }
   .hp-ny-btn:hover{ background:var(--page); }
 
@@ -300,25 +293,27 @@ function escapeHtml(str){
 
 /* ---------- Supabase data loading ---------- */
 
+// v21f: reisemaal_hoydepunkt_bilder (kandidatbilder PER høydepunkt) er ikke
+// lenger med i dette oppstartskallet, og høydepunktene mappes ikke lenger
+// mot noen egen bildeliste - se merknaden ved renderHoydepunkter() lenger
+// ned for begrunnelsen (dette var en egen, nå redundant bilde-kobling fra
+// FØR alle reisemålbilder ble samlet i én delt bank).
 async function loadAllData(){
-  const [{ data: rmRows, error: e1 }, { data: kommentarerRows, error: e2 }, { data: profileRows, error: e3 }, { data: bildeRows, error: e4 }, { data: hpRows, error: e5 }, { data: hpBildeRows, error: e6 }] =
+  const [{ data: rmRows, error: e1 }, { data: kommentarerRows, error: e2 }, { data: profileRows, error: e3 }, { data: bildeRows, error: e4 }, { data: hpRows, error: e5 }] =
     await Promise.all([
       window.sb.from("reisemaal").select("*"),
       window.sb.from("reisemaal_kommentarer").select("*").order("opprettet_dato", { ascending:false }),
       window.sb.from("profiles").select("id, navn"),
       window.sb.from("reisemaal_bilder").select("*").order("sortering"),
       window.sb.from("reisemaal_hoydepunkter").select("*").order("sortering"),
-      window.sb.from("reisemaal_hoydepunkt_bilder").select("*").order("sortering"),
     ]);
-  if(e1 || e2 || e3 || e4 || e5 || e6){
+  if(e1 || e2 || e3 || e4 || e5){
     document.getElementById("loadMsg").textContent = "Kunne ikke laste data fra databasen. Prøv igjen, eller sjekk databaseoppsettet for reisemaal-tabellene.";
-    console.error(e1, e2, e3, e4, e5, e6);
+    console.error(e1, e2, e3, e4, e5);
     return false;
   }
   const nameById = {};
   (profileRows||[]).forEach(p=> nameById[p.id] = p.navn);
-  const bildeById = {};
-  (bildeRows||[]).forEach(b=> bildeById[b.id] = b);
 
   reisemaal = (rmRows||[]).map(r => ({
     ...r,
@@ -327,18 +322,7 @@ async function loadAllData(){
       forfatter_navn: nameById[c.forfatter] || "Ukjent",
     })),
     bilder: (bildeRows||[]).filter(b=>b.reisemaal_id===r.id),
-    // Høydepunktbank - hvert høydepunkt sine bilder er REFERANSER (join-rader)
-    // til reisemålets egen bildebank over, løst opp til de faktiske
-    // bilde-objektene her for enkel rendering. En lenke uten treff i
-    // bildeById (f.eks. det underliggende reisemaal_bilder-bildet ble
-    // slettet) filtreres bort.
-    hoydepunkter: (hpRows||[]).filter(h=>h.reisemaal_id===r.id).map(h=>({
-      ...h,
-      bilder: (hpBildeRows||[])
-        .filter(hb=>hb.hoydepunkt_id===h.id)
-        .map(hb=>({ linkId: hb.id, sortering: hb.sortering, reisemaal_bilde_id: hb.reisemaal_bilde_id, ...bildeById[hb.reisemaal_bilde_id] }))
-        .filter(b=>b.bilde_url),
-    })),
+    hoydepunkter: (hpRows||[]).filter(h=>h.reisemaal_id===r.id),
   }));
   return true;
 }
@@ -661,6 +645,21 @@ function renderRmBilder(r){
 
 /* ---------- Høydepunktbank ---------- */
 
+// v21f: høydepunkt-kortet hadde tidligere sin EGEN, separate bilde-kobling
+// (reisemaal_hoydepunkt_bilder - "kandidatbilder" pre-lenket til akkurat
+// dette høydepunktet, valgt via "+ Bilde"-knappen/hp-picker-rutenettet
+// under). Denne var fra FØR alle reisemålbilder ble samlet i én delt bank
+// (v21) - Vidar meldte fra om at forslag-editoren nå ikke fant bilder til
+// høydepunktene, og pekte selv på at denne parallelle mekanismen trolig var
+// årsaken, og at den er overflødig: et forslag velger nå bildet til et
+// høydepunkt direkte fra reisemålets HELE bildebank (Bilder-fanen i
+// forslag-editor.html, se forslag_hoydepunkter.valgt_bilde_id) - et
+// høydepunkt er dermed "representert i banken uansett", uten behov for en
+// egen, forhåndskuratert kandidatliste her. Fjernet i sin helhet - kortet
+// er nå ren tekst (navn + korttekst), samme som Presentasjon-fanen i
+// forslag-editor.html ble gjort til i v21. Selve `reisemaal_hoydepunkt_bilder`-
+// tabellen er urørt i databasen (ingen skjemaendring gjort), bare ikke
+// lenger lest/skrevet noe sted i appen.
 function renderHoydepunkter(r){
   const wrap = document.getElementById("hpListWrap");
   wrap.innerHTML = "";
@@ -672,8 +671,6 @@ function renderHoydepunkter(r){
   sorted.forEach((h, idx)=>{
     const card = document.createElement("div");
     card.className = "hp-card";
-    const alleredeValgt = new Set(h.bilder.map(b=>b.reisemaal_bilde_id));
-    const tilgjengelige = r.bilder.filter(b=> !alleredeValgt.has(b.id));
     card.innerHTML = `
       <div class="hp-card-top">
         <div class="hp-order-btns">
@@ -684,20 +681,7 @@ function renderHoydepunkter(r){
         <button class="hp-delete">Slett</button>
       </div>
       <textarea class="hp-korttekst" placeholder="Kort tekst (ca. 10-18 ord)…">${escapeHtml(h.korttekst)}</textarea>
-      <div class="hp-bilde-rad">
-        ${h.bilder.map(b=>`
-          <div class="hp-bilde-thumb" data-link-id="${b.linkId}">
-            <img src="${escapeHtml(b.bilde_url)}">
-            <button class="hp-bilde-fjern" title="Fjern bilde">✕</button>
-          </div>
-        `).join("")}
-        <button class="hp-legg-til-bilde">+ Bilde</button>
-      </div>
-      <div class="hp-picker">
-        ${tilgjengelige.length ? tilgjengelige.map(b=>`
-          <button class="hp-picker-thumb" data-bilde-id="${b.id}"><img src="${escapeHtml(b.bilde_url)}"></button>
-        `).join("") : '<div class="hp-picker-empty">Ingen flere bilder i reisemålets bildebank å velge blant - last opp flere under §3 Bilder.</div>'}
-      </div>
+      <div class="hp-bilde-hint">Bilde til dette høydepunktet velges per forslag, i Bilder-fanen i Forslag-editoren.</div>
     `;
     wrap.appendChild(card);
 
@@ -708,19 +692,6 @@ function renderHoydepunkter(r){
     const nedBtn = card.querySelector(".hp-ned");
     if(!oppBtn.disabled) oppBtn.addEventListener("click", ()=> bytteHoydepunktRekkefolge(r, sorted, idx, idx-1));
     if(!nedBtn.disabled) nedBtn.addEventListener("click", ()=> bytteHoydepunktRekkefolge(r, sorted, idx, idx+1));
-
-    card.querySelectorAll(".hp-bilde-fjern").forEach(btn=>{
-      btn.addEventListener("click", (e)=>{
-        const linkId = e.target.closest(".hp-bilde-thumb").dataset.linkId;
-        fjernHoydepunktBilde(r, h, linkId);
-      });
-    });
-    card.querySelector(".hp-legg-til-bilde").addEventListener("click", ()=>{
-      card.querySelector(".hp-picker").classList.toggle("open");
-    });
-    card.querySelectorAll(".hp-picker-thumb").forEach(btn=>{
-      btn.addEventListener("click", ()=> leggTilHoydepunktBilde(r, h, btn.dataset.bildeId));
-    });
   });
 }
 
@@ -730,7 +701,7 @@ async function createHoydepunkt(r){
     reisemaal_id: r.id, navn: "Nytt høydepunkt", korttekst: "", sortering, opprettet_av: currentUserId,
   }).select().single();
   if(error){ alert("Kunne ikke opprette høydepunkt: " + error.message); return; }
-  r.hoydepunkter.push({ ...data, bilder: [] });
+  r.hoydepunkter.push(data);
   renderHoydepunkter(r);
 }
 
@@ -757,23 +728,6 @@ async function bytteHoydepunktRekkefolge(r, sorted, fraIdx, tilIdx){
   ]);
   if(e1 || e2){ alert("Kunne ikke endre rekkefølge."); return; }
   a.sortering = bSort; b.sortering = aSort;
-  renderHoydepunkter(r);
-}
-
-async function leggTilHoydepunktBilde(r, h, reisemaalBildeId){
-  const { data, error } = await window.sb.from("reisemaal_hoydepunkt_bilder").insert({
-    hoydepunkt_id: h.id, reisemaal_bilde_id: reisemaalBildeId, sortering: h.bilder.length,
-  }).select().single();
-  if(error){ alert("Kunne ikke legge til bilde: " + error.message); return; }
-  const bilde = r.bilder.find(b=>b.id===reisemaalBildeId);
-  h.bilder.push({ linkId: data.id, sortering: data.sortering, reisemaal_bilde_id: reisemaalBildeId, ...bilde });
-  renderHoydepunkter(r);
-}
-
-async function fjernHoydepunktBilde(r, h, linkId){
-  const { error } = await window.sb.from("reisemaal_hoydepunkt_bilder").delete().eq("id", linkId);
-  if(error){ alert("Kunne ikke fjerne bilde: " + error.message); return; }
-  h.bilder = h.bilder.filter(b=>b.linkId!==linkId);
   renderHoydepunkter(r);
 }
 
