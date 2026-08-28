@@ -72,6 +72,17 @@
     cursor:pointer;
   }
   .toolbar button.reset:hover{ background:var(--page); }
+  .toolbar button.goto-scandic{
+    padding:7px 12px;
+    border:1px solid #b7d6f7;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:600;
+    background:#eaf3fd;
+    color:var(--accent);
+    cursor:pointer;
+  }
+  .toolbar button.goto-scandic:hover{ background:#d9eafc; }
   .count-pill{ font-size:12.5px; color:var(--ink-muted); margin-left:auto; padding-left:8px; white-space:nowrap; }
 
   .main{ display:flex; gap:16px; padding:16px 24px 8px; align-items:flex-start; }
@@ -194,6 +205,7 @@
       <span class="poeng-slider-val" id="poengSliderVal"></span>
     </div>
     <button class="reset" id="resetFilters">Nullstill filter</button>
+    <button class="goto-scandic" id="gotoScandic">Gå til Scandic</button>
     <span class="count-pill" id="countPill"></span>
   </div>
 
@@ -648,6 +660,9 @@ document.getElementById("resetFilters").addEventListener("click", ()=>{
   renderLandChips();
   renderList();
   renderMap();
+});
+document.getElementById("gotoScandic").addEventListener("click", ()=>{
+  window.open("https://www.scandichotels.com/no", "_blank", "noopener,noreferrer");
 });
 
 document.querySelectorAll("thead th[data-key]").forEach(th=>{
