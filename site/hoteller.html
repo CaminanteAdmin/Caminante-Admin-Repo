@@ -178,6 +178,7 @@
   .egenskaper-opt{ display:flex; align-items:center; gap:4px; font-size:13px; color:var(--ink-primary); cursor:pointer; width:auto; }
   .egenskaper-opt input{ width:auto; margin:0; }
   .upload-hint{ font-size:11.5px; color:var(--ink-muted); margin-bottom:10px; }
+  .hotel-bilde-teller{ font-size:11.5px; font-weight:400; color:var(--ink-muted); }
   .hotel-img-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px; }
   .hotel-img-card{ border:1px solid var(--hairline); border-radius:8px; overflow:hidden; background:var(--surface-1); }
   .hotel-img-card img{ width:100%; height:90px; object-fit:cover; display:block; background:var(--page); }
@@ -297,6 +298,10 @@ let reisemaalOversikt = []; // { id, navn, land, by } - til "Reisemål"-nedtrekk
 let currentUserId = null;
 let state = { search:"", land:"", status:"", sortKey:"navn", sortDir:1, selectedId:null };
 const STJERNE_ALTERNATIVER = [2,3,4,5];
+// v21c: samme resonnement som REISEMAAL_BANK_BILDER_MAKS i reisemaal.html,
+// bare en lavere grense siden et enkelthotell normalt trenger et mindre
+// utvalg enn et helt reisemål.
+const HOTELL_BANK_BILDER_MAKS = 20;
 
 /* ---------- Helpers ---------- */
 
@@ -540,7 +545,7 @@ function renderProfile(id){
     </div>
 
     <div class="section">
-      <h3>3. Bilder</h3>
+      <h3>3. Bilder <span class="hotel-bilde-teller" id="hotelBildeTeller"></span></h3>
       <div class="upload-hint">Generelle bilder av hotellet - brukes ved «Velg fra hotelloversikt» i Forslag. Ikke turspesifikke bilder (de lastes opp per forslag).</div>
       <div class="hotel-img-grid" id="hotelBildeGrid"></div>
       <input type="file" id="nyttHotelBildeFile" accept="image/*" style="margin-top:10px;">
@@ -590,6 +595,10 @@ function renderProfile(id){
   document.getElementById("nyttHotelBildeFile").addEventListener("change", async (e)=>{
     const file = e.target.files[0];
     if(!file) return;
+    if(h.bilder.length >= HOTELL_BANK_BILDER_MAKS){
+      alert(`Hotellets bildebank har allerede maks ${HOTELL_BANK_BILDER_MAKS} bilder.`);
+      e.target.value = ""; return;
+    }
     const slug = slugifyBildebank(h.navn);
     if(!slug){ alert("Fyll inn Navn først, slik at bildet kan legges i riktig mappe i bildebanken."); e.target.value=""; return; }
     try{
@@ -623,6 +632,10 @@ function renderProfile(id){
 }
 
 function renderHotelBilder(h){
+  const teller = document.getElementById("hotelBildeTeller");
+  if(teller) teller.textContent = `(${h.bilder.length} / ${HOTELL_BANK_BILDER_MAKS})`;
+  const fileInput = document.getElementById("nyttHotelBildeFile");
+  if(fileInput) fileInput.disabled = h.bilder.length >= HOTELL_BANK_BILDER_MAKS;
   const grid = document.getElementById("hotelBildeGrid");
   grid.innerHTML = "";
   if(!h.bilder.length){

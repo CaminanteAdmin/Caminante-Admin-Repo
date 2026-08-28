@@ -579,24 +579,52 @@
   .bilde-subbox:last-child{ margin-bottom:0; }
   .bilde-subbox-title{ font-size:12.5px; font-weight:600; color:var(--ink-secondary); margin-bottom:8px; }
 
-  /* v: "Velg fra bildebank" - lar deg hente inn bilder som allerede ligger i
-     den delte bildebanken (R2, destinations/<slug>/ og hoteller/<slug>/) i
-     stedet for å laste opp på nytt. Se shared/bildebank.js. */
+  /* v: "Bildebank" - lar deg hente inn bilder som allerede ligger i den delte
+     bildebanken (R2, destinations/<slug>/ og hoteller/<slug>/) i stedet for
+     å laste opp på nytt. Se shared/bildebank.js.
+     v21c: banken kan nå romme opptil 50 (reisemål) / 20 (hotell) bilder (se
+     REISEMAAL_BANK_BILDER_MAKS/HOTELL_BANK_BILDER_MAKS i hhv.
+     reisemaal.html/hoteller.html) - det gamle, lille inline-panelet
+     (56x56px-thumbs klemt inn under selve boksen) ville blitt uoversiktlig
+     og for trangt ved den størrelsen, så velgeren er nå en egen modal med
+     god plass til å bla i et større, scrollbart rutenett. */
   .bildebank-velg-btn{
     display:block; width:100%; text-align:center;
     border:none; background:none; color:var(--blue); font-size:12px;
     text-decoration:underline; cursor:pointer; padding:4px 2px 0;
   }
-  .bildebank-panel{
-    margin-top:8px; padding:10px; border-radius:8px;
-    background:var(--page); display:flex; flex-wrap:wrap; gap:8px;
+  .bildebank-modal-bg{
+    position:fixed; inset:0; background:rgba(11,11,11,0.30);
+    display:none; align-items:center; justify-content:center; z-index:50;
   }
-  .bildebank-panel .bildebank-loading{ font-size:12px; color:var(--ink-muted); }
-  .bildebank-thumb{
-    width:56px; height:56px; object-fit:cover; border-radius:6px;
-    cursor:pointer; border:1px solid var(--card-border);
+  .bildebank-modal-bg.open{ display:flex; }
+  .bildebank-modal{
+    background:var(--surface-1); border-radius:12px; width:min(720px, 92vw);
+    max-height:82vh; display:flex; flex-direction:column;
+    box-shadow:0 12px 40px rgba(0,0,0,0.25);
   }
-  .bildebank-thumb:hover{ outline:2px solid var(--blue); }
+  .bildebank-modal-head{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:16px 20px; border-bottom:1px solid var(--hairline); flex-shrink:0;
+  }
+  .bildebank-modal-head h3{ margin:0; font-size:15px; color:var(--ink-primary); }
+  .bildebank-modal-teller{ font-size:12px; color:var(--ink-muted); margin-top:2px; }
+  .bildebank-modal-close{
+    border:none; background:none; font-size:22px; line-height:1; cursor:pointer;
+    color:var(--ink-muted); padding:2px 6px;
+  }
+  .bildebank-modal-close:hover{ color:var(--ink-primary); }
+  .bildebank-modal-body{ padding:16px 20px; overflow-y:auto; }
+  .bildebank-modal-loading, .bildebank-modal-empty{ font-size:12.5px; color:var(--ink-muted); }
+  .bildebank-modal-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:10px;
+  }
+  .bildebank-modal-thumb-wrap{
+    cursor:pointer; border-radius:8px; overflow:hidden;
+    border:1px solid var(--card-border); background:var(--page);
+  }
+  .bildebank-modal-thumb-wrap:hover{ outline:2px solid var(--blue); }
+  .bildebank-modal-thumb-wrap img{ width:100%; height:90px; object-fit:cover; display:block; }
 
   .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
 
@@ -947,6 +975,25 @@
 
 </div>
 
+<!-- v21c: felles bildebank-modal for BÅDE Reisemål- og Hotell-boksen (gjenbrukt,
+     innhold tegnes på nytt hver gang den åpnes, se openBildebankModal()) -
+     erstatter den gamle, inline "Velg fra bildebank"-panelet, som ikke ville
+     skalert visuelt til bankens nye, langt høyere tak (50/20 bilder). Samme
+     overlay-mønster (.overlay-bg/.open) som hoteller.html/reisemaal.html
+     allerede bruker for sine sidepaneler, for konsistens på tvers av appen. -->
+<div class="bildebank-modal-bg" id="bildebankModalBg">
+  <div class="bildebank-modal">
+    <div class="bildebank-modal-head">
+      <div>
+        <h3 id="bildebankModalTitle">Bildebank</h3>
+        <div class="bildebank-modal-teller" id="bildebankModalTeller"></div>
+      </div>
+      <button type="button" class="bildebank-modal-close" id="bildebankModalClose" title="Lukk">&times;</button>
+    </div>
+    <div class="bildebank-modal-body" id="bildebankModalBody"></div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="shared/supabase-client.js"></script>
 <script src="shared/auth.js"></script>
@@ -1019,11 +1066,12 @@ let profiler = [];         // {id, navn}
 let skoleOptions = [];      // {id, navn}
 let skoleNameById = new Map();
 let hotellOversikt = [];       // rader fra hoteller-tabellen, til "Velg fra hotelloversikt"
-let hotellBilderOversikt = []; // rader fra hotell_bilder, samme formål
 let reisemaalOversikt = [];       // rader fra reisemaal-tabellen, til "Velg fra reisemål-oversikt"
-let reisemaalBilderOversikt = []; // rader fra reisemaal_bilder, samme formål
 let hoydepunktBankOversikt = [];       // rader fra reisemaal_hoydepunkter (alle reisemål)
-let hoydepunktBankBilderOversikt = []; // rader fra reisemaal_hoydepunkt_bilder (kobling hoydepunkt<->reisemaal_bilde)
+// v21c: reisemaal_bilder/hotell_bilder (selve BILDEbankene, potensielt
+// store) hentes ikke lenger inn i to globale "oversikt"-arrays ved
+// sideinnlasting - se reisemaalBankCache/hotellBankCache og
+// hentReisemaalBank()/hentHotellBank() lenger ned.
 
 let state = {
   forslag: {},
@@ -1062,26 +1110,31 @@ document.querySelectorAll(".tab-btn").forEach(btn=>{
 
 /* ---------- Load ---------- */
 
+// v21c: reisemaal_bilder/hotell_bilder er IKKE lenger med i dette
+// oppstartskallet - bankene kan nå romme opptil 50/20 bilder PER
+// reisemål/hotell (se REISEMAAL_BANK_BILDER_MAKS/HOTELL_BANK_BILDER_MAKS i
+// hhv. reisemaal.html/hoteller.html), og et enkelt forslag bruker uansett
+// alltid kun ÉTT reisemåls og noen få hotellers bank - å laste ALLE
+// reisemåls/hotellers bilder på hver eneste sideinnlasting (uansett hvor
+// mange reisemål/hoteller som finnes totalt) ville blitt tregt og
+// unødvendig etter hvert som bankene fylles opp. Se
+// hentReisemaalBank()/hentHotellBank() lenger ned - disse henter i stedet
+// bare det aktuelle reisemålets/hotellets bilder, på forespørsel (når
+// bildebank-modalen faktisk åpnes, eller et hotell velges inn).
 async function loadReferenceData(){
-  const [{ data: profileRows }, { data: skoleRows }, { data: hotellRows }, { data: hotellBildeRows }, { data: reisemaalRows }, { data: reisemaalBildeRows }, { data: hpBankRows }, { data: hpBankBildeRows }] = await Promise.all([
+  const [{ data: profileRows }, { data: skoleRows }, { data: hotellRows }, { data: reisemaalRows }, { data: hpBankRows }] = await Promise.all([
     window.sb.from("profiles").select("id,navn"),
     window.sb.from("skoler").select("id,navn").order("navn"),
     window.sb.from("hoteller").select("*").order("navn"),
-    window.sb.from("hotell_bilder").select("*").order("sortering"),
     window.sb.from("reisemaal").select("*").order("navn"),
-    window.sb.from("reisemaal_bilder").select("*").order("sortering"),
     window.sb.from("reisemaal_hoydepunkter").select("*").order("sortering"),
-    window.sb.from("reisemaal_hoydepunkt_bilder").select("*").order("sortering"),
   ]);
   profiler = profileRows || [];
   skoleOptions = skoleRows || [];
   skoleOptions.forEach(s=> skoleNameById.set(s.id, s.navn));
   hotellOversikt = hotellRows || [];
-  hotellBilderOversikt = hotellBildeRows || [];
   reisemaalOversikt = reisemaalRows || [];
-  reisemaalBilderOversikt = reisemaalBildeRows || [];
   hoydepunktBankOversikt = hpBankRows || [];
-  hoydepunktBankBilderOversikt = hpBankBildeRows || [];
 
   const ansvSel = el("g-ansvarlig");
   ansvSel.innerHTML = '<option value="">– Ikke satt –</option>' + profiler.map(p=>`<option value="${p.id}">${escapeHtml(p.navn)}</option>`).join("");
@@ -1662,7 +1715,12 @@ function renderHotellOversiktDropdown(dd, query, item){
     });
   });
 }
-function velgHotellFraOversiktInn(item, id){
+// v21c: async - hotellets bildebank hentes nå på forespørsel (se
+// hentHotellBank()) i stedet for å alltid ligge klar i minnet fra
+// sideinnlasting. Kalleren (mousedown-lytteren over) venter ikke selv på
+// dette kallet - helt greit, siden ingenting utenfor selve funksjonen er
+// avhengig av at den er ferdig.
+async function velgHotellFraOversiktInn(item, id){
   const h = hotellOversikt.find(x=>x.id===id);
   if(!h) return;
   const f = item.fields;
@@ -1687,10 +1745,18 @@ function velgHotellFraOversiktInn(item, id){
   // vurdert som riktig oppførsel siden "erstatte hotellet" naturlig
   // inkluderer bildene, men verdt å huske om det viser seg upraktisk.
   state.bilder = state.bilder.filter(b => b.hotellopphold_client_key !== item.clientKey);
+  // Tegn resten av bytte-effekten med det samme (ikke vent på bildebank-
+  // kallet under for dette) - bildene fylles inn litt etter, samme mønster
+  // som opplasting/bildebank-plukk andre steder i Bilder-fanen alltid har
+  // tegnet på nytt idet noe faktisk kom inn.
+  renderHotell();
+  renderBilder();
+  syncOgRenderInkludert();
   // v: kappes til HOTELL_BILDER_MAKS her også - samme grense som
   // Bilder-fanens Hotell-bokser (design v6g har et fast antall bildeplasser
   // per hotellopphold på side 2).
-  hotellBilderOversikt.filter(b=>b.hotell_id===id).slice(0, HOTELL_BILDER_MAKS).forEach(b=>{
+  const bank = await hentHotellBank(id);
+  bank.slice(0, HOTELL_BILDER_MAKS).forEach(b=>{
     state.bilder.push({
       // v21: hotell_bilde_id satt slik at disse bildene også regnes med i
       // dobbeltbruk-sjekken (samme prinsipp som resten av bank-arkitekturen).
@@ -1699,9 +1765,7 @@ function velgHotellFraOversiktInn(item, id){
       hotellopphold_client_key: item.clientKey,
     });
   });
-  renderHotell();
   renderBilder();
-  syncOgRenderInkludert();
 }
 
 /* ---------- Rendering: Pris ---------- */
@@ -2012,17 +2076,54 @@ function hoydepunktBankForValgtReisemaal(){
   if(!rid) return [];
   return hoydepunktBankOversikt.filter(h=>h.reisemaal_id===rid).sort((a,b)=>(a.sortering??0)-(b.sortering??0));
 }
+// v21c: reisemaal_bilder/hotell_bilder (selve bildebankene) lastes ikke
+// lenger inn i sin helhet ved sideinnlasting (se merknaden ved
+// loadReferenceData()) - bankene kan nå romme opptil 50/20 bilder PER
+// reisemål/hotell, og et forslag trenger uansett bare ett reisemåls og
+// noen få hotellers bank. Hentes i stedet her, filtrert til akkurat den ene
+// reisemål-/hotell-iden, og mellomlagres i en Map slik at et gjentatt
+// besøk (åpne bildebank-modalen på nytt, bytte fane frem og tilbake) ikke
+// trigger et nytt nettverkskall for samme id. Cachen er bevisst kun
+// gyldig for RESTEN AV DENNE SIDEØKTEN (nullstilles ved omlasting av
+// siden) - forenklet, siden banken uansett kun endres FRA denne samme
+// siden (opplasting via forslaget) eller fra reisemaal.html/hoteller.html
+// (en annen fane/økt) - se leggIBank()-callbackene under, som selv
+// oppdaterer cachen når DENNE siden legger til et nytt bankbilde.
+const reisemaalBankCache = new Map(); // reisemaal_id -> rader fra reisemaal_bilder
+const hotellBankCache = new Map();    // hotell_id -> rader fra hotell_bilder
+
+async function hentReisemaalBank(reisemaalId){
+  if(!reisemaalId) return [];
+  if(reisemaalBankCache.has(reisemaalId)) return reisemaalBankCache.get(reisemaalId);
+  const { data, error } = await window.sb.from("reisemaal_bilder").select("*").eq("reisemaal_id", reisemaalId).order("sortering");
+  if(error){ console.error(error); return []; }
+  const rows = data || [];
+  reisemaalBankCache.set(reisemaalId, rows);
+  return rows;
+}
+async function hentHotellBank(hotellId){
+  if(!hotellId) return [];
+  if(hotellBankCache.has(hotellId)) return hotellBankCache.get(hotellId);
+  const { data, error } = await window.sb.from("hotell_bilder").select("*").eq("hotell_id", hotellId).order("sortering");
+  if(error){ console.error(error); return []; }
+  const rows = data || [];
+  hotellBankCache.set(hotellId, rows);
+  return rows;
+}
+
 // v21: het tidligere bankBilderForHoydepunkt() - samme funksjon, men navnet
 // er oppdatert siden den nå primært brukes som selve bildekilden for
-// Reisemål-boksen i Bilder-fanen ("Velg fra bildebank"), IKKE lenger et
+// Reisemål-boksen i Bilder-fanen ("Bildebank"), IKKE lenger et
 // Presentasjon-spesifikt hjelpemiddel. Fortsatt reisemålets HELE bildebank
 // (samme pool som Destinasjon-bildene alltid har vist), ikke den smale,
 // forhåndskoblede kandidatlisten (reisemaal_hoydepunkt_bilder).
-function reisemaalBildebankForValgtReisemaal(){
+// v21c: async (se hentReisemaalBank() over).
+async function reisemaalBildebankForValgtReisemaal(){
   const rid = state.forslag.reisemaal_id;
   if(!rid) return [];
-  return reisemaalBilderOversikt
-    .filter(b=>b.reisemaal_id===rid)
+  const rows = await hentReisemaalBank(rid);
+  return rows
+    .slice()
     .sort((a,b)=>(a.sortering??0)-(b.sortering??0))
     .map(rb=>({ id: rb.id, url: rb.bilde_url, alt_tekst: rb.alt_tekst }));
 }
@@ -2415,72 +2516,118 @@ function buildBildeDropbox(boxEl, matchFn, kategori, extra, bankInfo, maks, thum
 // v21: het tidligere wireBildebankVelger() og hentet listen async fra R2-
 // mappen via bildebankList() (samme kall som Reisemål-/Hotell-registerets
 // EGEN bildebank, men lest fra en annen inngang enn den forslaget ellers
-// bruker for høydepunkter). Leser nå i stedet SYNKRONT fra
-// reisemaal_bilder/hotell_bilder-tabellene (allerede lastet i minnet,
-// bankInfo.hent()) - nøyaktig samme bank som høydepunkt-velgeren bruker, og
-// ekskluderer bilder som allerede er lagt til et sted i DETTE forslaget
-// (bankInfo.bankIdField), slik at "ingen bilder brukes to ganger" håndheves
-// allerede i selve velgeren, ikke bare ved en etterprøving.
+// bruker for høydepunkter). Leser nå i stedet fra reisemaal_bilder/
+// hotell_bilder-tabellene via bankInfo.hent() - nøyaktig samme bank som
+// høydepunkt-velgeren bruker, og ekskluderer bilder som allerede er lagt
+// til et sted i DETTE forslaget (bankInfo.bankIdField), slik at "ingen
+// bilder brukes to ganger" håndheves allerede i selve velgeren, ikke bare
+// ved en etterprøving.
+// v21c: knappen åpner nå en delt modal (openBildebankModal(), definert
+// under - étt DOM-element gjenbrukt for alle bokser) i stedet for et lite
+// inline-panel i selve boksen. Bankens tak er hevet til 50/20 bilder (se
+// REISEMAAL_BANK_BILDER_MAKS/HOTELL_BANK_BILDER_MAKS), og bankInfo.hent()
+// er nå async (henter kun det aktuelle reisemålets/hotellets bilder på
+// forespørsel, se hentReisemaalBank()/hentHotellBank()) - et lite
+// inline-panel klemt inn under boksen ville verken hatt plass til så mange
+// thumbnails eller gitt rom for en tydelig "henter…"-tilstand mens
+// nettverkskallet pågår.
 function wireBankVelger(boxEl, kategori, extra, bankInfo, matchFn, maks){
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "bildebank-velg-btn";
-  btn.textContent = "Velg fra bildebank";
+  btn.textContent = "Åpne bildebank";
   boxEl.appendChild(btn);
+  btn.addEventListener("click", ()=> openBildebankModal(bankInfo, kategori, extra, matchFn, maks));
+}
 
-  const panel = document.createElement("div");
-  panel.className = "bildebank-panel";
-  panel.style.display = "none";
-  boxEl.appendChild(panel);
+// Delt modal-instans (markup i selve HTML-en, se <div id="bildebankModalBg">
+// like før scriptet) - gjenbrukes av ALLE bildebank-knapper (Reisemål og
+// hvert enkelt hotellopphold), innholdet tegnes helt på nytt hver gang den
+// åpnes med en ny bankInfo.
+const bildebankModalBg = el("bildebankModalBg");
+const bildebankModalTitle = el("bildebankModalTitle");
+const bildebankModalTeller = el("bildebankModalTeller");
+const bildebankModalBody = el("bildebankModalBody");
 
-  function tegnPanel(){
-    if(!bankInfo.entityIdGetter()){
-      panel.innerHTML = `<div class="bildebank-loading">${bankInfo.mappe==="destinations"
-        ? "Koble et reisemål under Presentasjon («Velg fra reisemål-oversikt») for å se bildene i reisemålets bildebank."
-        : "Velg hotellet fra hotelloversikten («Velg fra hotelloversikt») for å se bildene i hotellets bildebank."}</div>`;
-      return;
-    }
-    const alleBank = bankInfo.hent();
-    const bruktIdSet = new Set(state.bilder.map(b=> b.fields[bankInfo.bankIdField]).filter(Boolean));
-    const tilgjengelig = alleBank.filter(b=> !bruktIdSet.has(b.id));
-    if(!alleBank.length){
-      panel.innerHTML = `<div class="bildebank-loading">Ingen bilder i bildebanken ennå.</div>`;
-      return;
-    }
-    if(!tilgjengelig.length){
-      panel.innerHTML = `<div class="bildebank-loading">Alle bildene i banken er allerede i bruk i dette forslaget.</div>`;
-      return;
-    }
-    panel.innerHTML = "";
-    tilgjengelig.forEach(b=>{
-      const thumb = document.createElement("img");
-      thumb.className = "bildebank-thumb";
-      thumb.src = b.url;
-      thumb.title = "Klikk for å legge til dette bildet";
-      thumb.addEventListener("click", ()=>{
-        if(maks!=null && matchFn && state.bilder.filter(matchFn).length >= maks){
-          alert(`Denne boksen har allerede maks ${maks} bilde${maks===1?"":"r"}.`);
-          return;
-        }
-        state.bilder.push({
-          id:null, clientKey:newClientKey(),
-          fields:{ kategori, bilde_url:b.url, alt_tekst:b.alt_tekst||null, sortering: state.bilder.length, er_hovedbilde:false, er_avslutningsbilde:false,
-            [bankInfo.bankIdField]: b.id },
-          hotellopphold_client_key: (extra && extra.hotellopphold_client_key) || null,
-        });
-        el("saveStatus").textContent = "Bilde lagt til fra bildebanken.";
-        renderBilder();
-      });
-      panel.appendChild(thumb);
-    });
+function closeBildebankModal(){ bildebankModalBg.classList.remove("open"); }
+el("bildebankModalClose").addEventListener("click", closeBildebankModal);
+bildebankModalBg.addEventListener("click", (e)=>{ if(e.target === bildebankModalBg) closeBildebankModal(); });
+document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && bildebankModalBg.classList.contains("open")) closeBildebankModal(); });
+
+async function openBildebankModal(bankInfo, kategori, extra, matchFn, maks){
+  const erReisemaal = bankInfo.mappe === "destinations";
+  bildebankModalTitle.textContent = erReisemaal ? "Reisemålets bildebank" : "Hotellets bildebank";
+  bildebankModalTeller.textContent = "";
+  bildebankModalBody.innerHTML = `<div class="bildebank-modal-loading">Henter bilder…</div>`;
+  bildebankModalBg.classList.add("open");
+
+  if(!bankInfo.entityIdGetter()){
+    bildebankModalBody.innerHTML = `<div class="bildebank-modal-empty">${erReisemaal
+      ? "Koble et reisemål under Presentasjon («Velg fra reisemål-oversikt») for å se bildene i reisemålets bildebank."
+      : "Velg hotellet fra hotelloversikten («Velg fra hotelloversikt») for å se bildene i hotellets bildebank."}</div>`;
+    return;
+  }
+  const alleBank = await bankInfo.hent();
+  // Modalen kan ha blitt lukket (eller en ANNEN boks' modal åpnet) mens
+  // dette nettverkskallet pågikk - ikke tegn inn i en skjult/utdatert modal.
+  if(!bildebankModalBg.classList.contains("open") || bildebankModalTitle.textContent !== (erReisemaal ? "Reisemålets bildebank" : "Hotellets bildebank")) return;
+
+  const bankMaks = erReisemaal ? REISEMAAL_BANK_BILDER_MAKS : HOTELL_BANK_BILDER_MAKS;
+  const bruktIdSet = new Set(state.bilder.map(b=> b.fields[bankInfo.bankIdField]).filter(Boolean));
+  const tilgjengelig = alleBank.filter(b=> !bruktIdSet.has(b.id));
+  bildebankModalTeller.textContent = `${alleBank.length} / ${bankMaks} bilder i banken`
+    + (alleBank.length !== tilgjengelig.length ? ` - ${alleBank.length - tilgjengelig.length} allerede lagt til i dette forslaget` : "");
+
+  if(!alleBank.length){
+    bildebankModalBody.innerHTML = `<div class="bildebank-modal-empty">Ingen bilder i bildebanken ennå.</div>`;
+    return;
+  }
+  if(!tilgjengelig.length){
+    bildebankModalBody.innerHTML = `<div class="bildebank-modal-empty">Alle bildene i banken er allerede i bruk i dette forslaget.</div>`;
+    return;
   }
 
-  btn.addEventListener("click", ()=>{
-    if(panel.style.display !== "none"){ panel.style.display = "none"; return; }
-    panel.style.display = "flex";
-    tegnPanel();
+  const grid = document.createElement("div");
+  grid.className = "bildebank-modal-grid";
+  tilgjengelig.forEach(b=>{
+    const wrap = document.createElement("div");
+    wrap.className = "bildebank-modal-thumb-wrap";
+    wrap.title = "Klikk for å legge til dette bildet";
+    wrap.innerHTML = `<img src="${escapeHtml(b.url)}" loading="lazy" alt="">`;
+    wrap.addEventListener("click", ()=>{
+      if(maks!=null && matchFn && state.bilder.filter(matchFn).length >= maks){
+        alert(`Denne boksen har allerede maks ${maks} bilde${maks===1?"":"r"}.`);
+        return;
+      }
+      state.bilder.push({
+        id:null, clientKey:newClientKey(),
+        fields:{ kategori, bilde_url:b.url, alt_tekst:b.alt_tekst||null, sortering: state.bilder.length, er_hovedbilde:false, er_avslutningsbilde:false,
+          [bankInfo.bankIdField]: b.id },
+        hotellopphold_client_key: (extra && extra.hotellopphold_client_key) || null,
+      });
+      el("saveStatus").textContent = "Bilde lagt til fra bildebanken.";
+      renderBilder();
+      // v: fjerner akkurat DETTE bildet fra rutenettet med det samme (i
+      // stedet for å tegne hele modalen på nytt, som ville hoppet
+      // brukeren tilbake til toppen av en lang, scrollet liste) - lar man
+      // modalen stå åpen kan man plukke flere bilder på rad.
+      wrap.remove();
+      if(!grid.children.length){
+        bildebankModalBody.innerHTML = `<div class="bildebank-modal-empty">Alle bildene i banken er allerede i bruk i dette forslaget.</div>`;
+      }
+    });
+    grid.appendChild(wrap);
   });
+  bildebankModalBody.innerHTML = "";
+  bildebankModalBody.appendChild(grid);
 }
+
+// v21c: samme bank-tak som håndheves i reisemaal.html/hoteller.html sine
+// egne "3. Bilder"-fane (der banken normalt bygges opp) - gjentatt her slik
+// at en opplasting rett fra et forslag (uploadFilesIntoBox, se under) ikke
+// kan smette forbi taket bare fordi den skjer fra en annen side i appen.
+const REISEMAAL_BANK_BILDER_MAKS = 50;
+const HOTELL_BANK_BILDER_MAKS = 20;
 
 // v21: felles kilde til Reisemål-boksens bank - reisemaal_bilder-tabellen
 // for det KOBLEDE reisemålet (forslag.reisemaal_id, samme kobling som
@@ -2499,12 +2646,16 @@ function reisemaalBankInfo(){
     },
     mappe: "destinations",
     leggIBank: async (reisemaalId, url, altTekst)=>{
+      const eksisterende = await hentReisemaalBank(reisemaalId);
+      if(eksisterende.length >= REISEMAAL_BANK_BILDER_MAKS){
+        throw new Error(`Reisemålets bildebank har allerede maks ${REISEMAAL_BANK_BILDER_MAKS} bilder - fjern noen i Reisemål-registeret først.`);
+      }
       const { data, error } = await window.sb.from("reisemaal_bilder").insert({
         reisemaal_id: reisemaalId, bilde_url: url, alt_tekst: altTekst || null,
-        sortering: reisemaalBilderOversikt.filter(b=>b.reisemaal_id===reisemaalId).length,
+        sortering: eksisterende.length,
       }).select().single();
       if(error) throw error;
-      reisemaalBilderOversikt.push(data);
+      reisemaalBankCache.set(reisemaalId, [...eksisterende, data]);
       return data;
     },
   };
@@ -2516,10 +2667,11 @@ function reisemaalBankInfo(){
 function hotellBankInfo(hotellopphold){
   return {
     bankIdField: "hotell_bilde_id",
-    hent: ()=>{
+    hent: async ()=>{
       const id = hotellopphold.fields.hotell_id;
       if(!id) return [];
-      return hotellBilderOversikt.filter(b=>b.hotell_id===id).sort((a,b)=>(a.sortering??0)-(b.sortering??0))
+      const rows = await hentHotellBank(id);
+      return rows.slice().sort((a,b)=>(a.sortering??0)-(b.sortering??0))
         .map(hb=>({ id:hb.id, url:hb.bilde_url, alt_tekst:hb.alt_tekst }));
     },
     entityIdGetter: ()=> hotellopphold.fields.hotell_id || null,
@@ -2529,12 +2681,16 @@ function hotellBankInfo(hotellopphold){
     },
     mappe: "hoteller",
     leggIBank: async (hotellId, url, altTekst)=>{
+      const eksisterende = await hentHotellBank(hotellId);
+      if(eksisterende.length >= HOTELL_BANK_BILDER_MAKS){
+        throw new Error(`Hotellets bildebank har allerede maks ${HOTELL_BANK_BILDER_MAKS} bilder - fjern noen i Hotell-registeret først.`);
+      }
       const { data, error } = await window.sb.from("hotell_bilder").insert({
         hotell_id: hotellId, bilde_url: url, alt_tekst: altTekst || null,
-        sortering: hotellBilderOversikt.filter(b=>b.hotell_id===hotellId).length,
+        sortering: eksisterende.length,
       }).select().single();
       if(error) throw error;
-      hotellBilderOversikt.push(data);
+      hotellBankCache.set(hotellId, [...eksisterende, data]);
       return data;
     },
   };
