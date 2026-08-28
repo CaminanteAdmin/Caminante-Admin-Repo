@@ -525,7 +525,7 @@ function renderProfile(id){
       <h3>3. Bilder <span class="rm-bilde-teller" id="rmBildeTeller"></span></h3>
       <div class="upload-hint">Generelle bilder av reisemålet - brukes ved «Velg fra reisemål-oversikt» i Forslag.</div>
       <div class="rm-img-grid" id="rmBildeGrid"></div>
-      <input type="file" id="nyttRmBildeFile" accept="image/*" style="margin-top:10px;">
+      <input type="file" id="nyttRmBildeFile" accept="image/*" multiple style="margin-top:10px;">
     </div>
 
     <div class="section">
@@ -565,29 +565,40 @@ function renderProfile(id){
   });
 
   renderRmBilder(r);
+  // v21e: feltet tar nå imot flere filer på én gang (multiple-attributt på
+  // selve inputen over) - lastes opp ETT AV GANGEN i en enkel løkke (samme
+  // mønster som forslag-editor.html sin tilsvarende opplasting til
+  // bildebanken har brukt siden v21), ikke parallelt, for å unngå
+  // kappløp om `sortering`-verdien (som regnes ut fra r.bilder.length,
+  // og må derfor oppdateres mellom hver fil). Stopper selv når grensen
+  // nås underveis, i stedet for å telle kun ved starten - viktig hvis man
+  // f.eks. velger 10 filer med bare 3 ledige plasser igjen.
   document.getElementById("nyttRmBildeFile").addEventListener("change", async (e)=>{
-    const file = e.target.files[0];
-    if(!file) return;
-    if(r.bilder.length >= REISEMAAL_BANK_BILDER_MAKS){
-      alert(`Reisemålets bildebank har allerede maks ${REISEMAAL_BANK_BILDER_MAKS} bilder.`);
-      e.target.value = ""; return;
-    }
+    const filer = Array.from(e.target.files || []);
+    if(!filer.length) return;
     const slug = slugifyBildebank(r.navn);
     if(!slug){ alert("Fyll inn Navn først, slik at bildet kan legges i riktig mappe i bildebanken."); e.target.value=""; return; }
-    try{
-      // v: bilder lagres nå i den delte bildebanken (Cloudflare R2, destinations/<slug>/)
-      // i stedet for reisemaal-bilder-bucketen i Supabase Storage, slik at de samme
-      // bildene kan gjenbrukes direkte i Forslag & Tilbud (og etter hvert Web) uten
-      // å måtte lastes opp på nytt. reisemaal_bilder-tabellen er uendret - lagrer
-      // bare en URL som nå peker til R2 i stedet for Supabase Storage.
-      const { url } = await bildebankUpload(file, "destinations", slug);
-      const { data, error } = await window.sb.from("reisemaal_bilder").insert({
-        reisemaal_id: r.id, bilde_url: url, sortering: r.bilder.length,
-      }).select().single();
-      if(error) throw error;
-      r.bilder.push(data);
-      renderRmBilder(r);
-    } catch(err){ alert("Kunne ikke laste opp bilde: " + err.message); }
+    let lagtTil = 0, feilet = 0, hoppetOverPgaGrense = 0;
+    for(const file of filer){
+      if(r.bilder.length >= REISEMAAL_BANK_BILDER_MAKS){ hoppetOverPgaGrense++; continue; }
+      try{
+        // v: bilder lagres nå i den delte bildebanken (Cloudflare R2, destinations/<slug>/)
+        // i stedet for reisemaal-bilder-bucketen i Supabase Storage, slik at de samme
+        // bildene kan gjenbrukes direkte i Forslag & Tilbud (og etter hvert Web) uten
+        // å måtte lastes opp på nytt. reisemaal_bilder-tabellen er uendret - lagrer
+        // bare en URL som nå peker til R2 i stedet for Supabase Storage.
+        const { url } = await bildebankUpload(file, "destinations", slug);
+        const { data, error } = await window.sb.from("reisemaal_bilder").insert({
+          reisemaal_id: r.id, bilde_url: url, sortering: r.bilder.length,
+        }).select().single();
+        if(error) throw error;
+        r.bilder.push(data);
+        lagtTil++;
+        renderRmBilder(r);
+      } catch(err){ feilet++; console.error(err); }
+    }
+    if(feilet){ alert(`${feilet} av ${filer.length} bilder kunne ikke lastes opp.`); }
+    if(hoppetOverPgaGrense){ alert(`${hoppetOverPgaGrense} bilde${hoppetOverPgaGrense===1?"":"r"} ble ikke lastet opp - bildebanken har allerede maks ${REISEMAAL_BANK_BILDER_MAKS} bilder.`); }
     e.target.value = "";
   });
 

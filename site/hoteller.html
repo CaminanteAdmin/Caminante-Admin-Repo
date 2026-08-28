@@ -548,7 +548,7 @@ function renderProfile(id){
       <h3>3. Bilder <span class="hotel-bilde-teller" id="hotelBildeTeller"></span></h3>
       <div class="upload-hint">Generelle bilder av hotellet - brukes ved «Velg fra hotelloversikt» i Forslag. Ikke turspesifikke bilder (de lastes opp per forslag).</div>
       <div class="hotel-img-grid" id="hotelBildeGrid"></div>
-      <input type="file" id="nyttHotelBildeFile" accept="image/*" style="margin-top:10px;">
+      <input type="file" id="nyttHotelBildeFile" accept="image/*" multiple style="margin-top:10px;">
     </div>
 
     <div class="section">
@@ -592,27 +592,32 @@ function renderProfile(id){
   });
 
   renderHotelBilder(h);
+  // v21e: samme utvidelse til flere filer på én gang som reisemaal.html -
+  // se merknaden der for begrunnelsen (sekvensiell opplasting, ikke
+  // parallell, pga. sortering-kappløp; stopper når grensen nås underveis).
   document.getElementById("nyttHotelBildeFile").addEventListener("change", async (e)=>{
-    const file = e.target.files[0];
-    if(!file) return;
-    if(h.bilder.length >= HOTELL_BANK_BILDER_MAKS){
-      alert(`Hotellets bildebank har allerede maks ${HOTELL_BANK_BILDER_MAKS} bilder.`);
-      e.target.value = ""; return;
-    }
+    const filer = Array.from(e.target.files || []);
+    if(!filer.length) return;
     const slug = slugifyBildebank(h.navn);
     if(!slug){ alert("Fyll inn Navn først, slik at bildet kan legges i riktig mappe i bildebanken."); e.target.value=""; return; }
-    try{
-      // v: bilder lagres nå i den delte bildebanken (Cloudflare R2, hoteller/<slug>/)
-      // i stedet for hotell-bilder-bucketen i Supabase Storage - se tilsvarende
-      // endring/begrunnelse i reisemaal.html.
-      const { url } = await bildebankUpload(file, "hoteller", slug);
-      const { data, error } = await window.sb.from("hotell_bilder").insert({
-        hotell_id: h.id, bilde_url: url, sortering: h.bilder.length,
-      }).select().single();
-      if(error) throw error;
-      h.bilder.push(data);
-      renderHotelBilder(h);
-    } catch(err){ alert("Kunne ikke laste opp bilde: " + err.message); }
+    let feilet = 0, hoppetOverPgaGrense = 0;
+    for(const file of filer){
+      if(h.bilder.length >= HOTELL_BANK_BILDER_MAKS){ hoppetOverPgaGrense++; continue; }
+      try{
+        // v: bilder lagres nå i den delte bildebanken (Cloudflare R2, hoteller/<slug>/)
+        // i stedet for hotell-bilder-bucketen i Supabase Storage - se tilsvarende
+        // endring/begrunnelse i reisemaal.html.
+        const { url } = await bildebankUpload(file, "hoteller", slug);
+        const { data, error } = await window.sb.from("hotell_bilder").insert({
+          hotell_id: h.id, bilde_url: url, sortering: h.bilder.length,
+        }).select().single();
+        if(error) throw error;
+        h.bilder.push(data);
+        renderHotelBilder(h);
+      } catch(err){ feilet++; console.error(err); }
+    }
+    if(feilet){ alert(`${feilet} av ${filer.length} bilder kunne ikke lastes opp.`); }
+    if(hoppetOverPgaGrense){ alert(`${hoppetOverPgaGrense} bilde${hoppetOverPgaGrense===1?"":"r"} ble ikke lastet opp - bildebanken har allerede maks ${HOTELL_BANK_BILDER_MAKS} bilder.`); }
     e.target.value = "";
   });
 
