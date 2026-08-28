@@ -24,10 +24,10 @@
     { label: "Påmeldinger",    disabled: true },
     { label: "Reisemål",       href: "reisemaal.html" },
     { label: "Hoteller",       href: "hoteller.html" },
-    { label: "Scandic-poeng",  href: "scandic-poeng.html" },
     { label: "Skoleoversikt",  href: "skoler.html" },
     { label: "Kunder",         disabled: true },
     { label: "EuroBonus",      disabled: true },
+    { label: "Scandic Bonusnetter", href: "scandic-poeng.html" },
     { label: "Dokumenter",     disabled: true },
   ];
 

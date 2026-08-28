@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Scandic-poeng – Caminante Admin</title>
+<title>Scandic Bonusnetter – Caminante Admin</title>
 <link rel="stylesheet" href="shared/style.css">
 <style>
   /* v1: rent oppslagsverk (se sql/spec) - ingen skjema for å opprette/slette
@@ -116,8 +116,6 @@
   .hotel-name{ font-weight:600; }
   .land-flag{ width:20px; height:14px; object-fit:cover; border-radius:2px; vertical-align:middle; margin-right:6px; border:1px solid var(--hairline); }
   .ikke-bonusnatt{ color:var(--ink-muted); }
-  .kontant-trinn{ font-variant-numeric:tabular-nums; }
-  .kontant-tom{ color:var(--ink-muted); }
   .kampanje-poeng{ color:var(--good); font-weight:650; font-variant-numeric:tabular-nums; }
   .kampanje-rabatt{ font-weight:500; }
   .kampanje-periode{ font-size:11px; color:var(--ink-muted); margin-top:1px; }
@@ -138,7 +136,7 @@
 <body>
 
 <div class="topbar">
-  <a class="brand" href="index.html"><span class="company">Caminante Admin</span><span class="tool-name">Scandic-poeng</span></a>
+  <a class="brand" href="index.html"><span class="company">Caminante Admin</span><span class="tool-name">Scandic Bonusnetter</span></a>
   <div class="user-area">
     <span id="userName"></span>
     <button class="logout-btn" id="logoutBtn">Logg ut</button>
@@ -150,7 +148,7 @@
 <div id="mainArea" style="display:none;">
 
   <div class="summary-wrap">
-    <p class="hero-sub">Bonusnatt i Scandic Friends — fast poengpris per hotell</p>
+    <p class="hero-sub">Bonusnatt hos Scandic — pris i EuroBonus-poeng per hotell</p>
 
     <div class="metrics-row">
       <div class="metric-card">
@@ -158,7 +156,7 @@
         <div class="metric-value" id="mAntall">–</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">Laveste poengpris</div>
+        <div class="metric-label">Laveste pris</div>
         <div class="metric-value" id="mLavest">–</div>
         <div class="metric-sub" id="mLavestHotell"></div>
       </div>
@@ -169,14 +167,13 @@
     </div>
 
     <div class="info-box">
-      Poengprisen er <strong>fast per hotell</strong> og varierer ikke med dato eller etterspørsel
-      — det er forskjellen fra de fleste andre kjeder. En bonusnatt gjelder ett standard
-      dobbeltrom for to personer, én natt. Vil du betale ned poengprisen med et kontanttillegg,
-      er trinnene alltid −5 000 poeng mot det minste beløpet og −10 000 poeng mot det doble
-      (laveste mulige poengpris er 10 000, så hoteller allerede på 15 000 har bare ett trinn).
-      Kampanjeprisene <strong>rullerer månedlig</strong> og er et øyeblikksbilde fra datoen i
-      fotnoten under — og selv en lav poengpris forutsetter at hotellet faktisk har
-      bonusnattrom ledig på datoen du ønsker.
+      Prisen er <strong>fast per hotell</strong> og varierer ikke med dato eller etterspørsel — det
+      er forskjellen fra de fleste andre kjeder. En bonusnatt gjelder ett standard dobbeltrom for to
+      personer, én natt. Tallene under er Scandics offisielle poengpris, regnet om til
+      <strong>EuroBonus-poeng</strong> etter SAS/Scandic sin faste, gebyrfrie vekslingskurs
+      (2 Scandic Friends-poeng = 1 EuroBonus-poeng). Kampanjeprisene <strong>rullerer månedlig</strong>
+      og er et øyeblikksbilde fra datoen i fotnoten under — og selv en lav pris forutsetter at
+      hotellet faktisk har bonusnattrom ledig på datoen du ønsker.
     </div>
   </div>
 
@@ -187,8 +184,8 @@
       <div class="land-chips" id="landChips"></div>
     </div>
     <div class="toolbar-group poeng-slider-wrap">
-      <span class="toolbar-group-label">Maks poeng</span>
-      <input type="range" id="poengSlider" min="10000" max="80000" step="5000" value="80000">
+      <span class="toolbar-group-label">Maks EuroBonus-poeng</span>
+      <input type="range" id="poengSlider" min="5000" max="40000" step="500" value="40000">
       <span class="poeng-slider-val" id="poengSliderVal"></span>
     </div>
     <label class="kampanje-filter"><input type="checkbox" id="kunKampanje"> Bare hoteller med kampanje</label>
@@ -204,8 +201,7 @@
             <th data-key="hotell">Hotell <span class="arrow"></span></th>
             <th data-key="by">By <span class="arrow"></span></th>
             <th data-key="land">Land <span class="arrow"></span></th>
-            <th data-key="poeng_per_natt">Poeng/natt <span class="arrow"></span></th>
-            <th>+ kontant</th>
+            <th data-key="poeng_per_natt">EuroBonus-poeng/natt <span class="arrow"></span></th>
             <th data-key="kampanje_poeng">Kampanje <span class="arrow"></span></th>
           </tr>
         </thead>
@@ -226,7 +222,16 @@
 /* ---------- State ---------- */
 
 let rows = [];
-const POENG_SLIDER_MAKS = 80000;
+// v2: siden viser nå EuroBonus-poeng, ikke Scandic Friends-poeng - Vidar:
+// "det er den valutaen vi skal forholde oss til". Offisiell, gebyrfri
+// vekslingskurs (verifisert 2026-08-28): 2 Scandic-poeng = 1 EuroBonus-poeng.
+// Databasen (public.scandic_poengpriser) lagrer fortsatt Scandic-poeng
+// uendret (det er tallet Scandic selv oppgir) - selve visningen regner om.
+const SCANDIC_PR_EUROBONUS = 2;
+function tilEurobonus(scandicPoeng){
+  return scandicPoeng == null ? null : Math.round(scandicPoeng / SCANDIC_PR_EUROBONUS);
+}
+const POENG_SLIDER_MAKS = tilEurobonus(80000); // høyeste Scandic-nivå i banken (spec pkt. 1)
 const state = {
   search: "",
   land: new Set(["Norge"]),   // v: multivalg, Norge forhåndsvalgt (spec pkt. 2b)
@@ -250,7 +255,7 @@ function formatPoeng(n){
 async function loadAllData(){
   const { data, error } = await window.sb
     .from("scandic_poengpriser")
-    .select("hotell, by, land, landkode, poeng_per_natt, poeng_trinn_1, poeng_trinn_2, tillegg_valuta, tillegg_belop_1, tillegg_belop_2, kampanje_poeng, kampanje_periode, hentet_dato")
+    .select("hotell, by, land, landkode, poeng_per_natt, kampanje_poeng, kampanje_periode, hentet_dato")
     .order("poeng_per_natt", { ascending:true, nullsFirst:false })
     .order("hotell");
   if(error){
@@ -273,7 +278,7 @@ function renderMetrics(){
   if(medPris.length){
     const lavest = Math.min(...medPris.map(r=>r.poeng_per_natt));
     const hoteller = medPris.filter(r=> r.poeng_per_natt === lavest);
-    document.getElementById("mLavest").textContent = `${formatPoeng(lavest)} poeng`;
+    document.getElementById("mLavest").textContent = `${formatPoeng(tilEurobonus(lavest))} poeng`;
     const navn = hoteller[0].hotell + (hoteller[0].by ? `, ${hoteller[0].by}` : "");
     document.getElementById("mLavestHotell").textContent = hoteller.length > 1
       ? `${navn} (+ ${hoteller.length-1} til på samme nivå)` : navn;
@@ -326,7 +331,10 @@ function filteredRows(){
     // Rader uten bonusnatt (poeng_per_natt=NULL) har ikke noe poengnivå å
     // filtrere på - de påvirkes bevisst ikke av "Maks poeng"-glideren, se
     // spec pkt. 2b/2c (vises uansett, markert "Ikke bonusnatt" i tabellen).
-    if(r.poeng_per_natt != null && r.poeng_per_natt > state.maksPoeng) return false;
+    // state.maksPoeng er i EuroBonus-poeng (glideren viser den valutaen nå) -
+    // regnes derfor om til Scandic-poeng her, ikke omvendt, siden det er
+    // r.poeng_per_natt (rådata fra banken) som faktisk sammenlignes.
+    if(r.poeng_per_natt != null && r.poeng_per_natt > state.maksPoeng * SCANDIC_PR_EUROBONUS) return false;
     if(state.kunKampanje && r.kampanje_poeng == null) return false;
     return true;
   });
@@ -354,20 +362,16 @@ function filteredRows(){
 
 function poengCelle(r){
   if(r.poeng_per_natt == null) return `<span class="ikke-bonusnatt">Ikke bonusnatt</span>`;
-  return formatPoeng(r.poeng_per_natt);
-}
-function kontantCelle(r){
-  const deler = [];
-  if(r.poeng_trinn_1 != null) deler.push(`${formatPoeng(r.poeng_trinn_1)} + ${formatPoeng(r.tillegg_belop_1)} ${escapeHtml(r.tillegg_valuta||"")}`);
-  if(r.poeng_trinn_2 != null) deler.push(`${formatPoeng(r.poeng_trinn_2)} + ${formatPoeng(r.tillegg_belop_2)} ${escapeHtml(r.tillegg_valuta||"")}`);
-  if(!deler.length) return `<span class="kontant-tom">–</span>`;
-  return `<span class="kontant-trinn">${deler.join(" · ")}</span>`;
+  return formatPoeng(tilEurobonus(r.poeng_per_natt));
 }
 function kampanjeCelle(r){
   if(r.kampanje_poeng == null) return `<span class="kampanje-tom">–</span>`;
+  // v: rabatt-% er identisk uansett om man regner den ut i Scandic-poeng
+  // eller EuroBonus-poeng (samme forhold, siden begge tall deles på samme
+  // faste kurs) - trygt å bruke rå-verdiene direkte her.
   const rabatt = r.poeng_per_natt ? Math.round((1 - r.kampanje_poeng / r.poeng_per_natt) * 100) : null;
   return `
-    <div class="kampanje-poeng">${formatPoeng(r.kampanje_poeng)} poeng${rabatt != null ? ` <span class="kampanje-rabatt">(−${rabatt}%)</span>` : ""}</div>
+    <div class="kampanje-poeng">${formatPoeng(tilEurobonus(r.kampanje_poeng))} poeng${rabatt != null ? ` <span class="kampanje-rabatt">(−${rabatt}%)</span>` : ""}</div>
     ${r.kampanje_periode ? `<div class="kampanje-periode">${escapeHtml(r.kampanje_periode)}</div>` : ""}
   `;
 }
@@ -380,7 +384,7 @@ function renderList(){
   body.innerHTML = "";
 
   if(!list.length){
-    body.innerHTML = `<tr class="empty-row"><td colspan="6">Ingen hoteller matcher filteret.</td></tr>`;
+    body.innerHTML = `<tr class="empty-row"><td colspan="5">Ingen hoteller matcher filteret.</td></tr>`;
   } else {
     list.forEach(r=>{
       const tr = document.createElement("tr");
@@ -390,7 +394,6 @@ function renderList(){
         <td>${escapeHtml(r.by)}</td>
         <td>${lc ? `<img class="land-flag" src="flags/${lc}.svg" alt="" onerror="this.style.display='none'">` : ""}${escapeHtml(r.land)}</td>
         <td>${poengCelle(r)}</td>
-        <td>${kontantCelle(r)}</td>
         <td>${kampanjeCelle(r)}</td>
       `;
       body.appendChild(tr);
@@ -407,10 +410,12 @@ function renderFootnote(){
     ? new Date(rows[0].hentet_dato).toLocaleDateString("nb-NO", { year:"numeric", month:"long", day:"numeric" })
     : "ukjent dato";
   document.getElementById("footnote").innerHTML =
-    `Poengprisene er hentet fra Scandics egen bookingmotor (søk med «Bonusnatt» avhuket som innlogget Scandic
-     Friends-medlem) ${escapeHtml(dato)}, og blir utdatert etter hvert - særlig kampanjeprisene, som rullerer
-     månedlig. Se <a href="https://www.scandichotels.no" target="_blank" rel="noopener">scandichotels.com</a>
-     for oppdaterte priser og faktisk ledighet på ønsket dato.`;
+    `Grunntallene er Scandics egen poengpris for bonusnatt, hentet fra Scandics bookingmotor (søk med
+     «Bonusnatt» avhuket som innlogget Scandic Friends-medlem) ${escapeHtml(dato)}, og regnet om til
+     EuroBonus-poeng etter SAS/Scandic sin faste vekslingskurs (2 Scandic-poeng = 1 EuroBonus-poeng).
+     Tallene blir utdatert etter hvert - særlig kampanjeprisene, som rullerer månedlig. Se
+     <a href="https://www.scandichotels.no" target="_blank" rel="noopener">scandichotels.com</a> for
+     oppdaterte priser og faktisk ledighet på ønsket dato.`;
 }
 
 /* ---------- Wire up toolbar ---------- */
