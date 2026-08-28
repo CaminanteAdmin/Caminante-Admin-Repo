@@ -534,27 +534,43 @@
     background:var(--surface-1);
   }
   .img-card .img-remove{ font-size:11px; color:#b04a4a; background:none; border:none; cursor:pointer; padding:0; }
-  /* v14: "Hovedbilde"/"Avslutningsbilde" - avkrysning med tekst ved siden
-     av, i stedet for et fullbredt input/select (som .img-card select,
-     .img-card input{width:100%} over er ment for). (v15: teksten på selve
-     avkrysningene forkortet fra "Bruk som hovedbilde"/"Bruk som
-     avslutningsbilde" til bare "Hovedbilde"/"Avslutningsbilde".) */
-  .img-card .img-flagg-opt{
-    display:flex; align-items:center; gap:5px; width:auto;
-    font-size:11px; color:var(--ink-primary); cursor:pointer; margin-bottom:5px;
-  }
-  .img-card .img-flagg-opt input{ width:auto; margin:0; }
-  /* v21g: høydepunkt-valget var opprinnelig et fullbredt <select> (v21b,
-     rettet fra en for smal inline-rad), men er nå bygget om til avkrysning -
-     én linje PER høydepunkt, samme mønster/klasse (.img-flagg-opt) som
-     Hovedbilde/Avslutningsbilde bruker - se merknaden ved bildeThumbCard()
-     i scriptet. Gruppe-etiketten ("Høydepunkter") beholdes over selve
-     avkrysningslinjene. */
-  .img-card .img-hoydepunkt-opt{ margin-bottom:5px; }
-  .img-card .img-hoydepunkt-opt > label{
-    display:block; font-size:11px; color:var(--ink-primary); margin-bottom:3px;
-  }
   .upload-hint{ font-size:11.5px; color:var(--ink-muted); margin-bottom:14px; }
+
+  /* v22: Bilder-fanen snudd om - Hovedbilde/Avslutningsbilde/hvert
+     Høydepunkt har nå hver sin EGNE, dedikerte "blå boks" (én bildeplass),
+     der man plukker rett fra reisemålets bildebank - i stedet for at bildet
+     ligger i Reisemål-galleriet og FÅR en rolle via avkrysning (den gamle,
+     omvendte modellen - se historikk i scriptets renderBildeSlotter()).
+     Tydelig blåere enn både den blåtonede .card-bakgrunnen rundt (--card-bg)
+     og de hvite .img-card-kortene i galleriet under, slik at de dedikerte
+     plassene skiller seg visuelt fra det frie galleriet. */
+  .bilde-slot-row{ display:flex; flex-wrap:wrap; gap:12px; margin-bottom:2px; }
+  .bilde-slot-box{
+    flex:1 1 150px; max-width:190px; min-width:130px;
+    background:rgba(42,120,214,0.09); border:1.5px solid var(--blue);
+    border-radius:10px; padding:10px; display:flex; flex-direction:column;
+  }
+  .bilde-slot-label{
+    font-size:11.5px; font-weight:600; color:var(--blue-dark); margin-bottom:6px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .bilde-slot-thumb{ border-radius:6px; overflow:hidden; margin-bottom:6px; }
+  .bilde-slot-thumb img{ width:100%; height:90px; object-fit:cover; display:block; background:var(--page); }
+  .bilde-slot-tom{
+    font-size:11px; color:var(--ink-muted); text-align:center; padding:24px 4px;
+    background:rgba(255,255,255,0.55); border-radius:6px; margin-bottom:6px;
+  }
+  .bilde-slot-actions{ display:flex; gap:8px; }
+  .bilde-slot-actions button{
+    flex:1; font-size:10.5px; border:none; background:none; color:var(--blue);
+    text-decoration:underline; cursor:pointer; padding:2px 0;
+  }
+  .bilde-slot-actions .bilde-slot-fjern{ color:#b04a4a; }
+  .bilde-slot-velg{
+    width:100%; font-size:11px; padding:6px 4px; border:1px solid var(--blue); border-radius:6px;
+    background:var(--surface-1); color:var(--blue); cursor:pointer;
+  }
+  .bilde-slot-velg:hover{ background:var(--blue); color:#fff; }
 
   /* v: Bilder-fanen bygget om fra rullegardin-basert kategorisering til én
      "dropbox" per kategori/underkategori - man drar bildefiler dit direkte
@@ -951,17 +967,23 @@
   </div>
 
   <!-- ===== Bilder ===== -->
-  <!-- v14: kun to bokser igjen - Reisemål og Hotell, i den rekkefølgen.
-       Hovedbilde og Avslutningsbilde er ikke lenger egne bokser/kategorier -
-       de er nå avhukingsvalg PÅ det enkelte Reisemål-bildet (se
-       bildeThumbCard()), lagret som er_hovedbilde/er_avslutningsbilde på
-       forslag_bilder-raden (uavhengige flagg - samme bilde kan være begge
-       deler samtidig). Bilder flagget hovedbilde/avslutningsbilde vises ikke
-       i "Om reisemålet"-galleriet i PDF-en (se forslag-print.html), kun de
-       resterende, uflaggede Reisemål-bildene (maks 4 der). -->
+  <!-- v22: Bilder-fanen bygget om fra "bilde velger rolle" til "rollen har
+       sin egen boks" (se scriptets renderBildeSlotter()) - Hovedbilde,
+       Avslutningsbilde og hvert Høydepunkt har nå hver sin dedikerte,
+       blåfargede boks (én bildeplass) der man plukker rett fra reisemålets
+       bildebank. Reisemål-galleriet under er nå et RENT galleri (maks 4
+       ekstra bilder, ikke lenger delt med hoved-/avslutnings-/høydepunkt-
+       bildene), og Hotell-boksen er uendret. -->
   <div class="tab-panel" data-tab="bilder">
     <div class="card">
-      <div class="card-title">Reisemål</div>
+      <div class="card-title">Hovedbilde, avslutningsbilde og høydepunkter</div>
+      <div class="field-hint" style="margin-bottom:12px;">Velg ett bilde fra reisemålets bildebank til hver plassering. Høydepunktene hentes fra listen i Presentasjon-fanen.</div>
+      <div class="bilde-slot-row" id="bildeSlotRow"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Reisemål (galleri)</div>
+      <div class="field-hint" style="margin-bottom:12px;">Øvrige bilder fra reisemålet, vist i "Om reisemålet"-galleriet i PDF-en.</div>
       <div class="bilde-dropbox" id="bildeBoxDestinasjon"></div>
     </div>
 
@@ -1220,6 +1242,24 @@ async function loadForslag(id){
   originalIds.hotellopphold = new Set(state.hotellopphold.map(i=>i.id));
   originalIds.bilder = new Set(state.bilder.map(i=>i.id));
   originalIds.hoydepunkter = new Set(state.hoydepunkter.map(i=>i.id));
+
+  // v22: migrer bort fra den gamle "ett bilde, én rolle via avkrysning"-
+  // modellen (v21g) - et forslag lagret FØR dette skiftet kan ha en
+  // forslag_bilder-rad (kategori Destinasjon, uflagget) hvis reisemaal_
+  // bilde_id peker på nøyaktig det samme bankbildet som et høydepunkts
+  // valgt_bilde_id. Selve høydepunkt-koblingen (valgt_bilde_id, uendret
+  // datakilde for både høydepunkt-boksen og forslag-print.html) er UBERØRT
+  // av dette - kun den nå overflødige galleri-raden fjernes herfra (id-en er
+  // allerede fanget i originalIds.bilder over, så den slettes riktig fra
+  // databasen ved neste lagring), slik at den ikke dukker opp som et
+  // ekstra, urelatert kort i det nye, rene Reisemål-galleriet.
+  const hoydepunktBrukteBankIder = new Set(state.hoydepunkter.map(h=>h.fields.valgt_bilde_id).filter(Boolean));
+  if(hoydepunktBrukteBankIder.size){
+    state.bilder = state.bilder.filter(b=> !(
+      b.fields.kategori==="Destinasjon" && !b.fields.er_hovedbilde && !b.fields.er_avslutningsbilde &&
+      b.fields.reisemaal_bilde_id && hoydepunktBrukteBankIder.has(b.fields.reisemaal_bilde_id)
+    ));
+  }
 
   return true;
 }
@@ -2253,109 +2293,146 @@ async function uploadImageFile(file){
 // v14: "Bildetekst"-feltet (alt_tekst) er fjernet fra kortet etter ønske -
 // kolonnen består i databasen (skadefritt, blir bare ikke lenger satt/vist),
 // men editoren tilbyr ikke lenger noe felt for den.
-// v21: bilder i Reisemål-boksen (thumbOpts.visRolleValg=true) har nå TRE
-// gjensidig utelukkende roller i stedet for to uavhengige avkrysninger:
-// Hovedbilde, Avslutningsbilde, eller ett bestemt Høydepunkt (nytt - dette
-// er selve "alternativ 2"-løsningen Vidar valgte for høydepunkt-bilder,
-// beskrevet i prosjektdokumentasjonen). Et bilde kan ALDRI ha mer enn én
-// rolle samtidig lenger - inkludert Hoved-/Avslutningsbilde, som tidligere
-// var et bevisst tillatt unntak (Vidar presiserte eksplisitt at dette nå
-// skal være strengt). All rolle-håndtering går gjennom settBilderolle() for
-// å garantere dette ett-sted-av-gangen-prinsippet.
+// v22: Hovedbilde/Avslutningsbilde/Høydepunkt er ikke lenger roller man
+// setter PÅ et bilde i galleriet (avkrysning) - hver rolle har nå sin egen
+// dedikerte boks (se renderBildeSlotter() lenger ned) der man plukker bildet
+// direkte fra bildebanken. Reisemål-galleriets kort (bildeThumbCard under)
+// er derfor nå rene, rolleløse miniatyrer igjen.
 function hoydepunktNavn(hp){
   const bank = hoydepunktBankOversikt.find(x=>x.id===hp.fields.hoydepunkt_id);
   return hp.fields.navn_override || (bank ? bank.navn : "(uten navn)");
 }
-// Hvilket (om noe) høydepunkt er dette REISEMÅL-bildet for øyeblikket valgt
-// som bildet til - kun meningsfullt for bilder som faktisk stammer fra
-// reisemål-bildebanken (reisemaal_bilde_id satt), se merknad i selve kortet.
-function gjeldendeHoydepunktFor(bilde){
-  if(!bilde.fields.reisemaal_bilde_id) return null;
-  return state.hoydepunkter.find(h=>h.fields.valgt_bilde_id === bilde.fields.reisemaal_bilde_id) || null;
-}
-function fjernHoydepunktBrukAvBildebankId(reisemaalBildeId){
-  if(!reisemaalBildeId) return;
-  state.hoydepunkter.forEach(hp=>{ if(hp.fields.valgt_bilde_id === reisemaalBildeId) hp.fields.valgt_bilde_id = null; });
-}
-// rolle: "ingen" | "hovedbilde" | "avslutningsbilde" | et høydepunkts clientKey.
-function settBilderolle(bilde, rolle){
-  // Nullstiller ALLTID bildets nåværende rolle først (uansett hvilken av de
-  // tre den var), setter så evt. den NYE rollen - garanterer at et bilde
-  // aldri kan ha mer enn én rolle, og at å gi ETT bilde en rolle automatisk
-  // fjerner den fra der den evt. lå fra før (samme bilde ELLER et annet
-  // høydepunkt som pekte på det).
-  fjernHoydepunktBrukAvBildebankId(bilde.fields.reisemaal_bilde_id);
-  bilde.fields.er_hovedbilde = false;
-  bilde.fields.er_avslutningsbilde = false;
-  if(rolle === "hovedbilde"){
-    state.bilder.filter(x=> x.fields.kategori==="Destinasjon").forEach(x=>{ x.fields.er_hovedbilde = false; });
-    bilde.fields.er_hovedbilde = true;
-  } else if(rolle === "avslutningsbilde"){
-    state.bilder.filter(x=> x.fields.kategori==="Destinasjon").forEach(x=>{ x.fields.er_avslutningsbilde = false; });
-    bilde.fields.er_avslutningsbilde = true;
-  } else if(rolle && rolle !== "ingen"){
-    const hp = state.hoydepunkter.find(h=>h.clientKey===rolle);
-    if(hp) hp.fields.valgt_bilde_id = bilde.fields.reisemaal_bilde_id;
-  }
-}
-function bildeThumbCard(b, thumbOpts){
-  const visRolleValg = !!(thumbOpts && thumbOpts.visRolleValg);
-  const gjeldendeHp = visRolleValg ? gjeldendeHoydepunktFor(b) : null;
+function bildeThumbCard(b){
   const card = document.createElement("div");
   card.className = "img-card";
   card.dataset.clientKey = b.clientKey;
   card.innerHTML = `
     <img src="${escapeHtml(b.fields.bilde_url)}">
     <div class="img-body">
-      ${visRolleValg ? `
-      <label class="img-flagg-opt"><input type="checkbox" class="b-hovedbilde" ${b.fields.er_hovedbilde?"checked":""}> Hovedbilde</label>
-      <label class="img-flagg-opt"><input type="checkbox" class="b-avslutningsbilde" ${b.fields.er_avslutningsbilde?"checked":""}> Avslutningsbilde</label>
-      ${state.hoydepunkter.length ? `
-      <div class="img-hoydepunkt-opt">
-        <label>Høydepunkter</label>
-        ${state.hoydepunkter.map(hp=>`
-        <label class="img-flagg-opt"><input type="checkbox" class="b-hoydepunkt-chk" data-hp-key="${escapeHtml(hp.clientKey)}" ${gjeldendeHp===hp?"checked":""}
-          ${!b.fields.reisemaal_bilde_id ? `disabled title='Dette er et eldre bilde som ikke er koblet til reisemålets bildebank ennå, og kan derfor ikke velges som høydepunkt-bilde. Fjern det og legg det til på nytt via «Velg fra bildebank» for å koble det.'` : ""}> ${escapeHtml(hoydepunktNavn(hp))}</label>`).join("")}
-      </div>` : ""}
-      ` : ""}
       <button class="img-remove">Fjern</button>
     </div>
   `;
-  if(visRolleValg){
-    card.querySelector(".b-hovedbilde").addEventListener("change", e=>{
-      settBilderolle(b, e.target.checked ? "hovedbilde" : "ingen");
-      renderBilder();
-      renderHoydepunkter();
-    });
-    card.querySelector(".b-avslutningsbilde").addEventListener("change", e=>{
-      settBilderolle(b, e.target.checked ? "avslutningsbilde" : "ingen");
-      renderBilder();
-      renderHoydepunkter();
-    });
-    // v21g: én avkrysning PER høydepunkt (erstatter det tidligere <select>-
-    // valget) - samme ett-om-gangen-prinsipp som Hovedbilde/Avslutningsbilde,
-    // håndhevet av settBilderolle() (nullstiller alltid bildets forrige rolle
-    // først). Krysses én av, ryddes automatisk opp i markeringen ved neste
-    // renderBilder() - de andre avkrysningene på DETTE bildet, og en evt.
-    // tidligere avkrysning på et ANNET bilde for samme høydepunkt.
-    card.querySelectorAll(".b-hoydepunkt-chk").forEach(chk=>{
-      chk.addEventListener("change", e=>{
-        settBilderolle(b, e.target.checked ? e.target.dataset.hpKey : "ingen");
-        renderBilder();
-        renderHoydepunkter();
-      });
-    });
-  }
   card.querySelector(".img-remove").addEventListener("click", ()=>{
-    // v21: fjernes et bilde som er i bruk som høydepunkt-bilde, frigjøres
-    // den bruken automatisk (samme prinsipp som ellers).
-    fjernHoydepunktBrukAvBildebankId(b.fields.reisemaal_bilde_id);
     const i = state.bilder.indexOf(b);
     if(i > -1) state.bilder.splice(i,1);
     renderBilder();
-    renderHoydepunkter();
   });
   return card;
+}
+
+// ---------- v22: dedikerte bildeplasser (Hovedbilde/Avslutningsbilde/hvert
+// Høydepunkt) - se card-title "Hovedbilde, avslutningsbilde og
+// høydepunkter" i Bilder-fanen. Hver plass viser ETT bilde, plukket direkte
+// fra reisemålets bildebank (samme delte modal som resten av Bilder-fanen
+// bruker, se openBildebankModal()). ----------
+
+// Hovedbilde/Avslutningsbilde er fortsatt forslag_bilder-rader (kategori
+// "Destinasjon", flagget er_hovedbilde/er_avslutningsbilde) - samme
+// lagringsmodell som før v22, bare nå UI-messig én dedikert boks per flagg
+// i stedet for en avkrysning på et galleribilde. Nøyaktig 0 eller 1 rad per
+// flagg håndheves av settRolleBilde() (fjerner en ev. eksisterende rad med
+// samme flagg før den nye legges til).
+function finnHovedbildeRad(){
+  return state.bilder.find(b=> b.fields.kategori==="Destinasjon" && b.fields.er_hovedbilde) || null;
+}
+function finnAvslutningsbildeRad(){
+  return state.bilder.find(b=> b.fields.kategori==="Destinasjon" && b.fields.er_avslutningsbilde) || null;
+}
+// Slår opp bilde-URL-en for en bank-id fra den allerede hentede/mellomlagrede
+// reisemål-banken (se hentReisemaalBank()) - brukes til å vise miniatyren
+// for et høydepunkts valgt_bilde_id, som kun lagrer selve bank-id-en (ikke
+// URL-en). Banken forhåndshentes ved sideinnlasting (se init-blokken lenger
+// ned) nettopp for at dette oppslaget skal kunne skje synkront her.
+function bankUrlForId(bankId){
+  if(!bankId) return null;
+  const rid = state.forslag.reisemaal_id;
+  const rows = rid ? (reisemaalBankCache.get(rid) || []) : [];
+  const rad = rows.find(r=>r.id===bankId);
+  return rad ? rad.bilde_url : null;
+}
+// Fjerner ETT bestemt bankbilde fra ALLE dedikerte plasser (Hovedbilde,
+// Avslutningsbilde, ethvert Høydepunkt) - kalles alltid FØR bildet tildeles
+// en ny plass, slik at samme bankbilde aldri kan ligge i to plasser
+// samtidig (tilsvarer det gamle "ett bilde, én rolle"-prinsippet fra
+// settBilderolle(), nå anvendt på tvers av de dedikerte boksene i stedet
+// for på tvers av avkrysninger på ett og samme bilde).
+function fjernBildeFraAlleRoller(bankId){
+  if(!bankId) return;
+  state.bilder = state.bilder.filter(b=> !(
+    b.fields.kategori==="Destinasjon" && (b.fields.er_hovedbilde || b.fields.er_avslutningsbilde) &&
+    b.fields.reisemaal_bilde_id === bankId
+  ));
+  state.hoydepunkter.forEach(hp=>{ if(hp.fields.valgt_bilde_id === bankId) hp.fields.valgt_bilde_id = null; });
+}
+// flaggFelt: "er_hovedbilde" | "er_avslutningsbilde".
+function settRolleBilde(flaggFelt, url, bankId){
+  fjernBildeFraAlleRoller(bankId);
+  state.bilder = state.bilder.filter(b=> !(b.fields.kategori==="Destinasjon" && b.fields[flaggFelt]));
+  state.bilder.push({
+    id:null, clientKey:newClientKey(),
+    fields:{ kategori:"Destinasjon", bilde_url:url, alt_tekst:null, sortering:0,
+      er_hovedbilde: flaggFelt==="er_hovedbilde", er_avslutningsbilde: flaggFelt==="er_avslutningsbilde",
+      reisemaal_bilde_id: bankId || null },
+    hotellopphold_client_key:null,
+  });
+}
+function fjernRolleBilde(flaggFelt){
+  state.bilder = state.bilder.filter(b=> !(b.fields.kategori==="Destinasjon" && b.fields[flaggFelt]));
+}
+// Bygger selve boksen - `opts` = { label, getUrl(), setSlot(url,bankId), clearSlot() }.
+function bildeSlotBox(opts){
+  const url = opts.getUrl();
+  const box = document.createElement("div");
+  box.className = "bilde-slot-box";
+  box.innerHTML = `
+    <div class="bilde-slot-label" title="${escapeHtml(opts.label)}">${escapeHtml(opts.label)}</div>
+    ${url ? `
+      <div class="bilde-slot-thumb"><img src="${escapeHtml(url)}"></div>
+      <div class="bilde-slot-actions">
+        <button type="button" class="bilde-slot-bytt">Bytt</button>
+        <button type="button" class="bilde-slot-fjern">Fjern</button>
+      </div>
+    ` : `
+      <div class="bilde-slot-tom">Ingen bilde valgt</div>
+      <button type="button" class="bilde-slot-velg">Åpne bildebank</button>
+    `}
+  `;
+  const apneModal = ()=> openBildebankModal(reisemaalBankInfo(), null, null, null, null, (b)=>{
+    opts.setSlot(b.url, b.id);
+    closeBildebankModal();
+    renderBilder();
+  });
+  const velgBtn = box.querySelector(".bilde-slot-velg");
+  if(velgBtn) velgBtn.addEventListener("click", apneModal);
+  const byttBtn = box.querySelector(".bilde-slot-bytt");
+  if(byttBtn) byttBtn.addEventListener("click", apneModal);
+  const fjernBtn = box.querySelector(".bilde-slot-fjern");
+  if(fjernBtn) fjernBtn.addEventListener("click", ()=>{ opts.clearSlot(); renderBilder(); });
+  return box;
+}
+function renderBildeSlotter(){
+  const row = el("bildeSlotRow");
+  row.innerHTML = "";
+  row.appendChild(bildeSlotBox({
+    label: "Hovedbilde",
+    getUrl: ()=>{ const r = finnHovedbildeRad(); return r ? r.fields.bilde_url : null; },
+    setSlot: (url, bankId)=> settRolleBilde("er_hovedbilde", url, bankId),
+    clearSlot: ()=> fjernRolleBilde("er_hovedbilde"),
+  }));
+  row.appendChild(bildeSlotBox({
+    label: "Avslutningsbilde",
+    getUrl: ()=>{ const r = finnAvslutningsbildeRad(); return r ? r.fields.bilde_url : null; },
+    setSlot: (url, bankId)=> settRolleBilde("er_avslutningsbilde", url, bankId),
+    clearSlot: ()=> fjernRolleBilde("er_avslutningsbilde"),
+  }));
+  state.hoydepunkter.forEach(hp=>{
+    row.appendChild(bildeSlotBox({
+      label: hoydepunktNavn(hp),
+      getUrl: ()=> bankUrlForId(hp.fields.valgt_bilde_id),
+      setSlot: (url, bankId)=>{ fjernBildeFraAlleRoller(bankId); hp.fields.valgt_bilde_id = bankId; },
+      clearSlot: ()=>{ hp.fields.valgt_bilde_id = null; },
+    }));
+  });
 }
 
 // v: dra-og-slipp for å bytte rekkefølge på bilder INNENFOR én bildeboks
@@ -2556,7 +2633,14 @@ el("bildebankModalClose").addEventListener("click", closeBildebankModal);
 bildebankModalBg.addEventListener("click", (e)=>{ if(e.target === bildebankModalBg) closeBildebankModal(); });
 document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && bildebankModalBg.classList.contains("open")) closeBildebankModal(); });
 
-async function openBildebankModal(bankInfo, kategori, extra, matchFn, maks){
+// v22: `singlePickHandler(b)` gjør modalen om til en ETT-VALG-plukker for de
+// dedikerte bildeplassene (Hovedbilde/Avslutningsbilde/Høydepunkt, se
+// bildeSlotBox()) - et klikk kaller handleren direkte i stedet for å legge
+// bildet til i state.bilder/holde modalen åpen (den vanlige, "flere på
+// rad"-oppførselen som Reisemål-/Hotell-galleriet fortsatt bruker, se
+// wireBankVelger()). kategori/extra/matchFn/maks er da irrelevante og kan
+// sendes som null.
+async function openBildebankModal(bankInfo, kategori, extra, matchFn, maks, singlePickHandler){
   const erReisemaal = bankInfo.mappe === "destinations";
   bildebankModalTitle.textContent = erReisemaal ? "Reisemålets bildebank" : "Hotellets bildebank";
   bildebankModalTeller.textContent = "";
@@ -2576,6 +2660,15 @@ async function openBildebankModal(bankInfo, kategori, extra, matchFn, maks){
 
   const bankMaks = erReisemaal ? REISEMAAL_BANK_BILDER_MAKS : HOTELL_BANK_BILDER_MAKS;
   const bruktIdSet = new Set(state.bilder.map(b=> b.fields[bankInfo.bankIdField]).filter(Boolean));
+  // v22: Høydepunkt-plassene lagrer bildet KUN som en bank-id
+  // (hp.fields.valgt_bilde_id), ikke som en egen forslag_bilder-rad (se
+  // renderBildeSlotter()) - må derfor telles med her eksplisitt, ellers
+  // ville samme bankbilde kunne dukke opp som valgbart i flere plasser
+  // samtidig (Hovedbilde/Avslutningsbilde/galleriet er alle forslag_bilder-
+  // rader og fanges allerede opp av linjen over).
+  if(erReisemaal){
+    state.hoydepunkter.forEach(hp=>{ if(hp.fields.valgt_bilde_id) bruktIdSet.add(hp.fields.valgt_bilde_id); });
+  }
   const tilgjengelig = alleBank.filter(b=> !bruktIdSet.has(b.id));
   bildebankModalTeller.textContent = `${alleBank.length} / ${bankMaks} bilder i banken`
     + (alleBank.length !== tilgjengelig.length ? ` - ${alleBank.length - tilgjengelig.length} allerede lagt til i dette forslaget` : "");
@@ -2597,6 +2690,7 @@ async function openBildebankModal(bankInfo, kategori, extra, matchFn, maks){
     wrap.title = "Klikk for å legge til dette bildet";
     wrap.innerHTML = `<img src="${escapeHtml(b.url)}" loading="lazy" alt="">`;
     wrap.addEventListener("click", ()=>{
+      if(singlePickHandler){ singlePickHandler(b); return; }
       if(maks!=null && matchFn && state.bilder.filter(matchFn).length >= maks){
         alert(`Denne boksen har allerede maks ${maks} bilde${maks===1?"":"r"}.`);
         return;
@@ -2701,48 +2795,38 @@ function hotellBankInfo(hotellopphold){
 // v: faste kapasitetsgrenser for de kategoriene der print-malen (design v6g)
 // har et fast antall bildeplasser - hotellbildene (per hotellopphold) har et
 // bestemt antall faste posisjoner i layouten.
-// v14/v15: Reisemål-boksen huser BÅDE PDF-galleriets bilder (maks 4, se
-// forslag-print.html) OG hovedbilde/avslutningsbilde-utvalget, som er egne
-// avkrysninger på de samme bildene (ikke separate bokser/kategorier). Vidar
-// har eksplisitt bedt om nøyaktig 6 bilder totalt her - hverken mer eller
-// mindre (4 til galleriet + 1 hovedbilde + 1 avslutningsbilde) - så taket var
-// satt til nøyaktig 6, ikke et løst "opptil".
-// v21b (2026-08-27): den faste 6-grensen ble satt FØR høydepunkt-bilder
-// flyttet inn i denne samme boksen (v21) - et bilde markert som høydepunkt
-// bruker nå én av boksens plasser akkurat som hovedbilde/avslutningsbilde
-// gjør, men taket ble aldri justert for det. Med f.eks. 4 høydepunkter valgt
-// var boksen dermed full (4 høydepunkt + hovedbilde + avslutningsbilde = 6)
-// FØR noe bilde i det hele tatt var lagt til det egentlige PDF-galleriet -
-// nøyaktig feilen Vidar meldte fra om. DESTINASJON_BILDER_MAKS er derfor nå
-// et GRUNNTALL (fortsatt "4 til galleriet + 1 hovedbilde + 1
-// avslutningsbilde"), og selve taket som håndheves regnes dynamisk i
-// renderBilder() som grunntallet PLUSS antall høydepunkter forslaget har
-// valgt akkurat nå (state.hoydepunkter.length) - vokser/krymper live etter
-// hvert som høydepunkter legges til/fjernes i Presentasjon-fanen. MERK:
-// dette er fortsatt kun et TAK (blokkerer opplasting/bildebank-valg utover
-// grensen) - det finnes ingen lagre-sperre som hindrer at man lagrer med
-// færre bilder enn taket.
-const DESTINASJON_BILDER_GRUNNTALL = 6;
+// v22: Hovedbilde/Avslutningsbilde/Høydepunkt har hver sin egen dedikerte
+// boks nå (se renderBildeSlotter()), og bruker derfor ikke lenger noen av
+// Reisemål-boksens plasser - historikken med et GRUNNTALL som vokste med
+// antall høydepunkter (v21b, se tidligere versjon av denne kommentaren) er
+// derfor ikke lenger nødvendig. Reisemål-boksen er nå et rent galleri med et
+// FAST tak, tilsvarende PDF-galleriets faste antall plasser (se
+// forslag-print.html).
+const REISEMAAL_GALLERI_MAKS = 4;
 const HOTELL_BILDER_MAKS = 4;
 
 function renderBilder(){
-  // v14: Bilder-fanen har nå kun to bokser - Reisemål (kategori
-  // "Destinasjon") og Hotell. Hovedbilde/Avslutningsbilde/Høydepunkt er ikke
-  // egne kategorier/bokser, men en rolle PÅ det enkelte Reisemål-bildet
-  // (thumbOpts.visRolleValg, se bildeThumbCard()/settBilderolle()).
+  // v22: Hovedbilde/Avslutningsbilde/hvert Høydepunkt tegnes nå som
+  // dedikerte, blåfargede bildeplasser øverst i fanen (se
+  // renderBildeSlotter()) - Reisemål-boksen under er et rent galleri
+  // (REISEMAAL_GALLERI_MAKS), og ekskluderer derfor de forslag_bilder-
+  // radene som er flagget hovedbilde/avslutningsbilde (de vises kun i sin
+  // egen boks nå). Høydepunkt-plassene bruker ikke forslag_bilder-rader i
+  // det hele tatt (kun hp.fields.valgt_bilde_id, se bankUrlForId()), så de
+  // krever ingen tilsvarende ekskludering her.
+  renderBildeSlotter();
+
+  buildBildeDropbox(el("bildeBoxDestinasjon"),
+    b=> b.fields.kategori==="Destinasjon" && !b.fields.er_hovedbilde && !b.fields.er_avslutningsbilde,
+    "Destinasjon", null,
+    reisemaalBankInfo(),
+    REISEMAAL_GALLERI_MAKS);
+
   // forslag.hovedbilde_url holdes fortsatt i synk her (i stedet for å settes
   // direkte fra en egen opplastingsfunksjon) slik at forslag-print.html og
   // collectForslagFields(), som begge leser denne kolonnen direkte, fortsatt
   // fungerer uendret.
-  // v21b: taket vokser med antall valgte høydepunkter, se merknaden ved
-  // DESTINASJON_BILDER_GRUNNTALL over - ellers spiser høydepunkt-bildene av
-  // de samme 6 plassene som PDF-galleriet/hovedbilde/avslutningsbilde trenger.
-  const destinasjonMaks = DESTINASJON_BILDER_GRUNNTALL + state.hoydepunkter.length;
-  buildBildeDropbox(el("bildeBoxDestinasjon"), b=> b.fields.kategori==="Destinasjon", "Destinasjon", null,
-    reisemaalBankInfo(),
-    destinasjonMaks, { visRolleValg:true });
-
-  const hovedbildeItem = state.bilder.find(b=> b.fields.kategori==="Destinasjon" && b.fields.er_hovedbilde);
+  const hovedbildeItem = finnHovedbildeRad();
   state.forslag.hovedbilde_url = hovedbildeItem ? hovedbildeItem.fields.bilde_url : null;
 
   const hotellWrap = el("bildeHotellSubboxes");
@@ -3094,6 +3178,13 @@ el("gKundeSkoleClear").addEventListener("click", ()=>{
     document.getElementById("loadMsg").textContent = "Fant ikke forslaget, eller det ble slettet.";
     return;
   }
+  // v22: forhåndshenter (og mellomlagrer) det KOBLEDE reisemålets egen
+  // bildebank - kun ett reisemåls rader (maks 50), ikke alle system-wide
+  // (samme lette prinsipp som v21d) - slik at bankUrlForId() kan slå opp
+  // URL-en til et allerede lagret høydepunkt-bilde synkront ved første
+  // rendering, uten en synlig "laster…"-tilstand i selve høydepunkt-boksen.
+  if(state.forslag.reisemaal_id) await hentReisemaalBank(state.forslag.reisemaal_id);
+
   document.getElementById("editorArea").style.display = "block";
   renderAll();
   autosaveKlar = true; // v16: fra nå av utløser klikk/endringer autolagring - se autolagringDelegert()
