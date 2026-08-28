@@ -2547,12 +2547,24 @@ function hotellBankInfo(hotellopphold){
 // forslag-print.html) OG hovedbilde/avslutningsbilde-utvalget, som er egne
 // avkrysninger på de samme bildene (ikke separate bokser/kategorier). Vidar
 // har eksplisitt bedt om nøyaktig 6 bilder totalt her - hverken mer eller
-// mindre (4 til galleriet + 1 hovedbilde + 1 avslutningsbilde) - så taket er
-// nøyaktig 6, ikke et løst "opptil". MERK: dette er kun et TAK (blokkerer
-// opplasting/bildebank-valg utover 6, samme mekanisme som før) - det finnes
-// ingen lagre-sperre som hindrer at man lagrer med FÆRRE enn 6 ennå, se
-// runde-notatet for vurderingen bak dette valget.
-const DESTINASJON_BILDER_MAKS = 6;
+// mindre (4 til galleriet + 1 hovedbilde + 1 avslutningsbilde) - så taket var
+// satt til nøyaktig 6, ikke et løst "opptil".
+// v21b (2026-08-27): den faste 6-grensen ble satt FØR høydepunkt-bilder
+// flyttet inn i denne samme boksen (v21) - et bilde markert som høydepunkt
+// bruker nå én av boksens plasser akkurat som hovedbilde/avslutningsbilde
+// gjør, men taket ble aldri justert for det. Med f.eks. 4 høydepunkter valgt
+// var boksen dermed full (4 høydepunkt + hovedbilde + avslutningsbilde = 6)
+// FØR noe bilde i det hele tatt var lagt til det egentlige PDF-galleriet -
+// nøyaktig feilen Vidar meldte fra om. DESTINASJON_BILDER_MAKS er derfor nå
+// et GRUNNTALL (fortsatt "4 til galleriet + 1 hovedbilde + 1
+// avslutningsbilde"), og selve taket som håndheves regnes dynamisk i
+// renderBilder() som grunntallet PLUSS antall høydepunkter forslaget har
+// valgt akkurat nå (state.hoydepunkter.length) - vokser/krymper live etter
+// hvert som høydepunkter legges til/fjernes i Presentasjon-fanen. MERK:
+// dette er fortsatt kun et TAK (blokkerer opplasting/bildebank-valg utover
+// grensen) - det finnes ingen lagre-sperre som hindrer at man lagrer med
+// færre bilder enn taket.
+const DESTINASJON_BILDER_GRUNNTALL = 6;
 const HOTELL_BILDER_MAKS = 4;
 
 function renderBilder(){
@@ -2564,9 +2576,13 @@ function renderBilder(){
   // direkte fra en egen opplastingsfunksjon) slik at forslag-print.html og
   // collectForslagFields(), som begge leser denne kolonnen direkte, fortsatt
   // fungerer uendret.
+  // v21b: taket vokser med antall valgte høydepunkter, se merknaden ved
+  // DESTINASJON_BILDER_GRUNNTALL over - ellers spiser høydepunkt-bildene av
+  // de samme 6 plassene som PDF-galleriet/hovedbilde/avslutningsbilde trenger.
+  const destinasjonMaks = DESTINASJON_BILDER_GRUNNTALL + state.hoydepunkter.length;
   buildBildeDropbox(el("bildeBoxDestinasjon"), b=> b.fields.kategori==="Destinasjon", "Destinasjon", null,
     reisemaalBankInfo(),
-    DESTINASJON_BILDER_MAKS, { visRolleValg:true });
+    destinasjonMaks, { visRolleValg:true });
 
   const hovedbildeItem = state.bilder.find(b=> b.fields.kategori==="Destinasjon" && b.fields.er_hovedbilde);
   state.forslag.hovedbilde_url = hovedbildeItem ? hovedbildeItem.fields.bilde_url : null;
