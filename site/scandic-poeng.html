@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scandic-poeng – Caminante Admin</title>
+<link rel="stylesheet" href="shared/style.css">
+<style>
+  /* v1: rent oppslagsverk (se sql/spec) - ingen skjema for å opprette/slette
+     rader, kun søk/filter/sortering av en tabell som allerede finnes i
+     Supabase (public.scandic_poengpriser). Samme toolbar/liste-mønster som
+     hoteller.html, men uten profilpanel siden radene ikke er redigerbare her. */
+  .summary-wrap{ padding:18px 24px 4px; }
+  .hero-sub{ font-size:13.5px; color:var(--ink-secondary); margin:0 0 16px; }
+
+  .metrics-row{ display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+  .metric-card{
+    flex:1 1 220px;
+    background:var(--surface-1);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:14px 16px;
+  }
+  .metric-value{ font-size:22px; font-weight:650; color:var(--ink-primary); line-height:1.2; }
+  .metric-sub{ font-size:12px; color:var(--ink-muted); margin-top:2px; }
+  .metric-label{ font-size:11.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-muted); margin-bottom:4px; }
+
+  .info-box{
+    background:#eef4fc;
+    border:1px solid #bcd7f5;
+    border-radius:var(--radius);
+    padding:12px 16px;
+    margin-bottom:16px;
+    font-size:12.5px;
+    color:var(--ink-secondary);
+    line-height:1.6;
+  }
+  .info-box strong{ color:var(--ink-primary); }
+
+  .toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    align-items:center;
+    padding:14px 24px;
+    background:var(--surface-1);
+    border-bottom:1px solid var(--hairline);
+    position:sticky;
+    top:0;
+    z-index:5;
+  }
+  .toolbar input[type="search"]{
+    flex:1 1 200px;
+    min-width:160px;
+    padding:7px 10px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:13px;
+    background:var(--surface-1);
+    color:var(--ink-primary);
+  }
+  .toolbar-group{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .toolbar-group-label{ font-size:11.5px; color:var(--ink-muted); white-space:nowrap; }
+  .land-chips{ display:flex; flex-wrap:wrap; gap:6px; }
+  .land-chip{
+    padding:5px 11px;
+    border:1px solid var(--hairline);
+    border-radius:20px;
+    background:var(--surface-1);
+    font-size:12.5px;
+    color:var(--ink-secondary);
+    cursor:pointer;
+  }
+  .land-chip:hover{ border-color:var(--accent); }
+  .land-chip.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .poeng-slider-wrap{ display:flex; align-items:center; gap:8px; }
+  .poeng-slider-wrap input[type="range"]{ width:130px; }
+  .poeng-slider-val{ font-size:12.5px; color:var(--ink-secondary); white-space:nowrap; font-variant-numeric:tabular-nums; min-width:88px; }
+  .toolbar label.kampanje-filter{ display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--ink-secondary); cursor:pointer; white-space:nowrap; }
+  .toolbar label.kampanje-filter input{ width:auto; margin:0; }
+  .toolbar button.reset{
+    padding:7px 12px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    font-size:13px;
+    background:var(--surface-1);
+    color:var(--ink-secondary);
+    cursor:pointer;
+  }
+  .toolbar button.reset:hover{ background:var(--page); }
+  .count-pill{ font-size:12.5px; color:var(--ink-muted); margin-left:auto; padding-left:8px; white-space:nowrap; }
+
+  .main{ padding:16px 24px 8px; }
+  .list-panel{
+    background:var(--surface-1);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:14px;
+    overflow-x:auto;
+  }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  thead th{
+    text-align:left;
+    font-weight:600;
+    color:var(--ink-secondary);
+    padding:8px 8px;
+    border-bottom:1px solid var(--hairline);
+    white-space:nowrap;
+    user-select:none;
+  }
+  thead th[data-key]{ cursor:pointer; }
+  thead th[data-key]:hover{ color:var(--ink-primary); }
+  thead th .arrow{ font-size:10px; color:var(--ink-muted); margin-left:3px; }
+  tbody td{ padding:8px 8px; border-bottom:1px solid var(--hairline); vertical-align:middle; }
+  tbody tr:hover{ background:var(--page); }
+  .hotel-name{ font-weight:600; }
+  .land-flag{ width:20px; height:14px; object-fit:cover; border-radius:2px; vertical-align:middle; margin-right:6px; border:1px solid var(--hairline); }
+  .ikke-bonusnatt{ color:var(--ink-muted); }
+  .kontant-trinn{ font-variant-numeric:tabular-nums; }
+  .kontant-tom{ color:var(--ink-muted); }
+  .kampanje-poeng{ color:var(--good); font-weight:650; font-variant-numeric:tabular-nums; }
+  .kampanje-rabatt{ font-weight:500; }
+  .kampanje-periode{ font-size:11px; color:var(--ink-muted); margin-top:1px; }
+  .kampanje-tom{ color:var(--ink-muted); }
+  .empty-row td{ text-align:center; color:var(--ink-muted); padding:30px 8px; }
+
+  .footnote{
+    max-width:900px;
+    margin:14px auto 32px;
+    padding:0 24px;
+    font-size:11.5px;
+    color:var(--ink-muted);
+    line-height:1.6;
+  }
+  .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html"><span class="company">Caminante Admin</span><span class="tool-name">Scandic-poeng</span></a>
+  <div class="user-area">
+    <span id="userName"></span>
+    <button class="logout-btn" id="logoutBtn">Logg ut</button>
+  </div>
+</div>
+
+<div id="loadMsg" class="load-msg">Laster Scandic-priser…</div>
+
+<div id="mainArea" style="display:none;">
+
+  <div class="summary-wrap">
+    <p class="hero-sub">Bonusnatt i Scandic Friends — fast poengpris per hotell</p>
+
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-label">Hoteller i oversikten</div>
+        <div class="metric-value" id="mAntall">–</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Laveste poengpris</div>
+        <div class="metric-value" id="mLavest">–</div>
+        <div class="metric-sub" id="mLavestHotell"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Med kampanjepris akkurat nå</div>
+        <div class="metric-value" id="mKampanje">–</div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      Poengprisen er <strong>fast per hotell</strong> og varierer ikke med dato eller etterspørsel
+      — det er forskjellen fra de fleste andre kjeder. En bonusnatt gjelder ett standard
+      dobbeltrom for to personer, én natt. Vil du betale ned poengprisen med et kontanttillegg,
+      er trinnene alltid −5 000 poeng mot det minste beløpet og −10 000 poeng mot det doble
+      (laveste mulige poengpris er 10 000, så hoteller allerede på 15 000 har bare ett trinn).
+      Kampanjeprisene <strong>rullerer månedlig</strong> og er et øyeblikksbilde fra datoen i
+      fotnoten under — og selv en lav poengpris forutsetter at hotellet faktisk har
+      bonusnattrom ledig på datoen du ønsker.
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <input type="search" id="searchInput" placeholder="Søk på hotell eller by…">
+    <div class="toolbar-group">
+      <span class="toolbar-group-label">Land</span>
+      <div class="land-chips" id="landChips"></div>
+    </div>
+    <div class="toolbar-group poeng-slider-wrap">
+      <span class="toolbar-group-label">Maks poeng</span>
+      <input type="range" id="poengSlider" min="10000" max="80000" step="5000" value="80000">
+      <span class="poeng-slider-val" id="poengSliderVal"></span>
+    </div>
+    <label class="kampanje-filter"><input type="checkbox" id="kunKampanje"> Bare hoteller med kampanje</label>
+    <button class="reset" id="resetFilters">Nullstill filter</button>
+    <span class="count-pill" id="countPill"></span>
+  </div>
+
+  <div class="main">
+    <div class="list-panel">
+      <table>
+        <thead>
+          <tr>
+            <th data-key="hotell">Hotell <span class="arrow"></span></th>
+            <th data-key="by">By <span class="arrow"></span></th>
+            <th data-key="land">Land <span class="arrow"></span></th>
+            <th data-key="poeng_per_natt">Poeng/natt <span class="arrow"></span></th>
+            <th>+ kontant</th>
+            <th data-key="kampanje_poeng">Kampanje <span class="arrow"></span></th>
+          </tr>
+        </thead>
+        <tbody id="listBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footnote" id="footnote"></div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+/* ---------- State ---------- */
+
+let rows = [];
+const POENG_SLIDER_MAKS = 80000;
+const state = {
+  search: "",
+  land: new Set(["Norge"]),   // v: multivalg, Norge forhåndsvalgt (spec pkt. 2b)
+  maksPoeng: POENG_SLIDER_MAKS,
+  kunKampanje: false,
+  sortKey: "poeng_per_natt",
+  sortDir: 1,
+};
+
+/* ---------- Helpers ---------- */
+
+function escapeHtml(str){
+  return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+function formatPoeng(n){
+  return n == null ? null : n.toLocaleString("nb-NO");
+}
+
+/* ---------- Supabase data loading ---------- */
+
+async function loadAllData(){
+  const { data, error } = await window.sb
+    .from("scandic_poengpriser")
+    .select("hotell, by, land, landkode, poeng_per_natt, poeng_trinn_1, poeng_trinn_2, tillegg_valuta, tillegg_belop_1, tillegg_belop_2, kampanje_poeng, kampanje_periode, hentet_dato")
+    .order("poeng_per_natt", { ascending:true, nullsFirst:false })
+    .order("hotell");
+  if(error){
+    document.getElementById("loadMsg").textContent = "Kunne ikke laste Scandic-prisene fra databasen. Sjekk at migrasjonen create_scandic_poengpriser er kjørt, og prøv igjen.";
+    console.error(error);
+    return false;
+  }
+  // v: 267 rader er lite nok til å hente i én omgang og filtrere/sortere i
+  // klienten (spec pkt. 3) - ingen paginering.
+  rows = data || [];
+  return true;
+}
+
+/* ---------- Nøkkeltall (helhetlige, upåvirket av filter - "sanity"-tall) ---------- */
+
+function renderMetrics(){
+  document.getElementById("mAntall").textContent = rows.length.toLocaleString("nb-NO");
+
+  const medPris = rows.filter(r=> r.poeng_per_natt != null);
+  if(medPris.length){
+    const lavest = Math.min(...medPris.map(r=>r.poeng_per_natt));
+    const hoteller = medPris.filter(r=> r.poeng_per_natt === lavest);
+    document.getElementById("mLavest").textContent = `${formatPoeng(lavest)} poeng`;
+    const navn = hoteller[0].hotell + (hoteller[0].by ? `, ${hoteller[0].by}` : "");
+    document.getElementById("mLavestHotell").textContent = hoteller.length > 1
+      ? `${navn} (+ ${hoteller.length-1} til på samme nivå)` : navn;
+  } else {
+    document.getElementById("mLavest").textContent = "–";
+  }
+
+  const kampanjeAntall = rows.filter(r=> r.kampanje_poeng != null).length;
+  document.getElementById("mKampanje").textContent = kampanjeAntall.toLocaleString("nb-NO");
+}
+
+/* ---------- Filter-UI: land-chips og poeng-slider ---------- */
+
+function renderLandChips(){
+  const land = [...new Set(rows.map(r=>r.land).filter(Boolean))].sort((a,b)=> a.localeCompare(b,"no"));
+  const wrap = document.getElementById("landChips");
+  wrap.innerHTML = "";
+  land.forEach(l=>{
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "land-chip" + (state.land.has(l) ? " active" : "");
+    chip.textContent = l;
+    chip.addEventListener("click", ()=>{
+      if(state.land.has(l)) state.land.delete(l); else state.land.add(l);
+      chip.classList.toggle("active");
+      renderList();
+    });
+    wrap.appendChild(chip);
+  });
+}
+
+function updatePoengSliderLabel(){
+  const v = state.maksPoeng;
+  document.getElementById("poengSliderVal").textContent = v >= POENG_SLIDER_MAKS ? "Ingen grense" : `${formatPoeng(v)} poeng`;
+}
+
+/* ---------- Filtering / sortering ---------- */
+
+function filteredRows(){
+  let list = rows.filter(r=>{
+    if(state.search){
+      const q = state.search.toLowerCase();
+      if(!(r.hotell||"").toLowerCase().includes(q) && !(r.by||"").toLowerCase().includes(q)) return false;
+    }
+    // v: huker man av ALLE land-chipsene (state.land tom) tolkes det som
+    // "ingen aktiv land-filtrering", ikke "vis ingenting" - samme prinsipp
+    // som de fleste fasettfiltre (Amazon o.l.) bruker, og unngår en
+    // tilsynelatende "ødelagt", tom side hvis man ved et uhell fjerner alle.
+    if(state.land.size && !state.land.has(r.land)) return false;
+    // Rader uten bonusnatt (poeng_per_natt=NULL) har ikke noe poengnivå å
+    // filtrere på - de påvirkes bevisst ikke av "Maks poeng"-glideren, se
+    // spec pkt. 2b/2c (vises uansett, markert "Ikke bonusnatt" i tabellen).
+    if(r.poeng_per_natt != null && r.poeng_per_natt > state.maksPoeng) return false;
+    if(state.kunKampanje && r.kampanje_poeng == null) return false;
+    return true;
+  });
+
+  const key = state.sortKey, dir = state.sortDir;
+  list.sort((a,b)=>{
+    let av = a[key], bv = b[key];
+    const aNull = av == null, bNull = bv == null;
+    // v: NULL havner alltid sist, uansett sorteringsretning (samme prinsipp
+    // som "order by poeng_per_natt nulls last" i spec-spørringen pkt. 3) -
+    // gjelder både Poeng/natt (Charlottenburg) og Kampanje (ingen kampanje).
+    if(aNull && bNull) return 0;
+    if(aNull) return 1;
+    if(bNull) return -1;
+    if(typeof av === "string") av = av.toLowerCase();
+    if(typeof bv === "string") bv = bv.toLowerCase();
+    if(av < bv) return -1*dir;
+    if(av > bv) return 1*dir;
+    return 0;
+  });
+  return list;
+}
+
+/* ---------- Celle-formattering ---------- */
+
+function poengCelle(r){
+  if(r.poeng_per_natt == null) return `<span class="ikke-bonusnatt">Ikke bonusnatt</span>`;
+  return formatPoeng(r.poeng_per_natt);
+}
+function kontantCelle(r){
+  const deler = [];
+  if(r.poeng_trinn_1 != null) deler.push(`${formatPoeng(r.poeng_trinn_1)} + ${formatPoeng(r.tillegg_belop_1)} ${escapeHtml(r.tillegg_valuta||"")}`);
+  if(r.poeng_trinn_2 != null) deler.push(`${formatPoeng(r.poeng_trinn_2)} + ${formatPoeng(r.tillegg_belop_2)} ${escapeHtml(r.tillegg_valuta||"")}`);
+  if(!deler.length) return `<span class="kontant-tom">–</span>`;
+  return `<span class="kontant-trinn">${deler.join(" · ")}</span>`;
+}
+function kampanjeCelle(r){
+  if(r.kampanje_poeng == null) return `<span class="kampanje-tom">–</span>`;
+  const rabatt = r.poeng_per_natt ? Math.round((1 - r.kampanje_poeng / r.poeng_per_natt) * 100) : null;
+  return `
+    <div class="kampanje-poeng">${formatPoeng(r.kampanje_poeng)} poeng${rabatt != null ? ` <span class="kampanje-rabatt">(−${rabatt}%)</span>` : ""}</div>
+    ${r.kampanje_periode ? `<div class="kampanje-periode">${escapeHtml(r.kampanje_periode)}</div>` : ""}
+  `;
+}
+
+/* ---------- Rendering: liste ---------- */
+
+function renderList(){
+  const list = filteredRows();
+  const body = document.getElementById("listBody");
+  body.innerHTML = "";
+
+  if(!list.length){
+    body.innerHTML = `<tr class="empty-row"><td colspan="6">Ingen hoteller matcher filteret.</td></tr>`;
+  } else {
+    list.forEach(r=>{
+      const tr = document.createElement("tr");
+      const lc = (r.landkode||"").toLowerCase();
+      tr.innerHTML = `
+        <td class="hotel-name">${escapeHtml(r.hotell)}</td>
+        <td>${escapeHtml(r.by)}</td>
+        <td>${lc ? `<img class="land-flag" src="flags/${lc}.svg" alt="" onerror="this.style.display='none'">` : ""}${escapeHtml(r.land)}</td>
+        <td>${poengCelle(r)}</td>
+        <td>${kontantCelle(r)}</td>
+        <td>${kampanjeCelle(r)}</td>
+      `;
+      body.appendChild(tr);
+    });
+  }
+
+  document.getElementById("countPill").textContent = `${list.length} av ${rows.length} hoteller vises`;
+}
+
+/* ---------- Fotnote ---------- */
+
+function renderFootnote(){
+  const dato = rows.length && rows[0].hentet_dato
+    ? new Date(rows[0].hentet_dato).toLocaleDateString("nb-NO", { year:"numeric", month:"long", day:"numeric" })
+    : "ukjent dato";
+  document.getElementById("footnote").innerHTML =
+    `Poengprisene er hentet fra Scandics egen bookingmotor (søk med «Bonusnatt» avhuket som innlogget Scandic
+     Friends-medlem) ${escapeHtml(dato)}, og blir utdatert etter hvert - særlig kampanjeprisene, som rullerer
+     månedlig. Se <a href="https://www.scandichotels.no" target="_blank" rel="noopener">scandichotels.com</a>
+     for oppdaterte priser og faktisk ledighet på ønsket dato.`;
+}
+
+/* ---------- Wire up toolbar ---------- */
+
+document.getElementById("searchInput").addEventListener("input", (e)=>{ state.search = e.target.value; renderList(); });
+document.getElementById("poengSlider").addEventListener("input", (e)=>{
+  state.maksPoeng = Number(e.target.value);
+  updatePoengSliderLabel();
+  renderList();
+});
+document.getElementById("kunKampanje").addEventListener("change", (e)=>{ state.kunKampanje = e.target.checked; renderList(); });
+document.getElementById("resetFilters").addEventListener("click", ()=>{
+  state.search = "";
+  state.land = new Set(["Norge"]);
+  state.maksPoeng = POENG_SLIDER_MAKS;
+  state.kunKampanje = false;
+  document.getElementById("searchInput").value = "";
+  document.getElementById("poengSlider").value = POENG_SLIDER_MAKS;
+  document.getElementById("kunKampanje").checked = false;
+  updatePoengSliderLabel();
+  renderLandChips();
+  renderList();
+});
+
+document.querySelectorAll("thead th[data-key]").forEach(th=>{
+  th.addEventListener("click", ()=>{
+    const key = th.dataset.key;
+    if(state.sortKey === key){ state.sortDir *= -1; } else { state.sortKey = key; state.sortDir = 1; }
+    document.querySelectorAll("thead .arrow").forEach(a=> a.textContent = "");
+    th.querySelector(".arrow").textContent = state.sortDir === 1 ? "▲" : "▼";
+    renderList();
+  });
+});
+
+/* ---------- Init ---------- */
+
+(async ()=>{
+  const session = await requireLogin();
+  if(!session) return;
+
+  const ok = await loadAllData();
+  document.getElementById("loadMsg").style.display = "none";
+  if(!ok) return;
+
+  document.getElementById("mainArea").style.display = "block";
+  renderMetrics();
+  renderLandChips();
+  updatePoengSliderLabel();
+  document.querySelector('thead th[data-key="poeng_per_natt"] .arrow').textContent = "▲";
+  renderList();
+  renderFootnote();
+})();
+</script>
+</body>
+</html>
