@@ -147,7 +147,6 @@
   tbody tr.row-highlight{ background:#eaf1fb; }
   .hotel-name{ font-weight:600; }
   .land-flag{ width:20px; height:14px; object-fit:cover; border-radius:2px; vertical-align:middle; margin-right:6px; border:1px solid var(--hairline); }
-  .ikke-bonusnatt{ color:var(--ink-muted); }
   .empty-row td{ text-align:center; color:var(--ink-muted); padding:30px 8px; }
 
   .footnote{
@@ -206,7 +205,6 @@
         <span class="legend-item"><span class="legend-dot" style="background:#0ca30c"></span>≤ 12 500 poeng</span>
         <span class="legend-item"><span class="legend-dot" style="background:#e6a817"></span>12 500–19 999 poeng</span>
         <span class="legend-item"><span class="legend-dot" style="background:#d03b3b"></span>≥ 20 000 poeng</span>
-        <span class="legend-item"><span class="legend-dot" style="background:#898781"></span>Ikke bonusnatt</span>
       </div>
       <div class="map-note">Fargen viser EuroBonus-poeng per natt. Flere hoteller i samme by vises som en liten klynge rundt byen — klikk et punkt for å finne hotellet i listen til høyre.</div>
     </div>
@@ -372,7 +370,13 @@ async function loadAllData(){
   }
   // v: 267 rader er lite nok til å hente i én omgang og filtrere/sortere i
   // klienten (spec pkt. 3) - ingen paginering.
-  rows = data || [];
+  // v3 (Vidar, 2026-08-28): hoteller uten bonusnatt (poeng_per_natt=NULL, i
+  // praksis kun Scandic Charlottenburg) trengs ikke tas med i beregningen -
+  // filtrert bort helt her, ikke bare fra "Maks poeng"-sammenligningen.
+  // Vises dermed ikke lenger i tabell, kart eller "X av Y hoteller vises".
+  // Dette overstyrer spec-en pkt. 2c/c (som ba om å vise dem merket "Ikke
+  // bonusnatt" i grått) - et bevisst valg Vidar tok etter at siden var i bruk.
+  rows = (data || []).filter(r => r.poeng_per_natt != null);
   return true;
 }
 
@@ -384,14 +388,17 @@ function renderLandChips(){
   wrap.innerHTML = "";
 
   // "Alle"-knapp - slipper å måtte trykke på hvert enkelt land manuelt for å
-  // se alt (Vidar, 2026-08-28). Egen handling, ikke en del av selve
-  // land-utvalget - viser seg som aktiv når alle landene allerede er valgt.
+  // se alt (Vidar, 2026-08-28). Fungerer som en toggle: er alle landene
+  // allerede valgt, går et nytt klikk tilbake til kun Norge i stedet for å
+  // stå fast på "alle" (Vidar: "når man har klikket alle og så vil ha alle
+  // vekk igjen, skal den gå tilbake til bare å vise norge").
+  const alleAlleredeValgt = land.length > 0 && land.every(l=> state.land.has(l));
   const alleChip = document.createElement("button");
   alleChip.type = "button";
-  alleChip.className = "land-chip land-chip-alle" + (land.length && land.every(l=> state.land.has(l)) ? " active" : "");
+  alleChip.className = "land-chip land-chip-alle" + (alleAlleredeValgt ? " active" : "");
   alleChip.textContent = "Alle";
   alleChip.addEventListener("click", ()=>{
-    state.land = new Set(land);
+    state.land = alleAlleredeValgt ? new Set(["Norge"]) : new Set(land);
     renderLandChips();
     renderList();
     renderMap();
@@ -445,13 +452,13 @@ function filteredRows(){
     // av i land-filteret, blir resultatet bevisst tomt - se change-listeren
     // for filterFylke, som derfor slår Norge på igjen automatisk.
     if(state.fylke && (r.land !== "Norge" || BY_TIL_FYLKE[r.by] !== state.fylke)) return false;
-    // Rader uten bonusnatt (poeng_per_natt=NULL) har ikke noe poengnivå å
-    // filtrere på - de påvirkes bevisst ikke av "Maks poeng"-glideren, se
-    // spec pkt. 2b/2c (vises uansett, markert "Ikke bonusnatt" i tabellen).
     // state.maksPoeng er i EuroBonus-poeng (glideren viser den valutaen nå) -
     // regnes derfor om til Scandic-poeng her, ikke omvendt, siden det er
-    // r.poeng_per_natt (rådata fra banken) som faktisk sammenlignes.
-    if(r.poeng_per_natt != null && r.poeng_per_natt > state.maksPoeng * SCANDIC_PR_EUROBONUS) return false;
+    // r.poeng_per_natt (rådata fra banken) som faktisk sammenlignes. Hoteller
+    // uten bonusnatt finnes ikke lenger i `rows` i det hele tatt (filtrert
+    // bort i loadAllData()), så denne sammenligningen trenger ikke lenger en
+    // egen NULL-unntaksregel.
+    if(r.poeng_per_natt > state.maksPoeng * SCANDIC_PR_EUROBONUS) return false;
     return true;
   });
 
@@ -477,7 +484,6 @@ function filteredRows(){
 /* ---------- Celle-formattering ---------- */
 
 function poengCelle(r){
-  if(r.poeng_per_natt == null) return `<span class="ikke-bonusnatt">Ikke bonusnatt</span>`;
   return formatPoeng(tilEurobonus(r.poeng_per_natt));
 }
 
@@ -515,9 +521,16 @@ let mapMarkerLayer = null;
 
 function ensureLeafletMap(){
   if(leafletMap) return;
-  // Senter/zoom valgt for å romme hele spennet i banken - fra Sør-Tyskland
-  // (München) til Nord-Norge (Vadsø/Hammerfest) og øst til Finland/Polen.
-  leafletMap = L.map("hotelMap", { scrollWheelZoom:true }).setView([59.5, 15], 4);
+  leafletMap = L.map("hotelMap", { scrollWheelZoom:true });
+  // v: startvisningen skal vise HELE Norge (Vidar, 2026-08-28) - Norge er
+  // også default-filteret (state.land), så dette er det man faktisk ser med
+  // en gang siden lastes. Egen boks fra Lindesnes til Kirkenes/Vardø, ikke
+  // et fast senter/zoom-nivå, siden Norges avlange form ellers lett kutter
+  // av nord eller sør avhengig av kartpanelets faktiske bredde/høyde. Bare
+  // et engangsoppsett ved lasting - zoomer/panorerer man selv, eller endrer
+  // land-filteret til andre land (f.eks. med "Alle"), står visningen slik
+  // brukeren selv har satt den; det er kun startvisningen dette styrer.
+  leafletMap.fitBounds([[57.8, 4.0], [71.3, 31.3]], { padding: [8, 8] });
   L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-bidragsytere &copy; <a href="https://carto.com/attributions">CARTO</a>',
     maxZoom: 19,
@@ -528,7 +541,6 @@ function ensureLeafletMap(){
 }
 
 function markerFarge(r){
-  if(r.poeng_per_natt == null) return "#898781"; // ikke bonusnatt
   const eb = tilEurobonus(r.poeng_per_natt);
   if(eb <= 12500) return "#0ca30c";
   if(eb < 20000) return "#e6a817";
@@ -581,8 +593,7 @@ function renderMap(){
         fillColor: markerFarge(r),
         fillOpacity: 0.9,
       });
-      const poengTekst = r.poeng_per_natt == null ? "Ikke bonusnatt" : `${formatPoeng(tilEurobonus(r.poeng_per_natt))} poeng`;
-      marker.bindTooltip(`${escapeHtml(r.hotell)} (${escapeHtml(r.by)}) – ${poengTekst}`, { direction:"top", offset:[0,-5] });
+      marker.bindTooltip(`${escapeHtml(r.hotell)} (${escapeHtml(r.by)}) – ${formatPoeng(tilEurobonus(r.poeng_per_natt))} poeng`, { direction:"top", offset:[0,-5] });
       marker.on("click", ()=> highlightRow(r.hotell));
       marker.addTo(mapMarkerLayer);
     });
