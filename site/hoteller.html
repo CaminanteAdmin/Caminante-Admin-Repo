@@ -186,6 +186,8 @@
   .hotel-img-body input{
     border:1px solid var(--hairline); border-radius:5px; padding:4px 6px; font-size:12px; font-family:inherit; width:100%; box-sizing:border-box;
   }
+  .hotel-img-actions{ display:flex; gap:10px; }
+  .hotel-img-bytt{ font-size:11px; color:var(--blue); background:none; border:none; cursor:pointer; padding:0; text-align:left; }
   .hotel-img-remove{ font-size:11px; color:#b04a4a; background:none; border:none; cursor:pointer; padding:0; text-align:left; }
   .comment-item{
     padding:10px 0;
@@ -659,7 +661,11 @@ function renderHotelBilder(h){
       <img src="${escapeHtml(b.bilde_url)}">
       <div class="hotel-img-body">
         <input class="hb-alt" value="${escapeHtml(b.alt_tekst)}" placeholder="Bildetekst">
-        <button class="hotel-img-remove">Fjern</button>
+        <div class="hotel-img-actions">
+          <button class="hotel-img-bytt">Bytt</button>
+          <button class="hotel-img-remove">Fjern</button>
+        </div>
+        <input type="file" accept="image/*" class="hotel-img-bytt-file" style="display:none">
       </div>
     `;
     grid.appendChild(card);
@@ -667,6 +673,26 @@ function renderHotelBilder(h){
       const { error } = await window.sb.from("hotell_bilder").update({ alt_tekst: e.target.value || null }).eq("id", b.id);
       if(error){ alert("Kunne ikke lagre bildetekst: " + error.message); return; }
       b.alt_tekst = e.target.value || null;
+    });
+    // v30: "Bytt" - laster opp en ny fil og ERSTATTER bilde_url på akkurat
+    // denne raden (samme id/sortering/bildetekst beholdes), i stedet for at
+    // brukeren må Fjerne og laste opp på nytt (som ville flyttet bildet til
+    // slutten av rekkefølgen og mistet bildeteksten).
+    const byttInput = card.querySelector(".hotel-img-bytt-file");
+    card.querySelector(".hotel-img-bytt").addEventListener("click", ()=> byttInput.click());
+    byttInput.addEventListener("change", async (e)=>{
+      const file = e.target.files[0];
+      e.target.value = "";
+      if(!file) return;
+      const slug = slugifyBildebank(h.navn);
+      if(!slug){ alert("Fyll inn Navn først, slik at bildet kan legges i riktig mappe i bildebanken."); return; }
+      try{
+        const { url } = await bildebankUpload(file, "hoteller", slug);
+        const { error } = await window.sb.from("hotell_bilder").update({ bilde_url: url }).eq("id", b.id);
+        if(error) throw error;
+        b.bilde_url = url;
+        renderHotelBilder(h);
+      } catch(err){ alert("Kunne ikke bytte bilde: " + err.message); console.error(err); }
     });
     card.querySelector(".hotel-img-remove").addEventListener("click", async ()=>{
       // v: sletter kun databaseraden, ikke selve fila i Storage - samme
