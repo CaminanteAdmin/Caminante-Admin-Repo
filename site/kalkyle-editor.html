@@ -2368,6 +2368,20 @@ function loadCalculatorData(data){
   ['mat_frokost_dager','mat_lunsj_dager','mat_middag_dager'].forEach(key=>{
     if(Object.prototype.hasOwnProperty.call(vals, 'm1_'+key)) touchedMatDager.m1[key.replace('mat_','').replace('_dager','')] = true;
   });
+  // v48: mat-dager-nedtrekkene ble bygget av buildModule1(false) OVER, altså
+  // før "Antall dager" var gjenopprettet - matCard() leste da fallbacken 6 og
+  // laget kun <option> 0-6. restoreModuleAll() lenger opp forsøkte deretter å
+  // sette f.eks. 17: en <select> ignorerer stille en verdi som ikke finnes
+  // blant opsjonene, så .value ble "". Feltet er samtidig markert som "rørt"
+  // (løkken over), og refreshMatDagerOptions() gjør da Math.min(current, max)
+  // = Math.min(0, 17) = 0. Resultatet var at enhver kalkyle med FLERE ENN 6
+  // matdager stille mistet matkostnaden ved åpning og viste for lav pris.
+  // Her er "Antall dager" gjenopprettet, så vi bygger opsjonene på nytt mot
+  // riktig maksimum og setter de lagrede verdiene en gang til - nå finnes
+  // opsjonene de peker på. Kalkyler med <= 6 matdager traff aldri feilen og
+  // får samme verdi satt om igjen (ingen endring).
+  refreshMatDagerOptions();
+  restoreValues('m1_inputs', vals);
   recalcAll();
 }
 

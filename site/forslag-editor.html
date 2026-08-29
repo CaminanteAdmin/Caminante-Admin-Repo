@@ -1507,7 +1507,20 @@ async function oppdaterFraKalkyle(){
   const { data, error } = await window.sb.from("kalkyler").select("kalkyle_data, sist_endret, reise_start_dato, reise_slutt_dato").eq("id", f.kalkyle_id).single();
   if(error || !data){ alert("Kunne ikke hente kalkylen."); return; }
   const counts = (data.kalkyle_data && data.kalkyle_data.counts) || {};
-  f.pris_per_person = (counts.kundepris!=null) ? counts.kundepris : f.pris_per_person;
+  // v: pris hentes fra counts.kundeprisVisning - den EFFEKTIVE kundeprisen
+  // kalkylen faktisk viser (res1.kundepris fra pureCalc1, lagret av
+  // serializeCalculator i kalkyle-editor). counts.kundepris er kun det
+  // MANUELLE overstyringsfeltet i kalkylen (state.m1.kundepris) og er null så
+  // lenge rådgiveren ikke har tastet inn en pris selv - feltet er nemlig
+  // forhåndsutfylt visuelt med beregnet pris, så det ser utfylt ut uten at
+  // state er satt. Å lese kundepris ga derfor stille ingen prisoppdatering på
+  // de fleste kalkyler (datoer/enkeltromstillegg ble oppdatert, prisen ikke).
+  // Fallback til kundepris beholdes for kalkyler lagret før kundeprisVisning
+  // ble innført (v38). Opprettelsesstien i kalkyle-editor har alltid brukt
+  // effektiv pris (res1.kundepris) - dette gjør oppdateringen konsistent med den.
+  const kundeprisFraKalkyle = (counts.kundeprisVisning!=null) ? counts.kundeprisVisning
+                            : (counts.kundepris!=null) ? counts.kundepris : null;
+  f.pris_per_person = (kundeprisFraKalkyle!=null) ? kundeprisFraKalkyle : f.pris_per_person;
   f.enkeltromstillegg = (counts.enkeltTilleggPerPerson!=null) ? counts.enkeltTilleggPerPerson : f.enkeltromstillegg;
   // v: "Antall personer prisen er basert på" hentes fra kalkylens antall
   // betalende deltakere (counts.anslattVisning = p.anslatt i kalkylen) -
