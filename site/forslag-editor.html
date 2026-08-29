@@ -1502,6 +1502,16 @@ async function opprettKalkyleFraForslag(){
 // som skjer stille i bakgrunnen) nettopp fordi den overskriver datoer brukeren
 // kan ha satt selv - se drøftingen i forslag-editor-tiende-runde.md.
 async function oppdaterFraKalkyle(){
+  // v49: synk skjemaet til state FØR noe leses eller skrives. Prisfeltene i
+  // Priser-fanen (#pr-per-person/#pr-antall/#pr-enkeltrom) har ingen egen
+  // input-lytter - de havner først i state via collectFieldsFromForm() ved
+  // lagring, altså tidligst 2,5 sekunder etter siste tastetrykk. Retter man
+  // prisen for hånd og klikker denne knappen med en gang, ville renderPris()
+  // lenger ned skrevet den GAMLE state-verdien tilbake i feltet, og den nye
+  // umiddelbare lagringen ville persistert reverteringen - stille, og med en
+  // statusmelding som sier at prisen står uendret. Funksjonen er ren: den
+  // leser kun DOM inn i state.forslag, uten lagring, render eller nettverk.
+  collectFieldsFromForm();
   const f = state.forslag;
   if(!f.kalkyle_id) return;
   const { data, error } = await window.sb.from("kalkyler").select("kalkyle_data, sist_endret, reise_start_dato, reise_slutt_dato").eq("id", f.kalkyle_id).single();
@@ -1518,31 +1528,145 @@ async function oppdaterFraKalkyle(){
   // Fallback til kundepris beholdes for kalkyler lagret før kundeprisVisning
   // ble innført (v38). Opprettelsesstien i kalkyle-editor har alltid brukt
   // effektiv pris (res1.kundepris) - dette gjør oppdateringen konsistent med den.
-  const kundeprisFraKalkyle = (counts.kundeprisVisning!=null) ? counts.kundeprisVisning
-                            : (counts.kundepris!=null) ? counts.kundepris : null;
-  f.pris_per_person = (kundeprisFraKalkyle!=null) ? kundeprisFraKalkyle : f.pris_per_person;
-  f.enkeltromstillegg = (counts.enkeltTilleggPerPerson!=null) ? counts.enkeltTilleggPerPerson : f.enkeltromstillegg;
-  // v: "Antall personer prisen er basert på" hentes fra kalkylens antall
-  // betalende deltakere (counts.anslattVisning = p.anslatt i kalkylen) -
-  // ikke antall_reisende, som også teller med reiseledere.
-  f.pris_antall_personer = (counts.anslattVisning!=null) ? counts.anslattVisning : f.pris_antall_personer;
+  //
+  // v49: at kundeprisVisning finnes er IKKE nok til at den er en reell pris.
+  // pureCalc1 regner prisOpprinnelig = (Kfast/anslatt) + Kvar + DBmaal, der
+  // DBmaal er ønsket fortjeneste per deltaker - et LEDD, ikke en faktor. En
+  // nyopprettet kalkyle har standardverdiene anslatt=40 og DBmaal=2000, og
+  // alle kostnadsfelt på 0 (hotell uten netter teller ikke i det hele tatt),
+  // så prisen blir eksakt fortjenestemålet: 2 000 kr. kundeprisVisning blir
+  // bare null hvis anslatt<=0, altså først når brukeren aktivt har TØMT
+  // deltakerfeltet - så en ren null-sjekk fanger nesten ingenting. Uten dette
+  // ble en så vidt påbegynt kalkyle (autolagret så snart ett felt er rørt)
+  // lest som "pris 2 000 kr" og skrevet over forslagets reelle pris.
+  //
+  // Gyldig pris er derfor enten
+  //   a) counts.kundepris - det MANUELLE feltet, altså en pris et menneske
+  //      har skrevet inn selv; alltid gyldig, uansett hva kalkylen inneholder.
+  //   b) counts.kundeprisVisning - beregnet pris, men kun når kalkylen
+  //      faktisk har kostnader bak seg.
+  // Kostnadene finnes ikke som eget felt i kalkyle_data, men følger eksakt av
+  // to felt som allerede lagres (og allerede leses av kalkyleoversikten):
+  //   totalOms = kundepris*anslatt, dbTotalt = (kundepris-kostPerPerson)*anslatt
+  //   => totalOms - dbTotalt = kostPerPerson*anslatt = Kfast + Kvar*anslatt
+  // Er differansen null, er ingen kostnader lagt inn og "prisen" er bare
+  // fortjenestemålet gjengitt. Testen er ULIKHET, ikke ">": kostnadsgrunnlaget
+  // kan være negativt (et tilskudd eller en rabatt ført som negativt beløp
+  // under Andre faste kostnader - feltene har min="0", men det er kun
+  // validering, og num() klipper ikke), og en slik kalkyle har åpenbart
+  // kostnader lagt inn selv om summen er under null. Ingen avrundingsrisiko:
+  // uten kostnader er kostPerPerson eksakt 0, og de to tallene er da samme
+  // multiplikasjon. Kalkyler lagret før kundeprisVisning ble innført (v38)
+  // mangler alle tre feltene, og harBeregnetPris er derfor alltid falsk for
+  // dem. Har en slik kalkyle manuelt utfylt kundepris, hentes PRISEN fra
+  // gren a) akkurat som før, men kalkylen havner i "kun pris"-utfallet under -
+  // enkeltromstillegg oppdateres altså ikke lenger fra den (feltet
+  // enkeltTilleggPerPerson er eldre enn v38 og finnes i slike snapshot).
+  // Mangler den også manuell pris, avvises den helt, og meldingen sier da
+  // "ingen kundepris" - upresist for en kalkyle som viser en pris når den
+  // åpnes, men det er snapshotet som mangler feltet, ikke prisen. Ingen slike
+  // kalkyler finnes i basen i dag (kontrollert), og det bygges bevisst ingen
+  // migrering for dem; fallbacken beholdes kun som billig forsikring.
+  const harManuellPris = (counts.kundepris!=null);
+  const harBeregnetPris = (counts.kundeprisVisning!=null)
+                       && (counts.totalOmsVisning!=null)
+                       && (counts.dbTotaltVisning!=null)
+                       && (counts.totalOmsVisning !== counts.dbTotaltVisning);
+  const kundeprisFraKalkyle = (harManuellPris || harBeregnetPris)
+    ? ((counts.kundeprisVisning!=null) ? counts.kundeprisVisning : counts.kundepris)
+    : null;
+
+  // v49: de tre KOMMERSIELLE verdiene forslaget henter fra kalkylen har ikke
+  // samme beviskraft, og oppdateres derfor i to trinn.
+  //
+  // PRISEN kan komme fra begge grener: er den manuelt tastet, har et menneske
+  // ment akkurat det tallet, uansett hva kalkylen ellers inneholder.
+  //
+  // ENKELTROMSTILLEGG og ANTALL PERSONER kan derimot IKKE utledes av en
+  // manuelt tastet pris - de leses rått ut av kalkylen, og en så vidt påbegynt
+  // kalkyle har ingen hotell med netter (enkeltTilleggPerPerson = 0) og
+  // standard deltakerantall (anslattVisning = 40). Begge består sin egen
+  // != null-test, så uten dette skillet ville et forslag med 18 900 kr,
+  // 2 400 kr i enkeltromstillegg og 25 deltakere fått riktig pris, men
+  // enkeltromstillegg 0 og 40 deltakere - og 0 er falsy i forslag-print.html,
+  // så tilleggslinjen ville forsvunnet stille ut av kundens PDF.
+  // De to krever derfor harBeregnetPris: at kalkylen faktisk har et
+  // kostnadsgrunnlag. Da er prisen regnet ut VED HJELP AV anslatt, og tallet
+  // er noe rådgiveren har forholdt seg til - ikke en standardverdi som er
+  // blitt stående. (Kalkylen lagrer ingen "rørt"-markering for deltakerfeltet
+  // slik den gjør for netter og matdager, så dette er den beste tilgjengelige
+  // tilnærmingen, ikke et bevis.)
+  //
+  // Datoene er ikke kommersielle tall og hentes uavhengig av begge, se under.
+  const prisOppdatert = (kundeprisFraKalkyle!=null);
+  if(prisOppdatert){
+    f.pris_per_person = kundeprisFraKalkyle;
+  }
+  if(harBeregnetPris){
+    f.enkeltromstillegg = (counts.enkeltTilleggPerPerson!=null) ? counts.enkeltTilleggPerPerson : f.enkeltromstillegg;
+    // v: "Antall personer prisen er basert på" hentes fra kalkylens antall
+    // betalende deltakere (counts.anslattVisning = p.anslatt i kalkylen) -
+    // ikke antall_reisende, som også teller med reiseledere.
+    f.pris_antall_personer = (counts.anslattVisning!=null) ? counts.anslattVisning : f.pris_antall_personer;
+  }
+
+  // v49: reise_start_dato og reise_slutt_dato er to UAVHENGIGE, valgfrie felt
+  // i kalkylen (meta_start/meta_slutt, begge lagret som strVal(...,'') || null).
+  // Blokken under skrev tidligere BEGGE ubetinget så snart ÉN av dem fantes:
+  // en kalkyle med kun startdato satte dermed f.til_dato = null, tømte
+  // til_dato på hvert hotellopphold, og nullet avreise_/ankomst_tidspunkt på
+  // hver Retur-flight - klokkeslett og alt - mens statusmeldingen meldte at
+  // datoer var hentet. Nå gjelder hver dato kun for seg: en dato fra kalkylen
+  // overskriver forslagets tilsvarende dato bare når kalkylen faktisk har en
+  // verdi for den. Mangler den ene, står forslagets eksisterende verdi og de
+  // avhengige feltene urørt - Retur-flightene røres f.eks. ikke i det hele
+  // tatt når kalkylen mangler sluttdato. Finnes begge, er oppførselen nøyaktig
+  // som før.
+  const nyFraDato = data.reise_start_dato || null;
+  const nyTilDato = data.reise_slutt_dato || null;
+
+  // v49: gjerde mot omvendt reiseperiode. Kommer BARE den ene datoen fra
+  // kalkylen, parres den med forslagets eksisterende motpart, og den kan da
+  // havne på feil side av den: kalkylens startdato 10.08 mot forslagets
+  // sluttdato 08.06 gir fra > til. Det gir "10. august - 8. juni" i kundens
+  // PDF, og antallNetter() der returnerer null på negativ differanse, så
+  // "Antall netter" forsvinner stille fra nøkkelfakta. En slik enslig dato
+  // avvises derfor i stedet - forslagets dato, hotelldatoene og flyradene i
+  // den retningen står urørt, og brukeren får beskjed i statuslinjen.
+  // Kommer BEGGE datoene fra kalkylen, beskriver de en hel periode som er
+  // konsistent i seg selv, og oppførselen er uendret. Datoene er ISO-strenger
+  // (YYYY-MM-DD), så vanlig strengsammenligning er kronologisk korrekt - ingen
+  // Date-parsing eller tidssoner involvert. Lik fra- og til-dato (dagstur) er
+  // gyldig og avvises ikke.
+  let brukFraDato = nyFraDato;
+  let brukTilDato = nyTilDato;
+  let datoAvvist = false;
+  if(nyFraDato && !nyTilDato && f.til_dato && nyFraDato > f.til_dato){
+    brukFraDato = null;
+    datoAvvist = true;
+  }
+  if(nyTilDato && !nyFraDato && f.fra_dato && nyTilDato < f.fra_dato){
+    brukTilDato = null;
+    datoAvvist = true;
+  }
 
   let datoerOppdatert = false;
-  if(data.reise_start_dato || data.reise_slutt_dato){
-    f.fra_dato = data.reise_start_dato || null;
-    f.til_dato = data.reise_slutt_dato || null;
-    el("g-fra").value = f.fra_dato || "";
-    el("g-til").value = f.til_dato || "";
+  if(brukFraDato || brukTilDato){
+    if(brukFraDato){ f.fra_dato = brukFraDato; el("g-fra").value = brukFraDato; }
+    if(brukTilDato){ f.til_dato = brukTilDato; el("g-til").value = brukTilDato; }
     state.hotellopphold.forEach(item=>{
-      item.fields.fra_dato = f.fra_dato;
-      item.fields.til_dato = f.til_dato;
+      if(brukFraDato) item.fields.fra_dato = brukFraDato;
+      if(brukTilDato) item.fields.til_dato = brukTilDato;
     });
     state.transport.forEach(item=>{
       // "intern" (og evt. andre/ukjente kategorier) berøres ikke - kalkylens
       // reisedatoer sier ingenting om interne forflytninger underveis.
       if(item.fields.kategori !== "utreise" && item.fields.kategori !== "retur") return;
-      const dato = item.fields.kategori === "retur" ? f.til_dato : f.fra_dato;
-      const stempel = dato ? dato + "T00:00" : null;
+      const dato = item.fields.kategori === "retur" ? brukTilDato : brukFraDato;
+      // Mangler (eller avvist) kalkyledato for DENNE retningen: raden står
+      // urørt - både dato og klokkeslett beholdes, i stedet for å bli nullet.
+      if(!dato) return;
+      const stempel = dato + "T00:00";
       item.fields.avreise_tidspunkt = stempel;
       item.fields.ankomst_tidspunkt = stempel;
     });
@@ -1551,10 +1675,64 @@ async function oppdaterFraKalkyle(){
     datoerOppdatert = true;
   }
 
-  f.kalkyle_sist_endret_ved_kobling = data.sist_endret;
+  // v49: stemplet betyr "forslaget har hentet inn det kalkylen sier", og styrer
+  // drift-banneret i renderKalkyleInfo() - som selve knappen ligger inne i.
+  // Det settes derfor KUN ved en full kommersiell oppdatering. Ble prisen tatt
+  // inn alene (manuelt tastet pris uten kostnadsgrunnlag), eller ingenting,
+  // er forslaget ikke i synk med kalkylen, og varselet må bli stående slik at
+  // brukeren kan fylle ut kalkylen og trykke på nytt. Uten dette forsvant
+  // banneret - og knappen med det - i samme sekund som oppdateringen ble
+  // avvist, uten vei tilbake annet enn å laste forslaget på nytt.
+  if(harBeregnetPris){
+    f.kalkyle_sist_endret_ved_kobling = data.sist_endret;
+  }
   renderPris();
   renderKalkyleInfo();
-  el("saveStatus").textContent = datoerOppdatert ? "Pris og datoer hentet fra kalkylen." : "Pris hentet fra kalkylen.";
+
+  // v49: statusteksten skal si hva som FAKTISK ble hentet, og skiller derfor
+  // de tre utfallene porten over kan gi: full kommersiell oppdatering, kun
+  // pris (manuelt tastet, uten kostnadsgrunnlag bak), eller ingenting. De to
+  // siste navngir hvilke felt som ble stående, slik at meldingen ikke kan
+  // leses som at alt ble oppdatert. Ved full avvisning skilles i tillegg de to
+  // årsakene, siden de betyr helt ulike ting for brukeren: kalkylen har en
+  // beregnet pris uten kostnader bak seg (det vanlige tilfellet - en så vidt
+  // påbegynt kalkyle), eller kalkylen har ingen kundepris i det hele tatt
+  // (tomt deltakerfelt, eller en gammel kalkyle uten manuelt utfylt pris).
+  const avvistAarsak = (counts.kundeprisVisning!=null)
+    ? "Kalkylen har ingen utfylte kostnader - pris, enkeltromstillegg og antall personer står uendret."
+    : "Kalkylen har ingen kundepris - pris, enkeltromstillegg og antall personer står uendret.";
+  let melding;
+  if(harBeregnetPris){
+    melding = datoerOppdatert ? "Pris og datoer hentet fra kalkylen." : "Pris hentet fra kalkylen.";
+  } else if(prisOppdatert){
+    melding = (datoerOppdatert ? "Pris og datoer hentet fra kalkylen. " : "Pris hentet fra kalkylen. ")
+            + "Kalkylen mangler kostnadsgrunnlag - enkeltromstillegg og antall personer står uendret.";
+  } else {
+    melding = (datoerOppdatert ? "Datoer hentet fra kalkylen. " : "") + avvistAarsak;
+  }
+  // v49: de to gjerdene over utelukker hverandre (hvert krever at den ANDRE
+  // datoen mangler), så det er alltid nøyaktig én dato som eventuelt avvises.
+  if(datoAvvist){
+    melding += " Kalkylens dato ble ikke hentet - den ville gitt omvendt reiseperiode.";
+  }
+
+  // v49: lagre med én gang i stedet for å stole på autolagringen som klikket
+  // på knappen satte i gang. Klikket startet 2,5s-debouncen FØR spørringen
+  // over (den delegerte click-lytteren fanger #oppdaterPrisBtn og kjører i
+  // capture-fasen, altså før denne funksjonen i det hele tatt starter). Tok
+  // hentingen lengre tid enn debouncen - treg forbindelse - rakk
+  // autolagringen å kjøre med de GAMLE verdiene og nullstille
+  // skitten-flagget, og de nye verdiene ble stående ulagret på ubestemt tid,
+  // uten noe varsel, til brukeren tilfeldigvis rørte noe annet. Samme mønster
+  // som #btnPdf lenger ned: rydd bort den pågående debouncen, nullstill
+  // flagget, og vent på at akkurat denne lagringen faktisk er ferdig.
+  clearTimeout(autosaveDebounceTimer);
+  autosaveDirty = false;
+  await performSave("manuell");
+  // performSave/utforLagring skriver selv lagringsstatusen (eller en
+  // feilmelding) i #saveStatus - meldingen over legges derfor FORAN den, slik
+  // at en mislykket lagring fortsatt er synlig i stedet for å bli overskrevet.
+  el("saveStatus").textContent = melding + " " + el("saveStatus").textContent;
 }
 
 /* ---------- Rendering: Flyinformasjon ----------
@@ -3240,7 +3418,18 @@ async function syncChildTable(table, fkField, items, originalIdSet, extraResolve
     }
     keyToId[item.clientKey] = item.id;
   }
-  const toDelete = [...originalIdSet].filter(id=>!keepIds.has(id));
+  // v49: falsy id-er må filtreres bort FØR sletting. originalIdSet bygges i
+  // loadForslag() (og bygges om nederst i utforLagring()) fra state, som også
+  // inneholder rader som bare finnes i minnet ennå - Utreise/Retur-seedingen,
+  // "Hotell 1"-seedingen og den syntetiserte hovedbilde-raden har alle
+  // id:null. En slik null havnet i slettelisten, PostgREST sendte den som
+  // tokenet null i id=in.(...), og Postgres brøt av med
+  // "invalid input syntax for type uuid: null". Hele barnesynkingen kastet da,
+  // slik at forslag_hotellopphold/_bilder/_hoydepunkter aldri ble lagret i den
+  // økten, og reelle slettinger aldri ble effektuert. id er uuid primary key i
+  // alle fire tabellene, så en falsy verdi kan aldri identifisere en rad som
+  // skal slettes - filteret kan derfor ikke undertrykke en ønsket sletting.
+  const toDelete = [...originalIdSet].filter(id => id && !keepIds.has(id));
   if(toDelete.length){
     const { error } = await window.sb.from(table).delete().in("id", toDelete);
     if(error) throw new Error(table + " (slett): " + error.message);
