@@ -542,13 +542,25 @@ async function main(){
   // syncAutoInkludertLinjer() der), og er dermed fritt redigerbare/slettbare
   // i Priser-fanen som alle andre linjer. Her rendres derfor bare f.inkludert
   // direkte igjen, uten noen egen utledning.
+  // v25: den auto-genererte fly-linjen har alltid formen "Flyreise <A> - <B>
+  // t/r, inkl. <bagasjevalg>" (se beregnAutoFlyLinjer() i forslag-editor.html)
+  // - Vidar ønsket et fast linjeskift etter kommaet som følger flyruten, slik
+  // at "inkl. <bagasjevalg>" alltid står på sin egen andre linje, uansett
+  // hvor langt/kort resten av linjen er. Kun denne kjente automatiske
+  // formen brytes slik - en fritt omskrevet/overstyrt linje (som ikke
+  // lenger matcher mønsteret) skrives ut uendret.
+  function inkludertLinjeHtml(v){
+    const m = /^(Flyreise .+ t\/r,) (.+)$/.exec(v);
+    if(m) return `${esc(m[1])}<br>${esc(m[2])}`;
+    return esc(v);
+  }
   const inkl = f.inkludert || [];
   const ikkeInkl = f.ikke_inkludert || [];
   if(inkl.length || ikkeInkl.length){
     const klasser = (utreise.length||retur.length||intern.length) ? "blokk" : "blokk side-start";
     side3 += `<section class="${klasser}">
       <h2>Turen inkluderer</h2>
-      <ul class="dfd-grid">${inkl.map(v=>`<li>${esc(v)}</li>`).join("")}</ul>
+      <ul class="dfd-grid">${inkl.map(v=>`<li>${inkludertLinjeHtml(v)}</li>`).join("")}</ul>
       ${ikkeInkl.length ? `<div class="ikke-inkl-linje"><b>Ikke inkludert:</b> ${esc(ikkeInkl.join(" · "))}</div>` : ""}
     </section>`;
   }
@@ -558,8 +570,8 @@ async function main(){
       <h2>Prisestimat</h2>
       <div class="pris-boks">
         <div class="venstre">
-          <div class="pris-tall">kr ${formatKr(f.pris_per_person)},-${f.forbehold_tekst ? `<span class="pris-stjerne">*</span>` : ""}</div>
-          <div class="label">${f.er_fra_pris ? "Fra p" : "P"}er person i delt dobbeltrom</div>
+          <div class="pris-tall">${f.er_fra_pris ? "Fra " : ""}kr ${formatKr(f.pris_per_person)},-${f.forbehold_tekst ? `<span class="pris-stjerne">*</span>` : ""}</div>
+          <div class="label">Per person i delt dobbeltrom</div>
         </div>
         <div class="pris-detalj">
           ${[

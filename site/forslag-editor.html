@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Forslag – Caminante Admin</title>
+<title>Reiseforslag – Caminante Admin</title>
 <link rel="stylesheet" href="shared/style.css">
 <style>
   /* v1: samme designprinsipp som Priskalkulatoren (priskalkulator.html /
@@ -134,6 +134,29 @@
   }
   .tab-btn:hover{ color:var(--ink-primary); }
   .tab-btn.active{ color:var(--blue); border-bottom-color:var(--blue); }
+
+  /* v25: Forrige/Neste-navigasjon mellom fanene, til høyre på samme linje
+     som fanenavnene. */
+  .tab-nav-arrows{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    margin-left:auto;
+    padding:6px 0;
+  }
+  .tab-nav-arrow-btn{
+    padding:6px 12px;
+    font-size:12.5px;
+    font-weight:600;
+    border:1.5px solid var(--blue);
+    border-radius:7px;
+    background:#eaf3fd;
+    color:var(--blue-dark);
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .tab-nav-arrow-btn:hover{ background:#d9eafc; }
+  .tab-nav-arrow-btn[hidden]{ display:none; }
 
   .tab-panel{ display:none; padding:20px 24px 60px; max-width:880px; }
   .tab-panel.active{ display:block; }
@@ -324,7 +347,19 @@
      Priser-boksens 10% reduksjon over - Kommentar angående priser er uendret
      på 150px (kun Intern kommentar ble nevnt). */
   .field-grid textarea#pr-forklaring{ min-height:150px; }
-  .field-grid textarea#pr-intern{ min-height:135px; }
+  /* v25: "Legg til «fra-pris»"-avhukingsboksen er lagt til rett under
+     Enkeltromstillegg (egen rad i field-grid) - for at det blå kortet ikke
+     skal bli høyere enn før (ikke gå lenger ned enn første skjermbilde),
+     er Intern kommentar redusert tilsvarende, fra 135px til 95px. */
+  .field-grid textarea#pr-intern{ min-height:95px; }
+  .pr-fra-pris-check{
+    display:flex; align-items:center; gap:7px;
+    padding-top:0 !important;
+    color:var(--ink-primary) !important;
+    font-weight:400;
+    cursor:pointer;
+  }
+  .pr-fra-pris-check input{ width:auto !important; cursor:pointer; }
   /* v13-RETTELSE: venstre kolonne er nå smal igjen (~340px innhold, samme
      årsak som v11-rettelsen på Grunninfo - tre like brede kolonner deler nå
      bredden som tallfelt-kortet før hadde for seg selv), og den delte
@@ -571,24 +606,39 @@
     background:var(--surface-1); color:var(--blue); cursor:pointer;
   }
   .bilde-slot-velg:hover{ background:var(--blue); color:#fff; }
+  /* v23: "Last opp bilde" - ett enkelt bilde lastet opp direkte til denne
+     plassen (i stedet for plukket fra bildebanken), plassert over "Åpne
+     bildebank" i den tomme tilstanden. Fylt blå (primærknapp), til forskjell
+     fra den omrisset "Åpne bildebank"-knappen, siden opplasting er den
+     raskeste veien når bildet ikke allerede ligger i banken. */
+  .bilde-slot-last-opp{
+    width:100%; font-size:11px; padding:6px 4px; margin-bottom:6px; border:1px solid var(--blue); border-radius:6px;
+    background:var(--blue); color:#fff; cursor:pointer;
+  }
+  .bilde-slot-last-opp:hover{ background:var(--blue-dark); }
 
   /* v: Bilder-fanen bygget om fra rullegardin-basert kategorisering til én
-     "dropbox" per kategori/underkategori - man drar bildefiler dit direkte
-     (native HTML5 drag-and-drop, ingen ekstern bibliotek), eller klikker
-     "velg fil". Erstatter de gamle b-kategori/b-knyttet-nedtrekkene i
-     img-card - hvilken boks bildet ligger i AVGJØR kategori/tilknytning nå,
-     i stedet for et felt man må huske å sette manuelt. */
+     "dropbox" per kategori/underkategori - man klikker "Last opp bilde"
+     (flere filer samtidig) eller "Åpne bildebank". Erstatter de gamle
+     b-kategori/b-knyttet-nedtrekkene i img-card - hvilken boks bildet ligger
+     i AVGJØR kategori/tilknytning nå, i stedet for et felt man må huske å
+     sette manuelt.
+     v23: dra-og-slipp av filer FRA UTENFOR siden (for å laste opp) er
+     fjernet igjen - "Last opp bilde"/"Åpne bildebank"-knappene dekker
+     behovet alene og er enklere å bruke. Kortenes EGEN dra-og-slipp for å
+     endre REKKEFØLGE på bilder som allerede er lagt til (wireGridReorder)
+     er uendret og upåvirket. */
   .bilde-dropbox{
-    border:2px dashed var(--card-border);
+    border:1.5px solid var(--card-border);
     border-radius:10px;
     padding:12px;
-    transition:border-color .15s, background .15s;
   }
-  .bilde-dropbox.drag-over{ border-color:var(--blue); background:rgba(24,79,149,0.05); }
   .bilde-dropbox .img-grid{ margin-bottom:10px; }
-  .bilde-dropbox-hint{ font-size:12px; color:var(--ink-muted); text-align:center; padding:6px 2px; }
-  .bilde-dropbox-browse{ color:var(--blue); cursor:pointer; text-decoration:underline; }
-  .bilde-dropbox-browse input{ display:none; }
+  .bilde-dropbox-last-opp-btn{
+    display:block; width:100%; text-align:center;
+    border:none; background:none; color:var(--blue); font-size:12px;
+    text-decoration:underline; cursor:pointer; padding:4px 2px;
+  }
   .bilde-subbox{ margin-bottom:16px; }
   .bilde-subbox:last-child{ margin-bottom:0; }
   .bilde-subbox-title{ font-size:12.5px; font-weight:600; color:var(--ink-secondary); margin-bottom:8px; }
@@ -679,7 +729,7 @@
 <body>
 
 <div class="topbar">
-  <a class="brand" href="forslag.html"><span class="company">Caminante Admin</span><span class="tool-name">Forslag &amp; tilbud</span></a>
+  <a class="brand" href="forslag.html"><span class="company">Caminante Admin</span><span class="tool-name">Reiseforslag</span></a>
   <div class="user-area">
     <span id="userName"></span>
     <button class="logout-btn" id="logoutBtn">Logg ut</button>
@@ -714,6 +764,10 @@
     <button class="tab-btn" data-tab="pris">Priser</button>
     <button class="tab-btn" data-tab="presentasjon">Presentasjon</button>
     <button class="tab-btn" data-tab="bilder">Bilder</button>
+    <div class="tab-nav-arrows" id="tabNavArrows">
+      <button type="button" class="tab-nav-arrow-btn" id="tabPrevBtn">← Forrige</button>
+      <button type="button" class="tab-nav-arrow-btn" id="tabNextBtn">Neste →</button>
+    </div>
   </div>
 
   <!-- ===== Grunninfo (slått sammen med Flyinformasjon) =====
@@ -870,6 +924,8 @@
             <label for="pr-per-person">Pris per person</label><input type="number" id="pr-per-person" step="1">
             <label for="pr-antall">Antall personer</label><input type="number" id="pr-antall" min="0">
             <label for="pr-enkeltrom">Enkeltromstillegg</label><input type="number" id="pr-enkeltrom" step="1">
+            <label for="pr-fra-pris">Fra-pris</label>
+            <label class="pr-fra-pris-check"><input type="checkbox" id="pr-fra-pris"> Legg til «fra-pris»</label>
             <label for="pr-forklaring" class="span-full">Kommentar angående priser</label><textarea id="pr-forklaring" class="span-full" placeholder="Vises i PDF, kort og kundevennlig"></textarea>
             <label for="pr-intern" class="span-full">Intern kommentar</label><textarea id="pr-intern" class="span-full" placeholder="Vises IKKE i PDF - kun til internt bruk"></textarea>
           </div>
@@ -1119,14 +1175,37 @@ function numOrNull(v){ return (v===""||v===null||v===undefined||isNaN(v)) ? null
 
 /* ---------- Tabs ---------- */
 
+// v25: rekkefølgen fanene navigeres i med Forrige/Neste-knappene.
+const TAB_REKKEFOLGE = ["grunninfo","hotell","pris","presentasjon","bilder"];
+
+function goToTab(tabName){
+  const btn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+  const panel = document.querySelector(`.tab-panel[data-tab="${tabName}"]`);
+  if(!btn || !panel) return;
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
+  btn.classList.add("active");
+  panel.classList.add("active");
+  oppdaterTabNavPiler();
+}
+
+function oppdaterTabNavPiler(){
+  const aktivBtn = document.querySelector(".tab-btn.active");
+  const idx = aktivBtn ? TAB_REKKEFOLGE.indexOf(aktivBtn.dataset.tab) : -1;
+  const prevBtn = el("tabPrevBtn");
+  const nextBtn = el("tabNextBtn");
+  if(idx <= 0){ prevBtn.hidden = true; }
+  else { prevBtn.hidden = false; prevBtn.dataset.target = TAB_REKKEFOLGE[idx-1]; }
+  if(idx === -1 || idx >= TAB_REKKEFOLGE.length-1){ nextBtn.hidden = true; }
+  else { nextBtn.hidden = false; nextBtn.dataset.target = TAB_REKKEFOLGE[idx+1]; }
+}
+
 document.querySelectorAll(".tab-btn").forEach(btn=>{
-  btn.addEventListener("click", ()=>{
-    document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
-    document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
-    btn.classList.add("active");
-    document.querySelector(`.tab-panel[data-tab="${btn.dataset.tab}"]`).classList.add("active");
-  });
+  btn.addEventListener("click", ()=> goToTab(btn.dataset.tab));
 });
+el("tabPrevBtn").addEventListener("click", ()=>{ if(el("tabPrevBtn").dataset.target) goToTab(el("tabPrevBtn").dataset.target); });
+el("tabNextBtn").addEventListener("click", ()=>{ if(el("tabNextBtn").dataset.target) goToTab(el("tabNextBtn").dataset.target); });
+oppdaterTabNavPiler();
 
 /* ---------- Load ---------- */
 
@@ -1341,11 +1420,28 @@ function renderSkoleDropdown(query){
   dd.style.display = "block";
 }
 
+// v23: forslag uten kalkyle tilbyr nå "Opprett kalkyle" i stedet for en tom
+// linje - Vidar: "Når man oppretter et reiseforslag må det være en mulighet
+// for å opprette kalkyle til dette reiseforslaget, akkurat som man kan
+// opprette reiseforslag fra en kalkyle." Speiler "Opprett forslag fra
+// kalkyle"-knappen i kalkyle-editor.html (se opprettForslagFraKalkyle() der),
+// bare motsatt vei - se opprettKalkyleFraForslag() lenger ned.
 function renderKalkyleInfo(){
   const f = state.forslag;
   const info = el("kalkyleInfo");
   const drift = el("kalkyleDrift");
-  if(!f.kalkyle_id){ info.innerHTML = ""; drift.style.display = "none"; return; }
+  if(!f.kalkyle_id){
+    info.innerHTML = `🧮 Koble til kalkyle: <a href="#" id="opprettKalkyleLink">Opprett kalkyle →</a>`;
+    el("opprettKalkyleLink").addEventListener("click", (e)=>{ e.preventDefault(); opprettKalkyleFraForslag(); });
+    drift.style.display = "none";
+    return;
+  }
+  // v23: samme "Åpne kalkyle"-lenke uansett om kalkylen fantes fra før
+  // (koblet inn manuelt/opprettet forslaget) eller nettopp ble opprettet HER
+  // via "Opprett kalkyle" over - Vidar: "når kalkylen er opprettet skal det
+  // deretter stå 'åpne kalkyle' som på de andre, når man er tilbake i
+  // reiseforslaget." Ingen egen mellomtilstand nødvendig - f.kalkyle_id er
+  // det eneste som styrer hvilken av de to tekstene som vises.
   info.innerHTML = `🧮 Koblet til kalkyle: <a href="kalkyle-editor.html?kalkyle=${encodeURIComponent(f.kalkyle_id)}">Åpne kalkyle →</a>`;
   window.sb.from("kalkyler").select("sist_endret").eq("id", f.kalkyle_id).single().then(({data})=>{
     if(!data) return;
@@ -1353,6 +1449,31 @@ function renderKalkyleInfo(){
     drift.style.display = stale ? "flex" : "none";
     drift.dataset.kalkyleSistEndret = data.sist_endret;
   });
+}
+
+// v23: motstykket til opprettForslagFraKalkyle() i kalkyle-editor.html -
+// oppretter en NY, tom kalkyle (samme minimale oppsett som "+ Ny kalkyle" i
+// priskalkulator.html, se opprettNyKalkyle() der: kun navn + evt. skole_id),
+// kobler den til DETTE forslaget (f.kalkyle_id), lagrer koblingen umiddelbart
+// (ikke bare i state - man forlater siden med det samme) og sender brukeren
+// videre til den nye, tomme kalkylen for utfylling. Kommer man tilbake til
+// forslaget etterpå viser renderKalkyleInfo() over automatisk "Åpne
+// kalkyle" i stedet, siden f.kalkyle_id nå er satt.
+async function opprettKalkyleFraForslag(){
+  const f = state.forslag;
+  if(!forslagId){ alert("Lagre reiseforslaget først - en kalkyle må kobles til et lagret forslag."); return; }
+  el("saveStatus").textContent = "Oppretter kalkyle…";
+  const { data, error } = await window.sb.from("kalkyler").insert({
+    navn: f.tittel || "Uten navn",
+    skole_id: f.kundetype === "Skole" ? (f.skole_id || null) : null,
+    opprettet_av: currentUserId,
+  }).select().single();
+  if(error){ alert("Kunne ikke opprette kalkyle: " + error.message); el("saveStatus").textContent = ""; return; }
+  f.kalkyle_id = data.id;
+  f.kalkyle_sist_endret_ved_kobling = data.sist_endret;
+  renderKalkyleInfo();
+  await performSave("manuell");
+  window.location.href = `kalkyle-editor.html?kalkyle=${encodeURIComponent(data.id)}`;
 }
 
 // v18: het tidligere oppdaterPrisFraKalkyle() - henter nå i tillegg
@@ -1776,6 +1897,16 @@ async function velgHotellFraOversiktInn(item, id){
   // beholdes standardvalget (3 stjerner) i stedet for å stå blankt (endret
   // etter ønske om at feltet alltid skal ha en verdi).
   f.stjerner = h.stjerner || f.stjerner || 3;
+  // v25: datoene for hotelloppholdet skal som standard følge reiseforslagets
+  // utreise-/hjemreisedatoer - fylles inn her dersom blokken av en eller
+  // annen grunn ikke allerede har datoer (f.eks. et gammelt, lagret
+  // hotellopphold uten dato). Overskriver ALDRI datoer som allerede er satt,
+  // slik at man fortsatt fritt kan sette et hotell for bare DELER av
+  // oppholdet (se også fyllTommeHotelldatoerFraGrunninfo() lenger ned, som
+  // dekker det vanlige tilfellet: dette skjer allerede når hotelloppholdet
+  // opprettes, enten automatisk eller via "+ Legg til hotellopphold").
+  if(!f.fra_dato) f.fra_dato = state.forslag.fra_dato || null;
+  if(!f.til_dato) f.til_dato = state.forslag.til_dato || null;
   // Bytter man hotell i en blokk som allerede har bilder fra et tidligere
   // valgt hotell, erstattes disse også - de hørte til det GAMLE hotellet og
   // ville ellers vist feil bilder under det nye hotellnavnet. Bilder lastet
@@ -1813,6 +1944,7 @@ function renderPris(){
   el("pr-per-person").value = f.pris_per_person ?? "";
   el("pr-antall").value = f.pris_antall_personer ?? "";
   el("pr-enkeltrom").value = f.enkeltromstillegg ?? "";
+  el("pr-fra-pris").checked = !!f.er_fra_pris;
   el("pr-forklaring").value = f.prisgrunnlag_forklaring || "";
   el("pr-intern").value = f.pris_intern_kommentar || "";
 }
@@ -1933,11 +2065,31 @@ function syncAutoInkludertBlokk(f, nyeKey, overstyrtKey, beregnFn){
   }
 }
 
+// v25: fly- og overnattingslinjen (så lenge de forvaltes automatisk, altså
+// ikke overstyrt) skal ALLTID ligge øverst i Inkludert-listen, med
+// flylinjen(e) først og deretter overnattingslinjen(e) - uansett om andre,
+// manuelt lagt-til punkter fantes i listen FØR fly/hotell ble fylt ut (da
+// havnet de automatiske linjene tidligere sist i listen, i stedet for
+// øverst), og uansett rekkefølgen brukeren måtte ha dratt dem til tidligere.
+function flyttFlyOgHotellLinjerTilTopp(f){
+  const flyLinjer = f.fly_linje_overstyrt ? [] : (f.auto_fly_linjer || []);
+  const hotellLinjer = f.hotell_linje_overstyrt ? [] : (f.auto_hotell_linjer || []);
+  const pinnede = [...flyLinjer, ...hotellLinjer];
+  if(!pinnede.length) return;
+  const rest = [...f.inkludert];
+  pinnede.forEach(v=>{
+    const i = rest.indexOf(v);
+    if(i !== -1) rest.splice(i,1);
+  });
+  f.inkludert = [...pinnede, ...rest];
+}
+
 function syncAutoInkludertLinjer(){
   const f = state.forslag;
   f.inkludert = f.inkludert || [];
   syncAutoInkludertBlokk(f, "auto_hotell_linjer", "hotell_linje_overstyrt", beregnAutoHotellLinjer);
   syncAutoInkludertBlokk(f, "auto_fly_linjer", "fly_linje_overstyrt", beregnAutoFlyLinjer);
+  flyttFlyOgHotellLinjerTilTopp(f);
 }
 
 function syncOgRenderInkludert(){
@@ -2380,6 +2532,12 @@ function fjernRolleBilde(flaggFelt){
   state.bilder = state.bilder.filter(b=> !(b.fields.kategori==="Destinasjon" && b.fields[flaggFelt]));
 }
 // Bygger selve boksen - `opts` = { label, getUrl(), setSlot(url,bankId), clearSlot() }.
+// v23: den tomme tilstanden har nå to knapper - "Last opp bilde" (ett bilde,
+// lastes opp direkte, se uploadFileIntoSlot()) over "Åpne bildebank" (plukk
+// fra reisemålets bildebank, uendret) - Vidar: "vi må ha mulighet til å
+// laste opp ett bilde til hver av hoved-/avslutning- og høydepunkt-bildene.
+// Bare legg en tilsvarende boks som 'Åpne bildebank' over denne knappen som
+// heter 'Last opp bilde'."
 function bildeSlotBox(opts){
   const url = opts.getUrl();
   const box = document.createElement("div");
@@ -2394,8 +2552,10 @@ function bildeSlotBox(opts){
       </div>
     ` : `
       <div class="bilde-slot-tom">Ingen bilde valgt</div>
+      <button type="button" class="bilde-slot-last-opp">Last opp bilde</button>
       <button type="button" class="bilde-slot-velg">Åpne bildebank</button>
     `}
+    <input type="file" accept="image/*" class="bilde-slot-file-input" style="display:none">
   `;
   const apneModal = ()=> openBildebankModal(reisemaalBankInfo(), null, null, null, null, (b)=>{
     opts.setSlot(b.url, b.id);
@@ -2408,6 +2568,16 @@ function bildeSlotBox(opts){
   if(byttBtn) byttBtn.addEventListener("click", apneModal);
   const fjernBtn = box.querySelector(".bilde-slot-fjern");
   if(fjernBtn) fjernBtn.addEventListener("click", ()=>{ opts.clearSlot(); renderBilder(); });
+  const lastOppBtn = box.querySelector(".bilde-slot-last-opp");
+  const fileInput = box.querySelector(".bilde-slot-file-input");
+  if(lastOppBtn && fileInput){
+    lastOppBtn.addEventListener("click", ()=> fileInput.click());
+    fileInput.addEventListener("change", (e)=>{
+      const file = e.target.files[0];
+      e.target.value = "";
+      if(file) uploadFileIntoSlot(file, opts);
+    });
+  }
   return box;
 }
 function renderBildeSlotter(){
@@ -2516,6 +2686,39 @@ async function uploadFilesIntoBox(fileList, kategori, extra, matchFn, maks, bank
   renderBilder();
 }
 
+// v23: tilsvarende uploadFilesIntoBox() over, men for de dedikerte
+// bildeplassene (Hovedbilde/Avslutningsbilde/Høydepunkt, se
+// bildeSlotBox()/renderBildeSlotter()) - ETT bilde, tildelt direkte til
+// plassen via opts.setSlot(url, bankId) i stedet for lagt til i et galleri.
+// Går samme vei til reisemålets delte bildebank som galleri-opplasting når
+// reisemålet er koblet (og samme fallback til privat lagring hvis ikke), så
+// et bilde lastet opp her blir også valgbart andre steder etterpå (som et
+// annet høydepunkt, i Reisemål-galleriet, osv.) - ikke bare i denne plassen.
+async function uploadFileIntoSlot(file, opts){
+  if(!file || !file.type || !file.type.startsWith("image/")){ alert("Kun bildefiler kan lastes opp."); return; }
+  const bankInfo = reisemaalBankInfo();
+  const entityId = bankInfo.entityIdGetter();
+  const slug = entityId ? bankInfo.slugGetter() : null;
+  el("saveStatus").textContent = "Laster opp bilde…";
+  try{
+    let url, bankId = null;
+    if(entityId && slug){
+      const opplastet = await bildebankUpload(file, bankInfo.mappe, slug);
+      url = opplastet.url;
+      const bankRad = await bankInfo.leggIBank(entityId, url, null);
+      bankId = bankRad.id;
+    } else {
+      url = await uploadImageFile(file);
+    }
+    opts.setSlot(url, bankId);
+    el("saveStatus").textContent = "Bilde lastet opp.";
+    renderBilder();
+  } catch(err){
+    alert("Kunne ikke laste opp: " + err.message);
+    el("saveStatus").textContent = "";
+  }
+}
+
 // Tegner innholdet (miniatyrer) i én dropbox på nytt, og kobler
 // drag&drop/fil-input KUN første gang (data-wired-flagg) - boksens
 // beholder-element er det samme på tvers av renderBilder()-kall for de to
@@ -2561,20 +2764,29 @@ function buildBildeDropbox(boxEl, matchFn, kategori, extra, bankInfo, maks, thum
   if(!boxEl.dataset.wired){
     boxEl.dataset.wired = "1";
 
-    const hint = document.createElement("div");
-    hint.className = "bilde-dropbox-hint";
-    hint.innerHTML = `Dra bilder hit, eller <label class="bilde-dropbox-browse">velg fil<input type="file" accept="image/*" multiple></label>`;
-    boxEl.appendChild(hint);
-    hint.querySelector('input[type="file"]').addEventListener("change", (e)=>{
+    // v23: "Last opp bilde" (flere filer samtidig - multiple) over "Åpne
+    // bildebank", samme knapp-par som de dedikerte bildeplassene
+    // (bildeSlotBox()) - Vidar: "De samme to knappene kan du ha på alle
+    // bokser, inkludert Reisemål og Hotell. Du kan fjerne muligheten for å
+    // dra fil til Reisemål og Hotell. Disse knappene dekker behovet." Selve
+    // dra-og-slipp-OPPLASTINGEN (fra utenfor siden) er derfor fjernet -
+    // kortenes egen dra-og-slipp for REKKEFØLGE (wireGridReorder over) er
+    // upåvirket.
+    const lastOppBtn = document.createElement("button");
+    lastOppBtn.type = "button";
+    lastOppBtn.className = "bilde-dropbox-last-opp-btn";
+    lastOppBtn.textContent = "Last opp bilde";
+    boxEl.appendChild(lastOppBtn);
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/*";
+    fileInput.multiple = true;
+    fileInput.style.display = "none";
+    boxEl.appendChild(fileInput);
+    lastOppBtn.addEventListener("click", ()=> fileInput.click());
+    fileInput.addEventListener("change", (e)=>{
       uploadFilesIntoBox(e.target.files, kategori, extra, matchFn, maks, bankInfo);
       e.target.value = "";
-    });
-    boxEl.addEventListener("dragover", e=>{ e.preventDefault(); boxEl.classList.add("drag-over"); });
-    boxEl.addEventListener("dragleave", ()=> boxEl.classList.remove("drag-over"));
-    boxEl.addEventListener("drop", e=>{
-      e.preventDefault();
-      boxEl.classList.remove("drag-over");
-      uploadFilesIntoBox(e.dataTransfer.files, kategori, extra, matchFn, maks, bankInfo);
     });
 
     if(bankInfo) wireBankVelger(boxEl, kategori, extra, bankInfo, matchFn, maks);
@@ -2584,10 +2796,10 @@ function buildBildeDropbox(boxEl, matchFn, kategori, extra, bankInfo, maks, thum
     boxEl.appendChild(capHint);
   }
 
-  const hintEl = boxEl.querySelector(".bilde-dropbox-hint");
+  const lastOppBtnEl = boxEl.querySelector(".bilde-dropbox-last-opp-btn");
   const velgBtn = boxEl.querySelector(".bildebank-velg-btn");
   const capHintEl = boxEl.querySelector(".img-kategori-cap");
-  if(hintEl) hintEl.style.display = capReached ? "none" : "";
+  if(lastOppBtnEl) lastOppBtnEl.style.display = capReached ? "none" : "";
   if(velgBtn) velgBtn.style.display = capReached ? "none" : "";
   if(capHintEl) capHintEl.textContent = maks!=null ? `${items.length} / ${maks} bilder${maks>1?" - dra for å endre rekkefølge":""}` : (items.length>1 ? "Dra for å endre rekkefølge" : "");
 }
@@ -2949,6 +3161,7 @@ function collectFieldsFromForm(){
   f.pris_per_person = numOrNull(el("pr-per-person").value);
   f.pris_antall_personer = numOrNull(el("pr-antall").value);
   f.enkeltromstillegg = numOrNull(el("pr-enkeltrom").value);
+  f.er_fra_pris = el("pr-fra-pris").checked;
   f.prisgrunnlag_forklaring = el("pr-forklaring").value;
   f.pris_intern_kommentar = el("pr-intern").value;
 
@@ -3125,6 +3338,58 @@ el("btnPdf").addEventListener("click", async (e)=>{
 });
 el("btnSlett").addEventListener("click", slettForslag);
 el("oppdaterPrisBtn").addEventListener("click", oppdaterFraKalkyle);
+
+// v24: Utreise/Retur sitt startpunkt (avreise_tidspunkt/ankomst_tidspunkt)
+// forhåndsutfylles fra forslagets fra-/til-dato KUN når forslaget lastes inn
+// (se harUtreise/harRetur-seedingen i loadForslag()) - skriver man inn eller
+// endrer Reiseinfo-fanens Fra/Til-dato ETTERPÅ i samme økt (typisk et helt
+// nytt forslag opprettet direkte i Reiseforslag, uten kalkyle, som derfor
+// starter uten dato i det hele tatt), fikk ikke en allerede vist Utreise/
+// Retur-rad noen gang vite om det - Vidar: "reiseforslagets utreisedatoer
+// kommer fortsatt ikke opp som standard på 'utreise' på reiseinfo-fanen."
+// Fyller derfor nå Utreise/Retur-flightenes dato LIVE når Fra/Til endres her
+// - men KUN feltene som fortsatt er TOMME (ingen avreise_tidspunkt satt fra
+// før), akkurat som et "kommer opp som standard" skal virke. Har man alt satt
+// en avvikende flydato manuelt (f.eks. reiser en dag før selve
+// hotelloppholdet), røres den IKKE - "Oppdater pris og datoer fra kalkyle"
+// (oppdaterFraKalkyle() over) er fortsatt veien for å bevisst OVERSTYRE
+// allerede satte datoer.
+function fyllTommeFlydatoerFraGrunninfo(kategori, feltVerdi){
+  if(!feltVerdi) return;
+  const stempel = feltVerdi + "T00:00";
+  let endret = false;
+  state.transport.forEach(item=>{
+    if(item.fields.kategori !== kategori) return;
+    if(item.fields.avreise_tidspunkt || item.fields.ankomst_tidspunkt) return;
+    item.fields.avreise_tidspunkt = stempel;
+    item.fields.ankomst_tidspunkt = stempel;
+    endret = true;
+  });
+  if(endret) renderTransport();
+}
+// v25: samme "fyll kun tomme felt"-prinsipp som over, men for hotelloppholdenes
+// datoer - standard skal være reiseforslagets utreise-/hjemreisedato, med
+// mulighet for å overstyre (f.eks. et hotell for bare deler av oppholdet).
+// De aller fleste hotellopphold får allerede riktig dato ved OPPRETTELSE
+// (se addHotellBtn-lytteren og den auto-seedede første blokken), og ved
+// "Velg fra hotelloversikt" (se velgHotellFraOversiktInn()) - denne
+// lytteren dekker resten: gamle/lagrede hotellopphold uten dato, der
+// Fra-/Til-dato i Grunninfo endres/fylles ut ETTER at hotelloppholdet ble
+// opprettet.
+function fyllTommeHotelldatoerFraGrunninfo(feltType, feltVerdi){
+  if(!feltVerdi) return;
+  let endret = false;
+  state.hotellopphold.forEach(item=>{
+    const f = item.fields;
+    if(feltType==="fra" && !f.fra_dato){ f.fra_dato = feltVerdi; endret = true; }
+    if(feltType==="til" && !f.til_dato){ f.til_dato = feltVerdi; endret = true; }
+  });
+  if(endret) renderHotell();
+}
+el("g-fra").addEventListener("input", (e)=> fyllTommeFlydatoerFraGrunninfo("utreise", e.target.value));
+el("g-til").addEventListener("input", (e)=> fyllTommeFlydatoerFraGrunninfo("retur", e.target.value));
+el("g-fra").addEventListener("input", (e)=> fyllTommeHotelldatoerFraGrunninfo("fra", e.target.value));
+el("g-til").addEventListener("input", (e)=> fyllTommeHotelldatoerFraGrunninfo("til", e.target.value));
 el("g-kundetype").addEventListener("change", ()=>{
   state.forslag.kundetype = el("g-kundetype").value;
   // Skolekobling gir bare mening for Kundetype=Skole - fjernes ved bytte til

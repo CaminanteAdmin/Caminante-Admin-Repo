@@ -477,6 +477,12 @@ function openProfile(id){
   renderProfile(id);
   document.getElementById("overlayBg").classList.add("open");
   document.getElementById("profilePanel").classList.add("open");
+  // v25: raden man klikket på er ikke selv fokuserbar, så uten dette har
+  // ingenting fokus når panelet åpnes - da starter TAB-navigasjon på nytt
+  // fra toppen av HELE siden (utenfor panelet) i stedet for å fortsette
+  // naturlig gjennom feltene i panelet. Sett fokus til første felt.
+  const forsteFelt = document.getElementById("f-navn");
+  if(forsteFelt) forsteFelt.focus({ preventScroll:true });
 }
 function closeProfile(){
   state.selectedId = null;
@@ -518,8 +524,9 @@ function renderProfile(id){
           <option value="">Ikke knyttet til et reisemål</option>
           ${reisemaalOversikt.map(rm=>`<option value="${rm.id}" ${h.reisemaal_id===rm.id?"selected":""}>${escapeHtml(rm.navn)}${rm.land?` (${escapeHtml(rm.land)})`:""}</option>`).join("")}
         </select>
-        <label>Nettside</label><input id="f-nettside" value="${escapeHtml(h.nettside)}" placeholder="https://…">
-        <label>Standard</label><input id="f-standard" value="${escapeHtml(h.standard)}" placeholder="F.eks. 4-stjerners">
+        <label>Prisnivå</label>
+        <select id="f-prisniva">${PRISNIVAER.map(p=>`<option value="${p}" ${p===(h.prisniva||"")?"selected":""}>${p===""?"Ikke satt":p}</option>`).join("")}</select>
+        <label>Kapasitet</label><input id="f-kapasitet" value="${escapeHtml(h.kapasitet)}" placeholder="F.eks. 120 rom, sal opptil 250">
         <label>Beskrivelse</label><textarea id="f-beskrivelse" placeholder="Generell, fri beskrivelse av hotellet - brukes ved «Velg fra hotelloversikt» i Forslag">${escapeHtml(h.beskrivelse)}</textarea>
         <label>Hotellegenskaper</label>
         <div class="egenskaper-wrap">
@@ -533,14 +540,12 @@ function renderProfile(id){
     </div>
 
     <div class="section">
-      <h3>2. Kontakt &amp; pris</h3>
+      <h3>2. Kontakt</h3>
       <div class="fact-grid">
+        <label>Nettside</label><input id="f-nettside" value="${escapeHtml(h.nettside)}" placeholder="https://…">
         <label>Kontaktperson</label><input id="f-kontaktperson" value="${escapeHtml(h.kontaktperson)}">
         <label>Telefon</label><input id="f-telefon" value="${escapeHtml(h.telefon)}">
         <label>E-post</label><input id="f-epost" value="${escapeHtml(h.epost)}">
-        <label>Prisnivå</label>
-        <select id="f-prisniva">${PRISNIVAER.map(p=>`<option value="${p}" ${p===(h.prisniva||"")?"selected":""}>${p===""?"Ikke satt":p}</option>`).join("")}</select>
-        <label>Kapasitet</label><input id="f-kapasitet" value="${escapeHtml(h.kapasitet)}" placeholder="F.eks. 120 rom, sal opptil 250">
       </div>
     </div>
 
@@ -572,7 +577,7 @@ function renderProfile(id){
     });
   };
   bind("f-navn","navn"); bind("f-by","by"); bind("f-land","land"); bind("f-nettside","nettside");
-  bind("f-standard","standard"); bind("f-beskrivelse","beskrivelse");
+  bind("f-beskrivelse","beskrivelse");
   bind("f-kontaktperson","kontaktperson"); bind("f-telefon","telefon"); bind("f-epost","epost");
   bind("f-prisniva","prisniva"); bind("f-kapasitet","kapasitet");
   document.getElementById("f-reisemaal").addEventListener("change", async (e)=>{

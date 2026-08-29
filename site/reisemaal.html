@@ -454,6 +454,12 @@ function openProfile(id){
   renderProfile(id);
   document.getElementById("overlayBg").classList.add("open");
   document.getElementById("profilePanel").classList.add("open");
+  // v25: raden man klikket på er ikke selv fokuserbar, så uten dette har
+  // ingenting fokus når panelet åpnes - da starter TAB-navigasjon på nytt
+  // fra toppen av HELE siden (utenfor panelet) i stedet for å fortsette
+  // naturlig gjennom feltene i panelet. Sett fokus til første felt.
+  const forsteFelt = document.getElementById("f-navn");
+  if(forsteFelt) forsteFelt.focus({ preventScroll:true });
 }
 function closeProfile(){
   state.selectedId = null;

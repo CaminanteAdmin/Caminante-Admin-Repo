@@ -1124,14 +1124,23 @@ function matDagerOptionsHtml(maxDager, selected){
   }
   return o;
 }
+// v47: et UBERØRT felt (touchedMatDager.m1[mealKey] ikke satt) følger nå
+// alltid "Antall dager" (maxDager) automatisk - dette er selve fiksen for
+// Vidars tilbakemelding: "når jeg velger f.eks. datoer som tilsvarer 17
+// dager, så kommer det bare opp 6 dager som standard på måltider... Jeg vil
+// at det skal komme opp antall dager turen er satt til å vare som
+// standard." Et RØRT felt (brukeren har selv endret det, eller det ble
+// lastet inn med en eksplisitt lagret verdi - se loadCalculatorData())
+// beholder fortsatt sin egen verdi (klippet til nytt maksimum om det synker).
 function refreshMatDagerOptions(){
   const prefix = 'm1_';
   const maxDager = Math.max(0, num(prefix+'dager', 0)||0);
-  ['mat_frokost_dager','mat_lunsj_dager','mat_middag_dager'].forEach(key=>{
+  [['frokost','mat_frokost_dager'],['lunsj','mat_lunsj_dager'],['middag','mat_middag_dager']].forEach(([mealKey,key])=>{
     const selEl = el(prefix+key);
     if(!selEl) return;
     const current = parseInt(selEl.value,10)||0;
-    selEl.innerHTML = matDagerOptionsHtml(maxDager, Math.min(current, maxDager));
+    const nesteValgt = touchedMatDager.m1[mealKey] ? Math.min(current, maxDager) : maxDager;
+    selEl.innerHTML = matDagerOptionsHtml(maxDager, nesteValgt);
   });
 }
 
@@ -1246,10 +1255,15 @@ function matCard(prefix, moduleKey){
   // v35: hver måltidslinje (frokost/lunsj/middag) har fått en egen "Antall
   // dager"-boks, slik at f.eks. 3 middager på en 7-dagers tur kan registreres
   // uten å fordele kostnaden ut på alle dagene. Gjelder bevisst IKKE "Ekstra
-  // tillegg mat per person", som fortsatt er ett flatt beløp. Standardverdi er
-  // 0 dager for nye kalkyler - eldre, allerede lagrede kalkyler som mangler
-  // dette feltet i sin lagrede snapshot, fylles automatisk med full reiselengde
-  // ved åpning (se loadCalculatorData), slik at de ikke stille mister matkostnaden.
+  // tillegg mat per person", som fortsatt er ett flatt beløp.
+  // v47: standardverdien er nå hele reiselengden ("Antall dager"), ikke 0 -
+  // se touchedMatDager/refreshMatDagerOptions() for selve mekanikken (et
+  // uberørt felt følger reiselengden automatisk, et felt brukeren selv har
+  // satt et annet antall på gjør ikke det). Verdiene under (curFrokost osv.)
+  // er kun det som vises ved SELVE denne kortbyggingen - selve
+  // standard/følg-logikken ligger i refreshMatDagerOptions(), kalt rett
+  // etter fra syncDagerFraDatoer() (kjøres bl.a. etter innlasting, se
+  // openKalkyleById()).
   const maxDager = Math.max(0, num(prefix+'dager', 6)||0);
   const curFrokost = Math.min(num(prefix+'mat_frokost_dager', 0)||0, maxDager);
   const curLunsj = Math.min(num(prefix+'mat_lunsj_dager', 0)||0, maxDager);
@@ -1261,21 +1275,21 @@ function matCard(prefix, moduleKey){
         ${moneyField(prefix+'mat_frokost','Frokost/dag',{step:10, moduleKey, curWidth:70})}
         <div class="field">
           <label for="${prefix}mat_frokost_dager">Antall dager</label>
-          <select id="${prefix}mat_frokost_dager" oninput="recalcAll()" onchange="recalcAll()">${matDagerOptionsHtml(maxDager, curFrokost)}</select>
+          <select id="${prefix}mat_frokost_dager" oninput="markMatDagerTouched('frokost');recalcAll()" onchange="recalcAll()">${matDagerOptionsHtml(maxDager, curFrokost)}</select>
         </div>
       </div>
       <div class="row2" id="${prefix}mat_lunsj_row">
         ${moneyField(prefix+'mat_lunsj','Lunsj/dag',{step:10, moduleKey, curWidth:70})}
         <div class="field">
           <label for="${prefix}mat_lunsj_dager">Antall dager</label>
-          <select id="${prefix}mat_lunsj_dager" oninput="recalcAll()" onchange="recalcAll()">${matDagerOptionsHtml(maxDager, curLunsj)}</select>
+          <select id="${prefix}mat_lunsj_dager" oninput="markMatDagerTouched('lunsj');recalcAll()" onchange="recalcAll()">${matDagerOptionsHtml(maxDager, curLunsj)}</select>
         </div>
       </div>
       <div class="row2" id="${prefix}mat_middag_row">
         ${moneyField(prefix+'mat_middag','Middag/dag',{step:10, moduleKey, curWidth:70})}
         <div class="field">
           <label for="${prefix}mat_middag_dager">Antall dager</label>
-          <select id="${prefix}mat_middag_dager" oninput="recalcAll()" onchange="recalcAll()">${matDagerOptionsHtml(maxDager, curMiddag)}</select>
+          <select id="${prefix}mat_middag_dager" oninput="markMatDagerTouched('middag');recalcAll()" onchange="recalcAll()">${matDagerOptionsHtml(maxDager, curMiddag)}</select>
         </div>
       </div>
       <div class="hint" id="${prefix}mat_dekket_hint" style="display:none;margin-top:-4px;margin-bottom:10px;"></div>
@@ -1386,7 +1400,9 @@ function buildModule1(preserve){
 function resetModule(){
   state.m1={...DEFAULT_COUNTS,valutaer:['EUR'],sensIndex:null,kundepris:null};
   touchedNetter.m1={};
+  touchedMatDager.m1={};
   buildModule1(false);
+  syncDagerFraDatoer(); // v47: sørger for at mat-dager-nedtrekkene følger reisedatoene (nå uberørt igjen) med det samme, ikke først ved neste datoendring.
   recalcAll();
 }
 
@@ -1722,6 +1738,18 @@ function gatherHotels(prefix, moduleKey, count, isM1){
    man ha flere netter enn dette tillater, må man først øke "Antall dager". */
 const touchedNetter = { m1:{} };
 function markNetterTouched(moduleKey, idx){ touchedNetter[moduleKey][String(idx)] = true; }
+
+/* v47: samme "touched"-prinsipp som touchedNetter over, men for de tre
+   mat-dager-nedtrekksmenyene (frokost/lunsj/middag) - se refreshMatDagerOptions()
+   og matCard(). Så lenge et felt er UBERØRT, følger det automatisk "Antall
+   dager" (hele reiselengden) hver gang dette endres - har brukeren derimot
+   selv valgt et annet antall (typisk færre, f.eks. "3 middager på en
+   7-dagers tur"), låses IKKE feltet, men det slutter å hoppe til nytt
+   maksimum av seg selv ved senere datoendringer. Persisteres sammen med
+   resten av kalkylen (se serializeCalculator()/loadCalculatorData()), slik
+   at valget husker seg selv på tvers av økter. */
+const touchedMatDager = { m1:{} };
+function markMatDagerTouched(mealKey){ touchedMatDager.m1[mealKey] = true; }
 function clampNetterInput(moduleKey, prefix, idx, netterFraDato){
   const tn = touchedNetter[moduleKey];
   const count = state[moduleKey].hotelCount;
@@ -2308,6 +2336,7 @@ function serializeCalculator(){
   return {
     counts: { ...JSON.parse(JSON.stringify(state.m1)), enkeltTilleggPerPerson, kundeprisVisning, totalOmsVisning, dbTotaltVisning, anslattVisning },
     touchedNetter: JSON.parse(JSON.stringify(touchedNetter.m1)),
+    touchedMatDager: JSON.parse(JSON.stringify(touchedMatDager.m1)),
     values: snapshotModuleAll('m1'),
   };
 }
@@ -2316,22 +2345,28 @@ function loadCalculatorData(data){
   const counts = (data && data.counts) ? data.counts : {...DEFAULT_COUNTS, valutaer:['EUR'], sensIndex:null, kundepris:null};
   state.m1 = { ...counts, valutaer: [...(counts.valutaer||['EUR'])] };
   touchedNetter.m1 = { ...((data && data.touchedNetter) || {}) };
+  touchedMatDager.m1 = { ...((data && data.touchedMatDager) || {}) };
   buildModule1(false);
   const vals = (data && data.values) || {};
   restoreModuleAll('m1', vals);
-  // v35 bakoverkompatibilitet: "Antall dager per måltid" fantes ikke da eldre
-  // kalkyler ble lagret, og feltets nye HTML-standard er 0. Uten denne
-  // backfillen ville matkostnaden stille bli 0 kr for enhver tidligere lagret
-  // kalkyle som åpnes på nytt. Vi fyller derfor inn hele reiselengden (samme
-  // sum som den gamle, implisitte "hver dag"-beregningen ga) for de tre
-  // måltidsfeltene, men KUN når feltet faktisk mangler i den lagrede
-  // snapshotten - er det først lagret (også som bevisst 0), respekteres det.
-  const dagerVal = num('m1_dager',0)||0;
-  ['m1_mat_frokost_dager','m1_mat_lunsj_dager','m1_mat_middag_dager'].forEach(id=>{
-    if(!Object.prototype.hasOwnProperty.call(vals, id)){
-      const fld = el(id);
-      if(fld) fld.value = dagerVal;
-    }
+  // v35/v47 bakoverkompatibilitet: kalkyler lagret FØR "Antall dager per
+  // måltid" fantes i det hele tatt mangler feltet helt i sin lagrede
+  // snapshot - uten noe å gå etter ville matkostnaden stille blitt 0 kr for
+  // dem ved neste åpning. Slike felt regnes derfor som "rørt" med verdien de
+  // allerede har (dvs. urørt av DENNE endringen - se touchedMatDager over),
+  // ELLER (mangler feltet helt) forblir uberørt og fylles automatisk med
+  // riktig reiselengde av refreshMatDagerOptions() straks datoene er
+  // synkronisert (kalt fra syncDagerFraDatoer(), som openKalkyleById() alltid
+  // kjører rett ETTER denne funksjonen - se kommentaren der). v47-RETTELSE:
+  // denne fylles-ut-logikken lå tidligere HER, altså FØR datoene i det hele
+  // tatt var lest inn (fillMeta() kjører etter loadCalculatorData()) - det
+  // ga feil resultat ("kun 6 dager" i stedet for f.eks. faktiske 17), siden
+  // "Antall dager" på det tidspunktet fortsatt sto på sin midlertidige
+  // HTML-standardverdi, ikke reisens faktiske lengde. Selve utfyllingen er nå
+  // flyttet til refreshMatDagerOptions() (kjørt på riktig tidspunkt), denne
+  // funksjonen gjør bare markeringen av hva som SKAL regnes som eksplisitt satt.
+  ['mat_frokost_dager','mat_lunsj_dager','mat_middag_dager'].forEach(key=>{
+    if(Object.prototype.hasOwnProperty.call(vals, 'm1_'+key)) touchedMatDager.m1[key.replace('mat_','').replace('_dager','')] = true;
   });
   recalcAll();
 }
