@@ -2573,6 +2573,13 @@ function bygTransportrader(gm1){
       sortering: sortering++,
       kategori: 'utreise',
       beskrivelse: item.navn || null,
+      // v31-RETTELSE: samme standardverdi som Bagasje-nedtrekket i
+      // Reiseinfo-fanen (forslag-editor.html) alltid viser som
+      // forhåndsvalgt for et nytt flightkort - satt eksplisitt her også
+      // (ikke bare der), slik at raden faktisk HAR denne verdien fra
+      // opprettelsen, i stedet for å stole på en visuell fallback som
+      // aldri ble en ekte, lagret verdi.
+      bagasje_info: 'Innsjekket bagasje',
     });
   });
   return rader;

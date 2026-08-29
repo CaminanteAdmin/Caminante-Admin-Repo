@@ -1269,12 +1269,28 @@ async function loadForslag(id){
   const harRetur = state.transport.some(t => t.fields.kategori === "retur");
   if(!harUtreise){
     const dato = f.fra_dato ? f.fra_dato + "T00:00" : null;
-    state.transport.push({ id:null, clientKey:newClientKey(), fields:{ kategori:"utreise", sortering: state.transport.length, avreise_tidspunkt: dato, ankomst_tidspunkt: dato } });
+    state.transport.push({ id:null, clientKey:newClientKey(), fields:{ kategori:"utreise", sortering: state.transport.length, avreise_tidspunkt: dato, ankomst_tidspunkt: dato, bagasje_info: BAGASJE_STANDARD } });
   }
   if(!harRetur){
     const dato = f.til_dato ? f.til_dato + "T00:00" : null;
-    state.transport.push({ id:null, clientKey:newClientKey(), fields:{ kategori:"retur", sortering: state.transport.length, avreise_tidspunkt: dato, ankomst_tidspunkt: dato } });
+    state.transport.push({ id:null, clientKey:newClientKey(), fields:{ kategori:"retur", sortering: state.transport.length, avreise_tidspunkt: dato, ankomst_tidspunkt: dato, bagasje_info: BAGASJE_STANDARD } });
   }
+  // v31-RETTELSE: fly-rader som kommer fra en ANNEN kilde enn de to
+  // auto-seed-tilfellene over - typisk overført fra en kalkyle (se
+  // bygTransportrader() i kalkyle-editor.html, som bevisst IKKE setter
+  // bagasje_info, siden kalkylen ikke har noe bagasjevalg) - manglet
+  // bagasje_info helt i den underliggende datamodellen, selv om
+  // Bagasje-nedtrekket i Reiseinfo-fanen alltid VISER "Innsjekket bagasje"
+  // som standardvalg (kun en visuell fallback ved rendering, se
+  // renderFlySection()). Så lenge brukeren ikke selv åpner/endrer et
+  // nedtrekk som allerede viser riktig verdi (hvorfor skulle man det?),
+  // fikk feltet ALDRI en ekte verdi - og dermed ble bagasje-teksten aldri
+  // lagt til i den auto-genererte fly-linjen i Inkludert (se
+  // beregnAutoFlyLinjer(), som også er rettet til å falle tilbake på samme
+  // standard). Retter opp roten her også: enhver innlastet flight-rad uten
+  // bagasje_info satt får nå den samme, allerede synlige standardverdien
+  // skrevet inn i selve dataene idet forslaget lastes.
+  state.transport.forEach(t=>{ if(!t.fields.bagasje_info) t.fields.bagasje_info = BAGASJE_STANDARD; });
 
   // v4: Hotellopphold-fanen skal alltid vise minst ett hotell (Hotell 1) -
   // samme prinsipp som Utreise/Retur over. Har forslaget ingen lagrede
@@ -1639,7 +1655,7 @@ function defaultFlightDato(kategori){
 
 function addFlight(kategori){
   const dato = defaultFlightDato(kategori);
-  state.transport.push({ id:null, clientKey:newClientKey(), fields:{ kategori, sortering: state.transport.length, avreise_tidspunkt: dato, ankomst_tidspunkt: dato } });
+  state.transport.push({ id:null, clientKey:newClientKey(), fields:{ kategori, sortering: state.transport.length, avreise_tidspunkt: dato, ankomst_tidspunkt: dato, bagasje_info: BAGASJE_STANDARD } });
   renderTransport();
   syncOgRenderInkludert();
 }
@@ -2008,8 +2024,15 @@ function beregnAutoFlyLinjer(){
   const reisemaal = (sisteDeler.length > 1 ? sisteDeler[sisteDeler.length-1] : sisteStrekning).trim();
   let linje = `Flyreise ${avreise} - ${reisemaal} t/r`;
   // Bagasje: bruker det første beinet som faktisk har et valg satt (normalt
-  // samme valg på alle bein i én reise uansett).
-  const bagasje = bein.map(b=>b.bagasje_info).find(b=> b && b !== "Uten bagasje");
+  // samme valg på alle bein i én reise uansett). v31-RETTELSE: et manglende
+  // bagasje_info (f.eks. en flight-rad overført fra en kalkyle, som ikke har
+  // bagasjeinfo) faller nå tilbake på samme standardverdi
+  // (BAGASJE_STANDARD/"Innsjekket bagasje") som Bagasje-nedtrekket i
+  // Reiseinfo-fanen alltid VISER som forhåndsvalgt - uten denne fallback-en
+  // ble bagasje-teksten aldri lagt til i linjen for slike rader, selv om
+  // brukeren aldri hadde noen grunn til å røre et nedtrekk som allerede så
+  // riktig ut.
+  const bagasje = bein.map(b=>b.bagasje_info || BAGASJE_STANDARD).find(b=> b && b !== "Uten bagasje");
   if(bagasje){
     linje += `, inkl. ${bagasje.charAt(0).toLowerCase()}${bagasje.slice(1)}`;
   }
@@ -3390,6 +3413,32 @@ el("g-fra").addEventListener("input", (e)=> fyllTommeFlydatoerFraGrunninfo("utre
 el("g-til").addEventListener("input", (e)=> fyllTommeFlydatoerFraGrunninfo("retur", e.target.value));
 el("g-fra").addEventListener("input", (e)=> fyllTommeHotelldatoerFraGrunninfo("fra", e.target.value));
 el("g-til").addEventListener("input", (e)=> fyllTommeHotelldatoerFraGrunninfo("til", e.target.value));
+
+// v31-RETTELSE: de to fyll-funksjonene over dekket KUN tilfellet der
+// brukeren skriver/endrer Fra-/Til-dato mens siden allerede er åpen (de
+// lytter på "input" på #g-fra/#g-til). De dekket IKKE det vanligste
+// tilfellet av alle: et forslag opprettet FRA en kalkyle (se
+// opprettForslagFraKalkyle() i kalkyle-editor.html), der forslaget allerede
+// har fra_dato/til_dato satt (fra kalkylens datoer) FØR forslag-editor.html
+// i det hele tatt åpnes - da blir kun feltverdien satt programmatisk
+// (el("g-fra").value=...), som ikke utløser noen "input"-hendelse. Samtidig
+// opprettes utreise-flighten og hotelloppholdet UTEN dato (bygTransportrader/
+// bygHotellopphold i kalkyle-editor.html setter dem bevisst til null - kalkylen
+// har ikke nok detaljer til å vite eksakte fly-/hotelldatoer). Resultatet var
+// at datoene ALDRI ble fylt ut automatisk for et forslag opprettet på denne,
+// helt vanlige måten - kun hvis man i etterkant skrev inn/endret Fra-/Til-
+// dato på nytt i Grunninfo.
+//
+// Fiksen: kjør samme "fyll kun tomme felt"-logikk ÉN GANG rett etter
+// innlasting, direkte fra de allerede lastede forslag-datoene (uavhengig av
+// om de kom fra kalkylen eller ble lest fra databasen).
+function fyllTommeReisedatoerVedInnlasting(){
+  const f = state.forslag;
+  if(f.fra_dato) fyllTommeFlydatoerFraGrunninfo("utreise", f.fra_dato);
+  if(f.til_dato) fyllTommeFlydatoerFraGrunninfo("retur", f.til_dato);
+  if(f.fra_dato) fyllTommeHotelldatoerFraGrunninfo("fra", f.fra_dato);
+  if(f.til_dato) fyllTommeHotelldatoerFraGrunninfo("til", f.til_dato);
+}
 el("g-kundetype").addEventListener("change", ()=>{
   state.forslag.kundetype = el("g-kundetype").value;
   // Skolekobling gir bare mening for Kundetype=Skole - fjernes ved bytte til
@@ -3449,6 +3498,11 @@ el("gKundeSkoleClear").addEventListener("click", ()=>{
   // URL-en til et allerede lagret høydepunkt-bilde synkront ved første
   // rendering, uten en synlig "laster…"-tilstand i selve høydepunkt-boksen.
   if(state.forslag.reisemaal_id) await hentReisemaalBank(state.forslag.reisemaal_id);
+
+  // v31-RETTELSE: fyller blanke fly-/hotelldatoer fra forslagets egne
+  // fra_dato/til_dato ÉN GANG ved innlasting - se fyllTommeReisedatoerVedInnlasting()
+  // for hvorfor dette trengs i tillegg til input-lytterne på Fra-/Til-feltene.
+  fyllTommeReisedatoerVedInnlasting();
 
   document.getElementById("editorArea").style.display = "block";
   renderAll();
