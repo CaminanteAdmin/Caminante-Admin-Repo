@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reise – Caminante Admin</title>
+<link rel="stylesheet" href="shared/style.css">
+<style>
+  /* ====================================================================
+     Reise-editor v1 - byggetrinn 1: grunnstruktur.
+
+     Bygget som bevis på fundamentet, med Neuers byggekrav innarbeidet:
+       - Lagringen leser KUN fra state, aldri fra DOM-elementer som kan
+         mangle (K6). Blokker kan derfor trygt fjernes fra skjermen.
+       - Lagringskjeden har .catch som gjenoppretter kjeden, viser en
+         synlig feilbanner og beholder skitten-flagget for nytt forsøk.
+       - Blokker som slås av beholder alt innhold (kun visning endres).
+       - Kritiske felt på en reise som ikke er kladd er låst bak en
+         "Endre"-knapp med advarsel som viser antall påmeldinger.
+       - Sletting er sperret når reisen har påmeldinger (cascade i basen
+         ville ellers slettet dem stille - Neuer K3).
+       - Falsy-id-filter i alle slettelister (lærdom fra forslag-editor).
+     ==================================================================== */
+  :root{
+    --blue:#2a78d6;
+    --blue-dark:#184f95;
+    --card-bg:#eaf2fb;
+    --card-border:#a9c9ec;
+    --warn-bg:#fdf4e3;
+    --warn-border:#eddaaf;
+    --err-bg:#c0392b;
+  }
+  body{ background:var(--surface-1); }
+
+  .editor-header{
+    display:flex; align-items:flex-start; justify-content:space-between;
+    gap:14px; padding:14px 24px 10px; flex-wrap:wrap;
+  }
+  .editor-header .left{ flex:1 1 380px; min-width:280px; }
+  .editor-header .type-line{ font-size:12px; color:var(--ink-muted); margin-bottom:2px; }
+  .editor-header input#f-tittel{
+    font-size:20px; font-weight:650; border:none; outline:none; width:100%;
+    padding:2px 0; background:transparent; color:var(--ink-primary);
+  }
+  .editor-header input#f-tittel:focus{ outline:1px solid var(--hairline); border-radius:4px; }
+  .save-status{ font-size:12px; color:var(--ink-muted); margin-top:4px; min-height:16px; }
+  .save-status.feil{ color:#a03030; font-weight:600; }
+  .editor-header .right{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .editor-header select#f-status{
+    padding:7px 10px; border:1px solid var(--hairline); border-radius:8px;
+    font-size:13px; background:var(--surface-1);
+  }
+  button.danger{
+    padding:7px 12px; border:1px solid #eec3c3; border-radius:8px;
+    background:#fbeaea; color:#a03030; font-size:13px; cursor:pointer;
+  }
+
+  /* Synlig feilbanner - lagringsfeil skal aldri kunne passere ubemerket. */
+  #feilBanner{
+    display:none; position:sticky; top:0; z-index:12;
+    background:var(--err-bg); color:#fff; padding:10px 24px;
+    font-size:13px; align-items:center; gap:14px;
+  }
+  #feilBanner.open{ display:flex; }
+  #feilBanner .melding{ flex:1; }
+  #feilBanner button{
+    padding:6px 12px; border-radius:7px; border:1px solid rgba(255,255,255,0.6);
+    background:transparent; color:#fff; font-size:12.5px; cursor:pointer;
+  }
+
+  .tab-bar{
+    display:flex; gap:2px; padding:0 24px; border-bottom:1px solid var(--hairline);
+    overflow-x:auto; align-items:center;
+  }
+  .tab-btn{
+    padding:9px 14px; font-size:13px; border:none; background:transparent;
+    color:var(--ink-secondary); cursor:pointer; border-bottom:2.5px solid transparent;
+    white-space:nowrap;
+  }
+  .tab-btn.aktiv{ color:var(--blue-dark); font-weight:650; border-bottom-color:var(--blue); }
+  .tab-btn:disabled{ color:#c4c2ba; cursor:default; }
+  .tab-btn .soon{ font-size:9.5px; text-transform:uppercase; color:#b3b1a9;
+    border:1px solid var(--hairline); border-radius:20px; padding:1px 5px; margin-left:5px; }
+
+  .main{ padding:18px 24px 60px; max-width:1080px; }
+  .tab-panel{ display:none; }
+  .tab-panel.aktiv{ display:block; }
+
+  .card{
+    background:var(--card-bg); border:1px solid var(--card-border);
+    border-radius:10px; padding:16px; margin-bottom:16px;
+  }
+  .card-title{
+    font-size:12.5px; font-weight:650; color:var(--ink-secondary);
+    text-transform:uppercase; letter-spacing:0.03em; margin-bottom:12px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .field-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; }
+  .field label{ display:block; font-size:12px; color:var(--ink-secondary); margin-bottom:3px; }
+  .field input, .field select, .field textarea{
+    width:100%; padding:7px 9px; border:1px solid var(--hairline); border-radius:7px;
+    font-size:13px; background:var(--surface-1); color:var(--ink-primary);
+    box-sizing:border-box; font-family:inherit;
+  }
+  .field textarea{ resize:vertical; min-height:64px; }
+  .field .hint{ font-size:11px; color:var(--ink-muted); margin-top:3px; }
+  .full{ grid-column:1 / -1; }
+
+  /* Låste kritiske felt (publiseringsmodell B1) */
+  .laast input, .laast select, .laast textarea{ background:var(--page); color:var(--ink-muted); }
+  .laas-linje{
+    display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-muted);
+  }
+  .laas-linje button{
+    padding:4px 10px; font-size:12px; border:1px solid var(--hairline);
+    border-radius:7px; background:var(--surface-1); cursor:pointer; color:var(--ink-secondary);
+  }
+
+  /* Blokk-mekanikken: aktive blokker vises som kort, inaktive som brikker. */
+  .blokk-brikker{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; align-items:center; }
+  .blokk-brikker .intro{ font-size:12px; color:var(--ink-muted); }
+  .blokk-brikke{
+    font-size:12.5px; padding:5px 12px; border-radius:20px; cursor:pointer;
+    border:1px dashed var(--card-border); background:var(--surface-1); color:var(--ink-secondary);
+  }
+  .blokk-brikke:hover{ background:var(--card-bg); }
+  .blokk-av-knapp{
+    font-size:11.5px; padding:3px 9px; border-radius:20px; border:1px solid var(--card-border);
+    background:var(--surface-1); color:var(--ink-muted); cursor:pointer; font-weight:400;
+    text-transform:none; letter-spacing:0;
+  }
+
+  .rad-liste{ display:flex; flex-direction:column; gap:8px; }
+  .rad{
+    display:flex; gap:8px; align-items:flex-start; background:var(--surface-1);
+    border:1px solid var(--hairline); border-radius:8px; padding:10px;
+  }
+  .rad .felt{ flex:1; }
+  .rad .nr{
+    font-size:12px; color:var(--ink-muted); font-variant-numeric:tabular-nums;
+    padding-top:8px; min-width:22px; text-align:right;
+  }
+  .rad-knapper{ display:flex; flex-direction:column; gap:4px; }
+  .rad-knapper button{
+    width:26px; height:26px; border:1px solid var(--hairline); border-radius:6px;
+    background:var(--surface-1); cursor:pointer; font-size:12px; color:var(--ink-secondary);
+    line-height:1;
+  }
+  .rad-knapper button:hover{ background:var(--page); }
+  .legg-til{
+    margin-top:10px; padding:7px 12px; font-size:12.5px; border:1px dashed var(--card-border);
+    border-radius:8px; background:var(--surface-1); color:var(--blue-dark); cursor:pointer;
+  }
+  .legg-til:hover{ background:var(--card-bg); }
+
+  /* Overnattingsalternativ */
+  .alt-kort{
+    background:var(--surface-1); border:1px solid var(--card-border); border-radius:10px;
+    padding:14px; margin-bottom:12px;
+  }
+  .alt-topp{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+  .alt-topp input[type="text"]{ flex:1 1 220px; font-weight:600; }
+  .alt-topp label.cb{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-secondary); white-space:nowrap; }
+  .opphold-liste{ margin-top:10px; border-top:1px dashed var(--hairline); padding-top:10px; }
+  .opphold-rad{
+    display:grid; grid-template-columns:minmax(150px,2fr) minmax(110px,1.4fr) 76px 64px minmax(110px,1.4fr) auto;
+    gap:8px; align-items:end; padding:8px; border:1px solid var(--hairline);
+    border-radius:8px; margin-bottom:8px; background:var(--surface-1);
+  }
+  .opphold-rad .fl label{ display:block; font-size:10.5px; color:var(--ink-muted); margin-bottom:2px; }
+  .opphold-rad input, .opphold-rad select{
+    width:100%; padding:6px 8px; border:1px solid var(--hairline); border-radius:6px;
+    font-size:12.5px; box-sizing:border-box; background:var(--surface-1);
+  }
+  @media (max-width:760px){ .opphold-rad{ grid-template-columns:1fr 1fr; } }
+
+  .pub-panel{ font-size:12.5px; }
+  .pub-panel ul{ margin:6px 0 0; padding-left:18px; }
+  .pub-panel li{ margin-bottom:3px; }
+  .pub-ok{ color:var(--good); }
+  .pub-mangler{ color:#a03030; }
+  .pub-advarsel{ color:#8a6a1d; }
+
+  .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:14px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html">
+    <span class="company">Caminante</span>
+    <span class="tool-name">Reise</span>
+  </a>
+  <div class="user-area">
+    <a class="back-link" href="reiser.html">← Alle reiser</a>
+    <span id="userName"></span>
+    <button class="logout-btn" id="logoutBtn">Logg ut</button>
+  </div>
+</div>
+
+<div id="feilBanner">
+  <span class="melding" id="feilMelding"></span>
+  <button id="feilRetry">Prøv å lagre igjen</button>
+  <button id="feilLukk">Lukk</button>
+</div>
+
+<div id="loadMsg" class="load-msg">Laster reisen…</div>
+
+<div id="editorArea" style="display:none;">
+
+  <div class="editor-header">
+    <div class="left">
+      <div class="type-line" id="typeLine"></div>
+      <input type="text" id="f-tittel" placeholder="Reisens tittel" data-f="title" data-kritisk="1">
+      <div class="save-status" id="saveStatus"></div>
+    </div>
+    <div class="right">
+      <select id="f-status">
+        <option value="kladd">Kladd</option>
+        <option value="publisert">Publisert</option>
+        <option value="utsolgt">Utsolgt</option>
+        <option value="kommer_snart">Kommer snart</option>
+      </select>
+      <button class="danger" id="btnSlett">Slett reise</button>
+    </div>
+  </div>
+
+  <div class="tab-bar" id="tabBar">
+    <button class="tab-btn aktiv" data-tab="reisen">Reisen</button>
+    <button class="tab-btn" data-tab="program">Program</button>
+    <button class="tab-btn" data-tab="opphold">Reise og opphold</button>
+    <button class="tab-btn" disabled>Priser og betingelser<span class="soon">Snart</span></button>
+    <button class="tab-btn" disabled>Påmelding<span class="soon">Snart</span></button>
+    <button class="tab-btn" disabled>Medvirkende<span class="soon">Snart</span></button>
+    <button class="tab-btn" disabled>Innhold<span class="soon">Snart</span></button>
+  </div>
+
+  <div class="main">
+
+    <!-- ============ FANE 1: REISEN ============ -->
+    <div class="tab-panel aktiv" data-panel="reisen">
+
+      <div class="card" id="kortGrunnlag">
+        <div class="card-title"><span>Grunnlag</span><span id="laasGrunnlag"></span></div>
+        <div class="field-grid" id="grunnlagFelter">
+          <div class="field">
+            <label for="g-slug">Adresse på nettsiden (slug)</label>
+            <input type="text" id="g-slug" data-f="slug" data-kritisk="1">
+            <div class="hint">Settes ved opprettelse og endres normalt aldri - utsendte lenker brekker.</div>
+          </div>
+          <div class="field">
+            <label for="g-undertittel">Undertittel</label>
+            <input type="text" id="g-undertittel" data-f="subtitle">
+          </div>
+          <div class="field">
+            <label for="g-destinasjon">Reisemål/destinasjon</label>
+            <input type="text" id="g-destinasjon" data-f="destination">
+          </div>
+          <div class="field">
+            <label for="g-land">Land</label>
+            <input type="text" id="g-land" data-f="country">
+          </div>
+          <div class="field">
+            <label for="g-fra">Fra dato</label>
+            <input type="date" id="g-fra" data-f="start_date" data-kritisk="1">
+          </div>
+          <div class="field">
+            <label for="g-til">Til dato</label>
+            <input type="date" id="g-til" data-f="end_date" data-kritisk="1">
+          </div>
+          <div class="field">
+            <label for="g-dager">Antall dager</label>
+            <input type="number" id="g-dager" data-f="days" min="0" step="1">
+            <div class="hint" id="dagerHint"></div>
+          </div>
+          <div class="field">
+            <label for="g-avreisested">Avreisested</label>
+            <input type="text" id="g-avreisested" data-f="departure_airport">
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="kortRammer">
+        <div class="card-title"><span>Kapasitet og påmeldingsrammer</span><span id="laasRammer"></span></div>
+        <div class="field-grid" id="rammerFelter">
+          <div class="field">
+            <label for="r-kapasitet">Total kapasitet</label>
+            <input type="number" id="r-kapasitet" data-f="capacity" min="0" step="1" placeholder="Ingen grense" data-kritisk="1">
+            <div class="hint">Tomt felt = ingen grense. 0 = stengt.</div>
+          </div>
+          <div class="field">
+            <label for="r-frist">Påmeldingsfrist</label>
+            <input type="date" id="r-frist" data-f="registration_deadline" data-kritisk="1">
+          </div>
+          <div class="field">
+            <label for="r-min">Minimum deltakere</label>
+            <input type="number" id="r-min" data-f="min_participants" min="0" step="1" placeholder="Ikke satt" data-kritisk="1">
+          </div>
+          <div class="field full">
+            <label for="r-min-note">Betingelse knyttet til minimumstallet</label>
+            <textarea id="r-min-note" data-f="min_participants_note" data-kritisk="1" placeholder="F.eks. hva som skjer dersom minimum ikke nås - formuleres per reise."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span>Internt (vises aldri offentlig)</span></div>
+        <div class="field-grid">
+          <div class="field full">
+            <label for="i-notater">Interne notater</label>
+            <textarea id="i-notater" placeholder="Notater kun for Caminante. Lagres adskilt fra reisens offentlige data."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card pub-panel">
+        <div class="card-title"><span>Klar for publisering?</span></div>
+        <div id="pubPanel"></div>
+      </div>
+
+    </div>
+
+    <!-- ============ FANE 2: PROGRAM ============ -->
+    <div class="tab-panel" data-panel="program">
+      <div id="programBlokker"></div>
+      <div class="blokk-brikker" id="programBrikker"></div>
+    </div>
+
+    <!-- ============ FANE 3: REISE OG OPPHOLD ============ -->
+    <div class="tab-panel" data-panel="opphold">
+
+      <div class="card">
+        <div class="card-title"><span>Overnattingsmodus</span><span id="laasOpphold"></span></div>
+        <div class="field-grid">
+          <div class="field full">
+            <select id="o-modus" data-f="accommodation_mode" data-kritisk="1">
+              <option value="fast_reiserute">Fast reiserute - Caminante bestemmer, kunden velger ikke</option>
+              <option value="kunden_velger">Kunden velger - valget blir del av bestillingen og påvirker pris</option>
+              <option value="kunden_onsker">Kunden oppgir ønske - Caminante bekrefter endelig fordeling</option>
+            </select>
+            <div class="hint">Settes eksplisitt - utledes aldri av antall alternativer (besluttet modell).</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="altListe"></div>
+      <button class="legg-til" id="btnNyttAlt">+ Nytt overnattingsalternativ</button>
+
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+/* ====================================================================
+   State-basert editor. ALT som lagres bor i state; DOM er kun visning
+   og inndata. Lagringen leser aldri fra DOM (Neuer K6).
+   ==================================================================== */
+
+let tripId = null;
+let state = {
+  trip: {},        // KUN feltene denne editoren eier - se tripPayload()
+  internal: { interne_notater: "" },
+  days: [],        // {id, clientKey, fields:{day_number,title,description}, harBilder}
+  options: [],     // {id, clientKey, fields:{...}, stays:[{id, clientKey, fields:{...}}]}
+};
+let originalIds = { days:new Set(), options:new Set(), stays:new Set() };
+let hotellRegister = [];   // {id, navn, sted, stjerner} til "hent fra hotelloversikt"
+let paameldingsAntall = 0; // registrations + bookings for denne reisen
+let opplaast = false;      // B1: kritiske felt låst når status !== kladd, til "Endre" bekreftes
+
+function el(id){ return document.getElementById(id); }
+function escapeHtml(str){
+  return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+function newClientKey(){ return (crypto.randomUUID ? crypto.randomUUID() : ("k"+Math.random().toString(36).slice(2))); }
+// Tomt felt skal bli null - aldri 0 (Neuer B5: kapasitet null = ingen grense).
+function numOrNull(v){ return (v===""||v===null||v===undefined||isNaN(v)) ? null : Number(v); }
+// Samme slug-regel som ved opprettelse (reiser.html) - manuelt redigert slug
+// normaliseres med denne før lagring, slik at kundens URL aldri får
+// mellomrom, store bokstaver eller særtegn.
+function slugifyReise(s){
+  return (s||"").toLowerCase()
+    .replaceAll("æ","ae").replaceAll("ø","o").replaceAll("å","a")
+    .normalize("NFD").replace(/[̀-ͯ]/g,"")
+    .replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"")
+    .slice(0,60);
+}
+
+const TYPE_LABEL = { reise:"Påmeldingstur", bibelcamp:"Bibelcamp" };
+
+/* ---------- Autolagring med synlig feilhåndtering ----------
+   Samme rytme som resten av Admin (2,5 s debounce + 45 s sikkerhetsnett),
+   men med to bevisste avvik fra forslag-editoren:
+   1) Kjeden har .catch som ALLTID gjenoppretter den (K6: en avvist kjede
+      ville ellers stoppet all senere lagring stille).
+   2) Skitten-flagget settes TILBAKE ved feil, slik at 45-sekunders-
+      intervallet automatisk prøver igjen (lærdom fra forslag-runden).
+   Klikk markerer IKKE skittent - bare input/change og eksplisitte
+   markDirty()-kall i handlerne. Det fjerner racene vi har jaktet på før. */
+let saveChain = Promise.resolve();
+let autosaveDirty = false;
+let autosaveTimer = null;
+let autosaveKlar = false;
+
+function markDirty(){
+  if(!autosaveKlar) return;
+  autosaveDirty = true;
+  settStatus("Ulagrede endringer …");
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(utlosAutolagring, 2500);
+}
+setInterval(()=>{ utlosAutolagring(); }, 45000);
+function utlosAutolagring(){
+  if(!autosaveDirty) return;
+  autosaveDirty = false;
+  performSave();
+}
+function performSave(){
+  saveChain = saveChain
+    .then(()=> utforLagring())
+    .catch(err=>{
+      console.error("Lagringsfeil:", err);
+      autosaveDirty = true; // behold endringene som ulagret -> 45s-nettet prøver igjen
+      settStatus("Kunne ikke lagre", true);
+      visFeil("Kunne ikke lagre: " + (err && err.message ? err.message : err));
+    });
+  return saveChain;
+}
+function settStatus(tekst, feil){
+  const s = el("saveStatus");
+  s.textContent = tekst;
+  s.classList.toggle("feil", !!feil);
+}
+function visFeil(melding){
+  el("feilMelding").textContent = melding;
+  el("feilBanner").classList.add("open");
+}
+function skjulFeil(){ el("feilBanner").classList.remove("open"); }
+el("feilRetry").addEventListener("click", ()=>{ skjulFeil(); autosaveDirty = false; performSave(); });
+el("feilLukk").addEventListener("click", skjulFeil);
+
+/* ---------- Feltene denne editoren eier på trips ----------
+   Payloaden bygges KUN fra state.trip og inneholder KUN disse feltene -
+   priser, tekster og andre kolonner utenfor byggetrinn 1 røres aldri. */
+function tripPayload(){
+  const t = state.trip;
+  return {
+    title: t.title || "Uten tittel",
+    slug: t.slug || null,
+    subtitle: t.subtitle || null,
+    destination: t.destination || null,
+    country: t.country || null,
+    start_date: t.start_date || null,
+    end_date: t.end_date || null,
+    days: t.days ?? null,
+    departure_airport: t.departure_airport || null,
+    status: t.status || "kladd",
+    capacity: t.capacity ?? null,
+    registration_deadline: t.registration_deadline || null,
+    min_participants: t.min_participants ?? null,
+    min_participants_note: t.min_participants_note || null,
+    accommodation_mode: t.accommodation_mode || "fast_reiserute",
+    sections: t.sections || {},
+    daily_rhythm: (t.daily_rhythm && t.daily_rhythm.length) ? t.daily_rhythm : null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function utforLagring(){
+  settStatus("Lagrer …");
+
+  // B3: tom tittel skal aldri lagres (og aldri bli "Uten tittel" stille).
+  // Forrige lagrede tittel beholdes i basen til feltet er fylt igjen.
+  const tittelTom = !((state.trip.title || "").trim());
+  const effTittel = tittelTom ? (state.sisteLagredeTittel || "Uten tittel") : state.trip.title.trim();
+
+  // B5 + formatvern: manuelt redigert slug normaliseres med samme regel som
+  // ved opprettelse. Slug skal aldri bli tom (fall tilbake til forrige), og
+  // en endret slug må være unik - duplikat stopper lagringen med tydelig
+  // feil i banneret.
+  let effSlug = slugifyReise(state.trip.slug || "");
+  if(!effSlug) effSlug = state.sisteLagredeSlug || null;
+  if(effSlug && effSlug !== (state.trip.slug || "")){
+    // Vis den normaliserte verdien tilbake i state og felt, slik at skjerm
+    // og base aldri viser to ulike slugs. (#g-slug er statisk markup og
+    // finnes alltid - dette er visningsoppdatering, ikke lagringslesing.)
+    state.trip.slug = effSlug;
+    el("g-slug").value = effSlug;
+  }
+  if(effSlug && effSlug !== state.sisteLagredeSlug){
+    const { data: dup, error: eDup } = await window.sb.from("trips")
+      .select("id").eq("slug", effSlug).neq("id", tripId).limit(1);
+    if(eDup) throw new Error("slug-kontroll: " + eDup.message);
+    if(dup && dup.length) throw new Error("Adressen (slug) «" + effSlug + "» er allerede i bruk på en annen reise. Endre den før lagring kan fullføres.");
+  }
+
+  // 1) Selve reisen (partiell oppdatering - kun våre felt).
+  const payload = tripPayload();
+  payload.title = effTittel;
+  payload.slug = effSlug;
+  const { error: e0 } = await window.sb.from("trips").update(payload).eq("id", tripId);
+  if(e0) throw new Error("reisen: " + e0.message);
+  state.sisteLagredeTittel = effTittel;
+  state.sisteLagredeSlug = effSlug;
+
+  // 2) Interne felt - egen tabell uten offentlig lesetilgang.
+  const { error: e1 } = await window.sb.from("trip_internal").upsert({
+    trip_id: tripId,
+    interne_notater: state.internal.interne_notater || null,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "trip_id" });
+  if(e1) throw new Error("interne felt: " + e1.message);
+
+  // 3) Programdager. Basen har unik nøkkel på (trip_id, day_number), så
+  //    rekkefølgen her er avgjørende (Neuer K2):
+  //    3a) SLETT fjernede dager først - ellers blokkerer en slettet dags
+  //        gamle nummer omnummereringen av dem som er igjen. Dag-sletting
+  //        kan ikke FK-blokkeres av påmeldinger (de peker på hotell/
+  //        alternativ), så dette bryter ikke slettinger-sist-prinsippet.
+  //    3b) Parker eksisterende dager på høye numre.
+  //    3c) Skriv endelige numre og sett inn nye dager.
+  const keepDayIds = new Set(state.days.map(d=>d.id).filter(Boolean));
+  const slettDaysForst = [...originalIds.days].filter(id => id && !keepDayIds.has(id));
+  if(slettDaysForst.length){
+    const { error } = await window.sb.from("trip_days").delete().in("id", slettDaysForst);
+    if(error) throw new Error("sletting av programdager: " + error.message);
+  }
+  const keepDays = new Set();
+  for(let i=0; i<state.days.length; i++){
+    const d = state.days[i];
+    if(d.id){
+      const { error } = await window.sb.from("trip_days").update({ day_number: 1000 + i }).eq("id", d.id);
+      if(error) throw new Error("programdag (omnummerering): " + error.message);
+    }
+  }
+  for(let i=0; i<state.days.length; i++){
+    const d = state.days[i];
+    const payload = { trip_id: tripId, day_number: i+1, title: d.fields.title || null, description: d.fields.description || null };
+    if(d.id){
+      const { error } = await window.sb.from("trip_days").update(payload).eq("id", d.id);
+      if(error) throw new Error("programdag " + (i+1) + ": " + error.message);
+    } else {
+      const { data, error } = await window.sb.from("trip_days").insert(payload).select("id").single();
+      if(error) throw new Error("programdag " + (i+1) + ": " + error.message);
+      d.id = data.id;
+    }
+    keepDays.add(d.id);
+  }
+
+  // 4) Alternativer: oppdater/sett inn (før oppholdene, som trenger id-ene).
+  const keepOptions = new Set();
+  for(let i=0; i<state.options.length; i++){
+    const o = state.options[i];
+    const payload = {
+      trip_id: tripId,
+      name: o.fields.name || "",
+      description: o.fields.description || null,
+      self_arranged: !!o.fields.self_arranged,
+      capacity: o.fields.capacity ?? null,   // null bevares - aldri 0
+      active: o.fields.active !== false,
+      sort_order: i,
+    };
+    if(o.id){
+      const { error } = await window.sb.from("trip_options").update(payload).eq("id", o.id);
+      if(error) throw new Error("alternativ «" + (o.fields.name||"") + "»: " + error.message);
+    } else {
+      const { data, error } = await window.sb.from("trip_options").insert(payload).select("id").single();
+      if(error) throw new Error("alternativ «" + (o.fields.name||"") + "»: " + error.message);
+      o.id = data.id;
+    }
+    keepOptions.add(o.id);
+  }
+
+  // 5) Opphold: oppdater/sett inn.
+  const keepStays = new Set();
+  for(const o of state.options){
+    for(let i=0; i<o.stays.length; i++){
+      const s = o.stays[i];
+      const payload = {
+        trip_id: tripId,
+        trip_option_id: o.id,
+        name: s.fields.name || "",
+        location: s.fields.location || null,
+        stars: s.fields.stars ?? null,
+        nights: s.fields.nights ?? null,
+        date_range_text: s.fields.date_range_text || null,
+        hotel_id: s.fields.hotel_id || null,
+        sort_order: i,
+      };
+      if(s.id){
+        const { error } = await window.sb.from("trip_hotels").update(payload).eq("id", s.id);
+        if(error) throw new Error("opphold «" + (s.fields.name||"") + "»: " + error.message);
+      } else {
+        const { data, error } = await window.sb.from("trip_hotels").insert(payload).select("id").single();
+        if(error) throw new Error("opphold «" + (s.fields.name||"") + "»: " + error.message);
+        s.id = data.id;
+      }
+      keepStays.add(s.id);
+    }
+  }
+
+  // 6) Slettinger til slutt (Neuer B14: en feil her skal ikke hindre at alt
+  //    over allerede er lagret). Falsy-id-filter i alle listene. Opphold
+  //    slettes før alternativer (barn før forelder). En FK-blokkering fra
+  //    en fremtidig påmelding gir en tydelig feilmelding i banneret.
+  const slettStays = [...originalIds.stays].filter(id => id && !keepStays.has(id));
+  if(slettStays.length){
+    const { error } = await window.sb.from("trip_hotels").delete().in("id", slettStays);
+    if(error) throw new Error("sletting av opphold: " + error.message);
+  }
+  const slettOptions = [...originalIds.options].filter(id => id && !keepOptions.has(id));
+  if(slettOptions.length){
+    const { error } = await window.sb.from("trip_options").delete().in("id", slettOptions);
+    if(error) throw new Error("sletting av alternativ: " + error.message);
+  }
+  // (Programdager slettes i steg 3a - før omnummereringen, se K2-kommentaren.)
+
+  originalIds.days = new Set(state.days.map(d=>d.id));
+  originalIds.options = new Set(state.options.map(o=>o.id));
+  originalIds.stays = new Set(state.options.flatMap(o=>o.stays.map(s=>s.id)));
+
+  skjulFeil();
+  const lagretTekst = "Lagret " + new Date().toLocaleTimeString("nb-NO", {hour:"2-digit", minute:"2-digit"});
+  settStatus(tittelTom ? lagretTekst + " - tom tittel ble ikke lagret, forrige beholdt" : lagretTekst, tittelTom);
+  oppdaterPubPanel();
+}
+
+/* ---------- Felt-binding: data-f-attributter -> state.trip ----------
+   Delegert lytter. Feltet finnes alltid når hendelsen kommer fra det,
+   så dette er trygt - i motsetning til å LESE alle felter ved lagring. */
+const NUM_FELT = new Set(["days","capacity","min_participants"]);
+document.addEventListener("input", (e)=>{
+  const f = e.target.dataset ? e.target.dataset.f : null;
+  if(!f) return;
+  state.trip[f] = NUM_FELT.has(f) ? numOrNull(e.target.value) : (e.target.value || null);
+  if(f === "start_date" || f === "end_date") oppdaterDagerHint();
+  markDirty();
+});
+document.addEventListener("change", (e)=>{
+  const f = e.target.dataset ? e.target.dataset.f : null;
+  if(!f) return;
+  state.trip[f] = NUM_FELT.has(f) ? numOrNull(e.target.value) : (e.target.value || null);
+  markDirty();
+});
+el("i-notater").addEventListener("input", (e)=>{
+  state.internal.interne_notater = e.target.value;
+  markDirty();
+});
+
+/* ---------- Status + låsing (publiseringsmodell B1) ----------
+   Kritiske felt (data-kritisk="1") er låst når reisen ikke er kladd.
+   "Endre"-knappen henter antall påmeldinger og viser advarselen fra den
+   besluttede modellen. Opplåsingen er ren UI-tilstand og lagres aldri.
+   Låsen følger "har forlatt kladd", ikke bare "publisert" - en utsolgt
+   reise har flest påmeldinger (Neuer B3). */
+function erLaast(){ return state.trip.status !== "kladd" && !opplaast; }
+
+function oppdaterLaasUI(){
+  const laast = erLaast();
+  document.querySelectorAll("[data-kritisk]").forEach(input=>{
+    input.disabled = laast;
+    input.title = laast ? "Låst - reisen er publisert. Klikk «Endre» for å låse opp kritiske felt." : "";
+  });
+  // B7: hele alternativstrukturen er en del av produkt-/avtalegrunnlaget og
+  // låses sammen med de kritiske feltene. Vanlig innhold (program, notater)
+  // autolagres som før - editoren skrivebeskyttes aldri i sin helhet.
+  el("btnNyttAlt").disabled = laast;
+  ["laasGrunnlag","laasRammer","laasOpphold"].forEach(id=>{
+    const holder = el(id);
+    if(state.trip.status === "kladd"){ holder.innerHTML = ""; return; }
+    holder.innerHTML = opplaast
+      ? `<span class="laas-linje">Låst opp for redigering i denne økten</span>`
+      : `<span class="laas-linje">🔒 Kritiske felt er låst <button type="button" class="btnLaasOpp">Endre</button></span>`;
+  });
+  document.querySelectorAll(".btnLaasOpp").forEach(btn=>{
+    btn.addEventListener("click", laasOpp);
+  });
+  el("kortGrunnlag").classList.toggle("laast", laast);
+  el("kortRammer").classList.toggle("laast", laast);
+  renderAlternativer(); // alternativkortene tegnes med riktig lås-tilstand
+}
+
+async function laasOpp(){
+  const antall = await hentPaameldingsAntall();
+  const antallTekst = (antall === null) ? "ukjent - tellingen feilet" : String(antall);
+  const ok = confirm(
+    "Denne reisen er " + (state.trip.status === "publisert" ? "publisert" : "ikke lenger en kladd (status: " + state.trip.status + ")") + ".\n\n" +
+    "Påmeldinger: " + antallTekst + "\n\n" +
+    "Endringer du gjør blir synlige for NYE kunder så snart de er lagret.\n" +
+    "Eksisterende påmeldingers lagrede avtalegrunnlag endres IKKE.\n\n" +
+    "Vil du låse opp de kritiske feltene?"
+  );
+  if(!ok) return;
+  opplaast = true;
+  oppdaterLaasUI();
+}
+
+el("f-status").addEventListener("change", async (e)=>{
+  const ny = e.target.value;
+  if(ny !== "kladd" && state.trip.status === "kladd"){
+    // Publiseringssjekk: harde krav må være oppfylt før kladd forlates.
+    const mangler = pubHardeMangler();
+    if(mangler.length){
+      alert("Reisen kan ikke publiseres ennå. Mangler:\n\n– " + mangler.join("\n– "));
+      e.target.value = state.trip.status;
+      return;
+    }
+  }
+  state.trip.status = ny;
+  opplaast = false; // statusskifte nullstiller alltid opplåsingen
+  oppdaterLaasUI();
+  markDirty();
+});
+
+async function hentPaameldingsAntall(){
+  // K1: feiler tellingen, skal svaret være UKJENT (null) - aldri 0. En
+  // sperre som bygger på dette tallet må da feile STENGT, ikke åpent.
+  const [r1, r2] = await Promise.all([
+    window.sb.from("registrations").select("id", { count:"exact", head:true }).eq("trip_id", tripId),
+    window.sb.from("bookings").select("id", { count:"exact", head:true }).eq("trip_id", tripId),
+  ]);
+  if(r1.error || r2.error) return null;
+  paameldingsAntall = (r1.count||0) + (r2.count||0);
+  return paameldingsAntall;
+}
+
+/* ---------- Publiseringspanelet ---------- */
+function pubHardeMangler(){
+  const t = state.trip;
+  const mangler = [];
+  if(!t.title || !t.title.trim()) mangler.push("Tittel");
+  if(!t.slug || !t.slug.trim()) mangler.push("Adresse på nettsiden (slug)");
+  if(!t.start_date || !t.end_date) mangler.push("Fra- og til-dato");
+  return mangler;
+}
+function pubAdvarsler(){
+  const t = state.trip;
+  const adv = [];
+  const s = t.sections || {};
+  if(!s.dagfordag && !s.grunnrytme) adv.push("Ingen programform er i bruk (dag-for-dag eller grunnrytme)");
+  if(s.dagfordag && !state.days.length) adv.push("Dag-for-dag er på, men ingen dager er lagt inn");
+  if(s.grunnrytme && !(t.daily_rhythm||[]).length) adv.push("Grunnrytme er på, men ingen punkter er lagt inn");
+  if(!state.options.length) adv.push("Ingen overnattingsalternativ er lagt inn");
+  if(!t.registration_deadline) adv.push("Påmeldingsfrist er ikke satt");
+  return adv;
+}
+function oppdaterPubPanel(){
+  const mangler = pubHardeMangler();
+  const adv = pubAdvarsler();
+  let html = "";
+  if(!mangler.length && !adv.length){
+    html = `<span class="pub-ok">✓ Ingen mangler i det som er bygget så langt. Priser og innhold kommer i senere byggetrinn.</span>`;
+  } else {
+    if(mangler.length){
+      html += `<div class="pub-mangler"><strong>Må på plass før publisering:</strong><ul>` +
+        mangler.map(m=>`<li>${escapeHtml(m)}</li>`).join("") + `</ul></div>`;
+    }
+    if(adv.length){
+      html += `<div class="pub-advarsel" style="margin-top:8px;"><strong>Advarsler (hindrer ikke publisering):</strong><ul>` +
+        adv.map(m=>`<li>${escapeHtml(m)}</li>`).join("") + `</ul></div>`;
+    }
+  }
+  el("pubPanel").innerHTML = html;
+}
+
+function oppdaterDagerHint(){
+  const t = state.trip;
+  if(t.start_date && t.end_date){
+    const diff = Math.round((new Date(t.end_date) - new Date(t.start_date)) / 86400000) + 1;
+    el("dagerHint").textContent = diff > 0 ? `Datoene tilsier ${diff} dager.` : "Til-dato er før fra-dato.";
+  } else {
+    el("dagerHint").textContent = "";
+  }
+}
+
+/* ---------- Blokk-mekanikken (Program-fanen) ----------
+   To uavhengige blokker: dag-for-dag og grunnrytme. En blokk som slås av
+   beholder alt innhold - både i state og i basen - og legger seg som en
+   brikke nederst i fanen. */
+const PROGRAM_BLOKKER = [
+  { key:"dagfordag", navn:"Dag for dag" },
+  { key:"grunnrytme", navn:"Grunnrytme / typisk dag" },
+];
+
+function renderProgram(){
+  const s = state.trip.sections || {};
+  const holder = el("programBlokker");
+  let html = "";
+
+  if(s.dagfordag){
+    html += `<div class="card" id="blokkDagfordag">
+      <div class="card-title"><span>Dag for dag</span>
+        <button type="button" class="blokk-av-knapp" data-blokk-av="dagfordag">Slå av blokken (innholdet beholdes)</button>
+      </div>
+      <div class="rad-liste" id="dagListe"></div>
+      <button type="button" class="legg-til" id="btnNyDag">+ Legg til dag</button>
+    </div>`;
+  }
+  if(s.grunnrytme){
+    html += `<div class="card" id="blokkGrunnrytme">
+      <div class="card-title"><span>Grunnrytme / typisk dag</span>
+        <button type="button" class="blokk-av-knapp" data-blokk-av="grunnrytme">Slå av blokken (innholdet beholdes)</button>
+      </div>
+      <div class="rad-liste" id="rytmeListe"></div>
+      <button type="button" class="legg-til" id="btnNyRytme">+ Legg til punkt</button>
+    </div>`;
+  }
+  holder.innerHTML = html;
+
+  // Inaktive blokker som brikker
+  const av = PROGRAM_BLOKKER.filter(b=>!s[b.key]);
+  el("programBrikker").innerHTML = av.length
+    ? `<span class="intro">Ikke i bruk:</span>` + av.map(b=>
+        `<button type="button" class="blokk-brikke" data-blokk-pa="${b.key}">+ ${escapeHtml(b.navn)}</button>`).join("")
+    : "";
+
+  holder.querySelectorAll("[data-blokk-av]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      state.trip.sections = { ...(state.trip.sections||{}), [btn.dataset.blokkAv]: false };
+      markDirty(); renderProgram(); oppdaterPubPanel();
+    });
+  });
+  el("programBrikker").querySelectorAll("[data-blokk-pa]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      state.trip.sections = { ...(state.trip.sections||{}), [btn.dataset.blokkPa]: true };
+      markDirty(); renderProgram(); oppdaterPubPanel();
+    });
+  });
+
+  if(s.dagfordag) renderDager();
+  if(s.grunnrytme) renderRytme();
+}
+
+function renderDager(){
+  const liste = el("dagListe");
+  if(!liste) return;
+  liste.innerHTML = state.days.map((d,i)=>`
+    <div class="rad" data-key="${d.clientKey}">
+      <div class="nr">${i+1}.</div>
+      <div class="felt">
+        <input type="text" class="dag-tittel" placeholder="Dagens tittel" value="${escapeHtml(d.fields.title||"")}" style="width:100%; box-sizing:border-box; margin-bottom:6px; padding:6px 8px; border:1px solid var(--hairline); border-radius:6px; font-size:13px;">
+        <textarea class="dag-tekst" placeholder="Beskrivelse" style="width:100%; box-sizing:border-box; min-height:56px; padding:6px 8px; border:1px solid var(--hairline); border-radius:6px; font-size:13px; font-family:inherit; resize:vertical;">${escapeHtml(d.fields.description||"")}</textarea>
+      </div>
+      <div class="rad-knapper">
+        <button type="button" class="dag-opp" title="Flytt opp">↑</button>
+        <button type="button" class="dag-ned" title="Flytt ned">↓</button>
+        <button type="button" class="dag-slett" title="Fjern dag">✕</button>
+      </div>
+    </div>`).join("");
+
+  liste.querySelectorAll(".rad").forEach(rad=>{
+    const d = state.days.find(x=>x.clientKey === rad.dataset.key);
+    if(!d) return;
+    rad.querySelector(".dag-tittel").addEventListener("input", e=>{ d.fields.title = e.target.value; markDirty(); });
+    rad.querySelector(".dag-tekst").addEventListener("input", e=>{ d.fields.description = e.target.value; markDirty(); });
+    rad.querySelector(".dag-opp").addEventListener("click", ()=> flyttDag(d, -1));
+    rad.querySelector(".dag-ned").addEventListener("click", ()=> flyttDag(d, 1));
+    rad.querySelector(".dag-slett").addEventListener("click", ()=>{
+      // Bilder på dagen slettes automatisk av basen (cascade) - si det.
+      const advarsel = d.harBilder
+        ? "Denne dagen har bilder knyttet til seg. Bildene slettes også, permanent.\n\n"
+        : "";
+      if(!confirm(advarsel + "Fjerne dag " + (state.days.indexOf(d)+1) + " fra programmet?")) return;
+      state.days = state.days.filter(x=>x !== d);
+      markDirty(); renderDager(); oppdaterPubPanel();
+    });
+  });
+}
+function flyttDag(d, retning){
+  const i = state.days.indexOf(d);
+  const j = i + retning;
+  if(j < 0 || j >= state.days.length) return;
+  state.days.splice(i,1); state.days.splice(j,0,d);
+  markDirty(); renderDager();
+}
+
+function renderRytme(){
+  const liste = el("rytmeListe");
+  if(!liste) return;
+  const rytme = state.trip.daily_rhythm || [];
+  liste.innerHTML = rytme.map((r,i)=>`
+    <div class="rad" data-i="${i}">
+      <div class="felt" style="display:grid; grid-template-columns:90px 1fr; gap:8px;">
+        <input type="time" class="ry-tid" value="${escapeHtml(r.tid||"")}" style="padding:6px 8px; border:1px solid var(--hairline); border-radius:6px; font-size:13px;">
+        <input type="text" class="ry-tittel" placeholder="F.eks. Bibeltime I" value="${escapeHtml(r.tittel||"")}" style="padding:6px 8px; border:1px solid var(--hairline); border-radius:6px; font-size:13px;">
+      </div>
+      <div class="rad-knapper">
+        <button type="button" class="ry-opp" title="Flytt opp">↑</button>
+        <button type="button" class="ry-ned" title="Flytt ned">↓</button>
+        <button type="button" class="ry-slett" title="Fjern">✕</button>
+      </div>
+    </div>`).join("");
+
+  liste.querySelectorAll(".rad").forEach(rad=>{
+    const i = Number(rad.dataset.i);
+    rad.querySelector(".ry-tid").addEventListener("input", e=>{ state.trip.daily_rhythm[i].tid = e.target.value; markDirty(); });
+    rad.querySelector(".ry-tittel").addEventListener("input", e=>{ state.trip.daily_rhythm[i].tittel = e.target.value; markDirty(); });
+    rad.querySelector(".ry-opp").addEventListener("click", ()=> flyttRytme(i,-1));
+    rad.querySelector(".ry-ned").addEventListener("click", ()=> flyttRytme(i,1));
+    rad.querySelector(".ry-slett").addEventListener("click", ()=>{
+      state.trip.daily_rhythm.splice(i,1);
+      markDirty(); renderRytme(); oppdaterPubPanel();
+    });
+  });
+}
+function flyttRytme(i, retning){
+  const r = state.trip.daily_rhythm;
+  const j = i + retning;
+  if(j < 0 || j >= r.length) return;
+  const [x] = r.splice(i,1); r.splice(j,0,x);
+  markDirty(); renderRytme();
+}
+
+/* ---------- Overnattingsalternativ ---------- */
+function renderAlternativer(){
+  const holder = el("altListe");
+  // B7: hele strukturen låses på en reise som ikke er kladd, til "Endre"
+  // er bekreftet - disabled på alt interaktivt.
+  const laast = erLaast();
+  const dis = laast ? "disabled" : "";
+  holder.innerHTML = state.options.map((o,idx)=>{
+    const oppholdHtml = o.fields.self_arranged
+      ? `<div class="hint" style="font-size:12px; color:var(--ink-muted); margin-top:8px;">Kunden ordner overnatting selv - alternativet har ingen opphold. Pris/deltakeravgift kommer i Priser-fanen (senere byggetrinn).</div>`
+      : `<div class="opphold-liste">
+          ${o.stays.map((s,si)=>oppholdRadHtml(o,s,si,dis)).join("")}
+          <button type="button" class="legg-til btn-nytt-opphold" data-okey="${o.clientKey}" ${dis}>+ Legg til opphold</button>
+        </div>`;
+    return `<div class="alt-kort ${laast?"laast":""}" data-okey="${o.clientKey}">
+      <div class="alt-topp">
+        <input type="text" class="alt-navn" placeholder="Alternativets navn (f.eks. hotellnavn eller «Reiserute»)" value="${escapeHtml(o.fields.name||"")}" style="padding:7px 9px; border:1px solid var(--hairline); border-radius:7px; font-size:13.5px;" ${dis}>
+        <label class="cb"><input type="checkbox" class="alt-selv" ${o.fields.self_arranged?"checked":""} ${dis}> Kunden ordner selv</label>
+        <label class="cb">Kapasitet <input type="number" class="alt-kap" min="0" step="1" placeholder="Ingen egen grense" value="${o.fields.capacity ?? ""}" style="width:120px; padding:6px 8px; border:1px solid var(--hairline); border-radius:6px; font-size:12.5px;" ${dis}></label>
+        <div class="rad-knapper" style="flex-direction:row;">
+          <button type="button" class="alt-opp" title="Flytt opp" ${dis}>↑</button>
+          <button type="button" class="alt-ned" title="Flytt ned" ${dis}>↓</button>
+          <button type="button" class="alt-slett" title="Fjern alternativ" ${dis}>✕</button>
+        </div>
+      </div>
+      <textarea class="alt-beskrivelse" placeholder="Kort beskrivelse av alternativet (valgfritt)" style="width:100%; box-sizing:border-box; min-height:44px; padding:6px 8px; border:1px solid var(--hairline); border-radius:6px; font-size:12.5px; font-family:inherit; resize:vertical;" ${dis}>${escapeHtml(o.fields.description||"")}</textarea>
+      ${oppholdHtml}
+    </div>`;
+  }).join("");
+
+  holder.querySelectorAll(".alt-kort").forEach(kort=>{
+    const o = state.options.find(x=>x.clientKey === kort.dataset.okey);
+    if(!o) return;
+    kort.querySelector(".alt-navn").addEventListener("input", e=>{ o.fields.name = e.target.value; markDirty(); });
+    kort.querySelector(".alt-beskrivelse").addEventListener("input", e=>{ o.fields.description = e.target.value; markDirty(); });
+    kort.querySelector(".alt-kap").addEventListener("input", e=>{ o.fields.capacity = numOrNull(e.target.value); markDirty(); });
+    kort.querySelector(".alt-selv").addEventListener("change", e=>{
+      if(e.target.checked && o.stays.length){
+        if(!confirm("Alternativet har " + o.stays.length + " opphold. «Kunden ordner selv» skjuler oppholdene, men innholdet beholdes til du eventuelt fjerner dem. Fortsette?")){
+          e.target.checked = false; return;
+        }
+      }
+      o.fields.self_arranged = e.target.checked;
+      markDirty(); renderAlternativer();
+    });
+    kort.querySelector(".alt-opp").addEventListener("click", ()=> flyttAlt(o,-1));
+    kort.querySelector(".alt-ned").addEventListener("click", ()=> flyttAlt(o,1));
+    kort.querySelector(".alt-slett").addEventListener("click", ()=>{
+      const antallOpphold = o.stays.length;
+      if(!confirm("Fjerne alternativet «" + (o.fields.name||"uten navn") + "»" +
+        (antallOpphold ? " med " + antallOpphold + " opphold" : "") + "?")) return;
+      state.options = state.options.filter(x=>x !== o);
+      markDirty(); renderAlternativer(); oppdaterPubPanel();
+    });
+    const nyttOpphold = kort.querySelector(".btn-nytt-opphold");
+    if(nyttOpphold) nyttOpphold.addEventListener("click", ()=>{
+      o.stays.push({ id:null, clientKey:newClientKey(), fields:{ name:"", location:"", stars:null, nights:null, date_range_text:"", hotel_id:null } });
+      markDirty(); renderAlternativer();
+    });
+    kort.querySelectorAll(".opphold-rad").forEach(rad=>{
+      const s = o.stays.find(x=>x.clientKey === rad.dataset.skey);
+      if(!s) return;
+      rad.querySelector(".op-navn").addEventListener("input", e=>{ s.fields.name = e.target.value; markDirty(); });
+      rad.querySelector(".op-sted").addEventListener("input", e=>{ s.fields.location = e.target.value; markDirty(); });
+      rad.querySelector(".op-stjerner").addEventListener("change", e=>{ s.fields.stars = numOrNull(e.target.value); markDirty(); });
+      rad.querySelector(".op-netter").addEventListener("input", e=>{ s.fields.nights = numOrNull(e.target.value); markDirty(); });
+      rad.querySelector(".op-datoer").addEventListener("input", e=>{ s.fields.date_range_text = e.target.value; markDirty(); });
+      rad.querySelector(".op-hent").addEventListener("change", e=>{
+        // Kopimønsteret (besluttet modell): registeret er utgangspunkt,
+        // reisen står på egne ben. Senere registerendringer rører aldri
+        // det som ble kopiert inn her.
+        const h = hotellRegister.find(x=>x.id === e.target.value);
+        if(!h) return;
+        s.fields.name = h.navn || "";
+        s.fields.location = [h.by, h.land].filter(Boolean).join(", ");
+        s.fields.stars = h.stjerner ?? null;
+        s.fields.hotel_id = h.id;
+        markDirty(); renderAlternativer();
+      });
+      rad.querySelector(".op-slett").addEventListener("click", ()=>{
+        if(!confirm("Fjerne oppholdet «" + (s.fields.name||"uten navn") + "»?")) return;
+        o.stays = o.stays.filter(x=>x !== s);
+        markDirty(); renderAlternativer();
+      });
+    });
+  });
+}
+function oppholdRadHtml(o, s, si, dis){
+  dis = dis || "";
+  const stjerneValg = [ ["",""],["1","1★"],["2","2★"],["3","3★"],["4","4★"],["5","5★"] ]
+    .map(([v,l])=>`<option value="${v}" ${String(s.fields.stars??"")===v?"selected":""}>${l||"–"}</option>`).join("");
+  const hentValg = `<option value="">Hent fra hotelloversikt…</option>` +
+    hotellRegister.map(h=>{
+      const sted = [h.by, h.land].filter(Boolean).join(", ");
+      return `<option value="${h.id}">${escapeHtml(h.navn)}${sted?" – "+escapeHtml(sted):""}</option>`;
+    }).join("");
+  return `<div class="opphold-rad" data-skey="${s.clientKey}">
+    <div class="fl"><label>Hotell/sted</label><input type="text" class="op-navn" value="${escapeHtml(s.fields.name||"")}" placeholder="Hotellnavn" ${dis}></div>
+    <div class="fl"><label>Sted</label><input type="text" class="op-sted" value="${escapeHtml(s.fields.location||"")}" ${dis}></div>
+    <div class="fl"><label>Stjerner</label><select class="op-stjerner" ${dis}>${stjerneValg}</select></div>
+    <div class="fl"><label>Netter</label><input type="number" class="op-netter" min="0" step="1" value="${s.fields.nights ?? ""}" ${dis}></div>
+    <div class="fl"><label>Datotekst</label><input type="text" class="op-datoer" value="${escapeHtml(s.fields.date_range_text||"")}" placeholder="F.eks. 24.–29. november" ${dis}></div>
+    <div class="fl" style="display:flex; gap:6px; align-items:flex-end;">
+      <select class="op-hent" style="max-width:170px;" ${dis}>${hentValg}</select>
+      <button type="button" class="op-slett" title="Fjern opphold" style="width:28px; height:28px; border:1px solid var(--hairline); border-radius:6px; background:var(--surface-1); cursor:pointer;" ${dis}>✕</button>
+    </div>
+  </div>`;
+}
+function flyttAlt(o, retning){
+  const i = state.options.indexOf(o);
+  const j = i + retning;
+  if(j < 0 || j >= state.options.length) return;
+  state.options.splice(i,1); state.options.splice(j,0,o);
+  markDirty(); renderAlternativer();
+}
+el("btnNyttAlt").addEventListener("click", ()=>{
+  state.options.push({ id:null, clientKey:newClientKey(),
+    fields:{ name:"", description:"", self_arranged:false, capacity:null, active:true },
+    stays:[] });
+  markDirty(); renderAlternativer(); oppdaterPubPanel();
+});
+document.addEventListener("click", (e)=>{
+  if(e.target && e.target.id === "btnNyDag"){
+    state.days.push({ id:null, clientKey:newClientKey(), fields:{ title:"", description:"" }, harBilder:false });
+    markDirty(); renderDager(); oppdaterPubPanel();
+  }
+  if(e.target && e.target.id === "btnNyRytme"){
+    if(!state.trip.daily_rhythm) state.trip.daily_rhythm = [];
+    state.trip.daily_rhythm.push({ tid:"", tittel:"" });
+    markDirty(); renderRytme(); oppdaterPubPanel();
+  }
+});
+
+/* ---------- Faner ---------- */
+document.querySelectorAll(".tab-btn[data-tab]").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab-btn[data-tab]").forEach(b=>b.classList.remove("aktiv"));
+    document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("aktiv"));
+    btn.classList.add("aktiv");
+    document.querySelector(`.tab-panel[data-panel="${btn.dataset.tab}"]`).classList.add("aktiv");
+  });
+});
+
+/* ---------- Sletting (Neuer K3: cascade tar påmeldingene) ---------- */
+el("btnSlett").addEventListener("click", async ()=>{
+  const antall = await hentPaameldingsAntall();
+  if(antall === null){
+    alert("Fikk ikke verifisert om reisen har påmeldinger (tellingen feilet).\n\n" +
+      "Sletting er derfor sperret. Prøv igjen senere.");
+    return;
+  }
+  if(antall > 0){
+    alert("Denne reisen har " + antall + " påmelding(er) og kan ikke slettes.\n\n" +
+      "Sletting ville også slettet påmeldingene permanent, med navn og persondata. " +
+      "Sett reisen til Kladd eller Utsolgt i stedet dersom den ikke lenger skal vises.");
+    return;
+  }
+  if(!confirm("Slette denne reisen permanent, inkludert program, overnattingsalternativ og bilder?")) return;
+  const { error } = await window.sb.from("trips").delete().eq("id", tripId);
+  if(error){ alert("Kunne ikke slette: " + error.message); return; }
+  window.location.href = "reiser.html";
+});
+
+/* ---------- Innlasting ---------- */
+function renderGrunnfelter(){
+  const t = state.trip;
+  el("f-tittel").value = t.title || "";
+  el("f-status").value = t.status || "kladd";
+  el("typeLine").textContent = (TYPE_LABEL[t.trip_type] || t.trip_type || "") + (t.slug ? "  ·  /" + t.slug : "");
+  el("g-slug").value = t.slug || "";
+  el("g-undertittel").value = t.subtitle || "";
+  el("g-destinasjon").value = t.destination || "";
+  el("g-land").value = t.country || "";
+  el("g-fra").value = t.start_date || "";
+  el("g-til").value = t.end_date || "";
+  el("g-dager").value = t.days ?? "";
+  el("g-avreisested").value = t.departure_airport || "";
+  el("r-kapasitet").value = t.capacity ?? "";
+  el("r-frist").value = t.registration_deadline || "";
+  el("r-min").value = t.min_participants ?? "";
+  el("r-min-note").value = t.min_participants_note || "";
+  el("o-modus").value = t.accommodation_mode || "fast_reiserute";
+  el("i-notater").value = state.internal.interne_notater || "";
+  oppdaterDagerHint();
+}
+
+async function lastReise(id){
+  const [rTrip, rInternal, rOptions, rStays, rDays, rHoteller] = await Promise.all([
+    window.sb.from("trips").select("*").eq("id", id).single(),
+    window.sb.from("trip_internal").select("*").eq("trip_id", id).maybeSingle(),
+    window.sb.from("trip_options").select("*").eq("trip_id", id).order("sort_order"),
+    window.sb.from("trip_hotels").select("*").eq("trip_id", id).order("sort_order"),
+    window.sb.from("trip_days").select("*").eq("trip_id", id).order("day_number"),
+    window.sb.from("hoteller").select("id,navn,by,land,stjerner").order("navn"),
+  ]);
+  if(rTrip.error || !rTrip.data) return false;
+  // B1: feiler EN av datakildene, skal editoren stoppe - ikke vise en
+  // tilsynelatende tom reise som en ny lagring så ville duplisert.
+  // (Hotellregisteret er unntaket: det brukes kun til nedtrekket.)
+  const lastefeil = [rInternal.error, rOptions.error, rStays.error, rDays.error].filter(Boolean);
+  if(lastefeil.length){
+    el("loadMsg").textContent = "Kunne ikke laste hele reisen (" + lastefeil[0].message + "). Last siden på nytt før du redigerer.";
+    return "stopp";
+  }
+  const trip = rTrip.data, internal = rInternal.data, options = rOptions.data,
+        stays = rStays.data, days = rDays.data, hoteller = rHoteller.data;
+
+  state.trip = {
+    title: trip.title, slug: trip.slug, subtitle: trip.subtitle,
+    trip_type: trip.trip_type, destination: trip.destination, country: trip.country,
+    start_date: trip.start_date, end_date: trip.end_date, days: trip.days,
+    departure_airport: trip.departure_airport, status: trip.status,
+    capacity: trip.capacity, registration_deadline: trip.registration_deadline,
+    min_participants: trip.min_participants, min_participants_note: trip.min_participants_note,
+    accommodation_mode: trip.accommodation_mode || "fast_reiserute",
+    sections: trip.sections || {},
+    daily_rhythm: Array.isArray(trip.daily_rhythm) ? trip.daily_rhythm : [],
+  };
+  state.sisteLagredeTittel = trip.title || "";
+  state.sisteLagredeSlug = trip.slug || null;
+  state.internal = { interne_notater: (internal && internal.interne_notater) || "" };
+  hotellRegister = hoteller || [];
+
+  state.days = (days||[]).map(d=>({ id:d.id, clientKey:d.id, fields:{ title:d.title||"", description:d.description||"" }, harBilder:false }));
+  // Bildemerking på dagene (cascade-advarsel ved sletting). Feiler oppslaget,
+  // stopper vi som for de andre kildene (B1) - en manglende bildeadvarsel
+  // ville ellers latt bilder slettes stille.
+  if(state.days.length){
+    const { data: dayImgs, error: eImgs } = await window.sb.from("trip_day_images").select("trip_day_id").in("trip_day_id", state.days.map(d=>d.id));
+    if(eImgs){
+      el("loadMsg").textContent = "Kunne ikke laste hele reisen (" + eImgs.message + "). Last siden på nytt før du redigerer.";
+      return "stopp";
+    }
+    const harBilder = new Set((dayImgs||[]).map(x=>x.trip_day_id));
+    state.days.forEach(d=>{ d.harBilder = harBilder.has(d.id); });
+  }
+
+  const staysPerOption = {};
+  (stays||[]).forEach(s=>{
+    const key = s.trip_option_id || "__uten__";
+    (staysPerOption[key] = staysPerOption[key] || []).push(s);
+  });
+  state.options = (options||[]).map(o=>({
+    id:o.id, clientKey:o.id,
+    fields:{ name:o.name||"", description:o.description||"", self_arranged:!!o.self_arranged, capacity:o.capacity ?? null, active:o.active !== false },
+    stays: (staysPerOption[o.id]||[]).map(s=>({ id:s.id, clientKey:s.id,
+      fields:{ name:s.name||"", location:s.location||"", stars:s.stars ?? null, nights:s.nights ?? null, date_range_text:s.date_range_text||"", hotel_id:s.hotel_id||null } })),
+  }));
+  // Opphold uten alternativ (skal ikke finnes etter migreringen, men
+  // håndteres i stedet for å bli usynlige): samles i et eget alternativ.
+  if(staysPerOption["__uten__"]){
+    state.options.push({ id:null, clientKey:newClientKey(),
+      fields:{ name:"Reiserute", description:"", self_arranged:false, capacity:null, active:true },
+      stays: staysPerOption["__uten__"].map(s=>({ id:s.id, clientKey:s.id,
+        fields:{ name:s.name||"", location:s.location||"", stars:s.stars ?? null, nights:s.nights ?? null, date_range_text:s.date_range_text||"", hotel_id:s.hotel_id||null } })),
+    });
+  }
+
+  originalIds.days = new Set(state.days.map(d=>d.id));
+  originalIds.options = new Set(state.options.map(o=>o.id).filter(Boolean));
+  originalIds.stays = new Set(state.options.flatMap(o=>o.stays.map(s=>s.id)));
+  return true;
+}
+
+el("f-tittel").addEventListener("input", ()=>{
+  el("typeLine").textContent = (TYPE_LABEL[state.trip.trip_type] || "") + (state.trip.slug ? "  ·  /" + state.trip.slug : "");
+});
+
+/* ---------- Init ---------- */
+(async ()=>{
+  const session = await requireLogin();
+  if(!session) return;
+
+  const params = new URLSearchParams(location.search);
+  tripId = params.get("id");
+  if(!tripId){
+    el("loadMsg").textContent = "Mangler reise-ID i lenken.";
+    return;
+  }
+
+  const ok = await lastReise(tripId);
+  if(ok === "stopp") return; // lastefeil - melding er allerede satt (B1)
+  if(!ok){
+    el("loadMsg").textContent = "Fant ikke reisen, eller den ble slettet.";
+    return;
+  }
+  await hentPaameldingsAntall();
+
+  el("loadMsg").style.display = "none";
+  el("editorArea").style.display = "block";
+  renderGrunnfelter();
+  renderProgram();
+  renderAlternativer();
+  oppdaterLaasUI();
+  oppdaterPubPanel();
+  settStatus("Sist lagret " + (new Date()).toLocaleDateString("nb-NO"));
+  autosaveKlar = true;
+})();
+</script>
+</body>
+</html>

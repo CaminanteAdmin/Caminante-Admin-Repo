@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reiser – Caminante Admin</title>
+<link rel="stylesheet" href="shared/style.css">
+<style>
+  /* Reiser v1: listen over reiser/bibelcamper. Samme designspråk som
+     forslag.html (blåtonede kort, hvit sidebakgrunn). */
+  :root{
+    --blue:#2a78d6;
+    --blue-dark:#184f95;
+    --card-bg:#eaf2fb;
+    --card-border:#a9c9ec;
+  }
+  body{ background:var(--surface-1); }
+  .toolbar{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    padding:14px 24px; background:var(--surface-1);
+    border-bottom:1px solid var(--hairline);
+    position:sticky; top:0; z-index:5;
+  }
+  .toolbar input[type="search"]{
+    flex:1 1 220px; min-width:160px; padding:7px 10px;
+    border:1px solid var(--hairline); border-radius:8px; font-size:13px;
+    background:var(--surface-1); color:var(--ink-primary);
+  }
+  .toolbar select{
+    padding:7px 8px; border:1px solid var(--hairline); border-radius:8px;
+    font-size:13px; background:var(--surface-1); color:var(--ink-primary);
+  }
+  .toolbar button.action{
+    padding:7px 12px; border:1px solid var(--hairline); border-radius:8px;
+    font-size:13px; background:var(--surface-1); color:var(--ink-secondary); cursor:pointer;
+  }
+  .toolbar button.action.primary{ background:var(--blue); color:#fff; border-color:var(--blue); }
+  .toolbar button:hover{ background:var(--page); }
+  .toolbar button.action.primary:hover{ background:var(--blue-dark); }
+  .count-pill{ font-size:12.5px; color:var(--ink-muted); margin-left:auto; padding-left:8px; }
+  .main{ padding:20px 24px 32px; }
+  .list-panel{
+    background:var(--surface-1); border:1px solid var(--card-border);
+    border-radius:10px; padding:16px; overflow-x:auto;
+  }
+  .list-panel h2{
+    font-size:13px; font-weight:650; margin:0 0 12px; color:var(--ink-secondary);
+    text-transform:uppercase; letter-spacing:0.03em;
+  }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  thead th{
+    text-align:left; font-weight:600; color:var(--ink-secondary);
+    padding:10px 10px; background:var(--card-bg);
+    border-bottom:1px solid var(--card-border);
+    cursor:pointer; white-space:nowrap; user-select:none;
+  }
+  thead th:first-child{ border-top-left-radius:6px; }
+  thead th:last-child{ border-top-right-radius:6px; }
+  thead th:hover{ color:var(--ink-primary); }
+  thead th .arrow{ font-size:10px; color:var(--ink-muted); margin-left:3px; }
+  tbody td{ padding:11px 10px; border-bottom:1px solid var(--hairline); vertical-align:middle; white-space:nowrap; }
+  tbody tr{ cursor:pointer; }
+  tbody tr:hover{ background:var(--card-bg); }
+  .reise-tittel{ font-weight:600; }
+  .reise-sub{ font-size:11.5px; color:var(--ink-muted); }
+  .status-chip{
+    display:inline-block; font-size:11.5px; padding:2.5px 9px; border-radius:20px;
+    border:1px solid var(--hairline); color:var(--ink-secondary); background:var(--surface-1);
+  }
+  .status-chip.publisert{ background:#e7f5e7; border-color:#bfe3bf; color:#0a7a0a; }
+  .status-chip.kladd{ background:var(--page); }
+  .status-chip.utsolgt{ background:#fbeaea; border-color:#eec3c3; color:#a03030; }
+  .status-chip.kommer_snart{ background:#fdf4e3; border-color:#eddaaf; color:#8a6a1d; }
+  .type-chip{
+    display:inline-block; font-size:11.5px; padding:2.5px 9px; border-radius:20px;
+    background:var(--card-bg); border:1px solid var(--card-border); color:var(--blue-dark);
+  }
+  .pm-count{ font-variant-numeric:tabular-nums; }
+  .pm-count.har{ font-weight:650; color:var(--blue-dark); }
+  .empty-msg{ padding:24px 10px; color:var(--ink-muted); font-size:13px; }
+
+  /* Ny reise-modal */
+  .modal-bg{
+    display:none; position:fixed; inset:0; background:rgba(11,11,11,0.35); z-index:20;
+    align-items:center; justify-content:center;
+  }
+  .modal-bg.open{ display:flex; }
+  .modal{
+    background:var(--surface-1); border-radius:12px; padding:22px 24px;
+    width:min(440px, 92vw); box-shadow:0 10px 34px rgba(0,0,0,0.18);
+  }
+  .modal h3{ margin:0 0 14px; font-size:15px; }
+  .modal label{ display:block; font-size:12.5px; color:var(--ink-secondary); margin:12px 0 4px; }
+  .modal input[type="text"]{
+    width:100%; padding:8px 10px; border:1px solid var(--hairline); border-radius:8px;
+    font-size:13.5px; box-sizing:border-box;
+  }
+  .type-valg{ display:flex; gap:10px; margin-top:4px; }
+  .type-valg .tv{
+    flex:1; border:1px solid var(--hairline); border-radius:10px; padding:12px;
+    cursor:pointer; text-align:center; font-size:13px;
+  }
+  .type-valg .tv.valgt{ border-color:var(--blue); background:var(--card-bg); font-weight:650; }
+  .type-valg .tv small{ display:block; color:var(--ink-muted); font-weight:400; font-size:11.5px; margin-top:3px; }
+  .modal-btns{ display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+  .modal-btns button{
+    padding:8px 14px; border-radius:8px; font-size:13px; cursor:pointer;
+    border:1px solid var(--hairline); background:var(--surface-1); color:var(--ink-secondary);
+  }
+  .modal-btns button.primary{ background:var(--blue); color:#fff; border-color:var(--blue); }
+  .modal-hint{ font-size:11.5px; color:var(--ink-muted); margin-top:8px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html">
+    <span class="company">Caminante</span>
+    <span class="tool-name">Reiser</span>
+  </a>
+  <div class="user-area">
+    <span id="userName"></span>
+    <button class="logout-btn" id="logoutBtn">Logg ut</button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <input type="search" id="sok" placeholder="Søk i tittel eller reisemål…">
+  <select id="filterStatus">
+    <option value="">Alle statuser</option>
+    <option value="kladd">Kladd</option>
+    <option value="publisert">Publisert</option>
+    <option value="utsolgt">Utsolgt</option>
+    <option value="kommer_snart">Kommer snart</option>
+  </select>
+  <select id="filterType">
+    <option value="">Alle typer</option>
+    <option value="reise">Påmeldingstur</option>
+    <option value="bibelcamp">Bibelcamp</option>
+  </select>
+  <button class="action primary" id="btnNy">+ Ny reise</button>
+  <span class="count-pill" id="antall"></span>
+</div>
+
+<div class="main">
+  <div class="list-panel">
+    <h2>Reiser og bibelcamper</h2>
+    <table>
+      <thead>
+        <tr>
+          <th data-key="title">Tittel <span class="arrow"></span></th>
+          <th data-key="trip_type">Type <span class="arrow"></span></th>
+          <th data-key="status">Status <span class="arrow"></span></th>
+          <th data-key="start_date">Datoer <span class="arrow"></span></th>
+          <th data-key="paameldinger">Påmeldinger <span class="arrow"></span></th>
+          <th data-key="updated_at">Sist endret <span class="arrow"></span></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty-msg" id="emptyMsg" style="display:none;">Ingen reiser matcher filteret.</div>
+  </div>
+</div>
+
+<!-- Ny reise -->
+<div class="modal-bg" id="nyModalBg">
+  <div class="modal">
+    <h3>Ny reise</h3>
+    <label>Type</label>
+    <div class="type-valg">
+      <div class="tv valgt" data-type="reise">Påmeldingstur<small>Dag-for-dag-program, fast reiserute</small></div>
+      <div class="tv" data-type="bibelcamp">Bibelcamp<small>Grunnrytme, valgbare overnattingsalternativ</small></div>
+    </div>
+    <label for="nyTittel">Tittel</label>
+    <input type="text" id="nyTittel" placeholder="F.eks. Eventyrlige Marokko">
+    <div class="modal-hint">Typen setter kun startvalgene for reisen - alt kan justeres i editoren etterpå.</div>
+    <div class="modal-btns">
+      <button id="nyAvbryt">Avbryt</button>
+      <button class="primary" id="nyOpprett">Opprett</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+let reiser = [];            // rader fra trips + paameldinger-antall
+let sortKey = "updated_at";
+let sortAsc = false;
+let nyType = "reise";
+
+function el(id){ return document.getElementById(id); }
+function escapeHtml(str){
+  return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+
+const TYPE_LABEL = { reise:"Påmeldingstur", bibelcamp:"Bibelcamp" };
+const STATUS_LABEL = { kladd:"Kladd", publisert:"Publisert", utsolgt:"Utsolgt", kommer_snart:"Kommer snart" };
+
+function fmtDato(d){
+  if(!d) return "";
+  const [y,m,day] = d.split("-");
+  return `${day}.${m}.${y}`;
+}
+function fmtPeriode(r){
+  if(!r.start_date && !r.end_date) return "–";
+  if(r.start_date && r.end_date) return `${fmtDato(r.start_date)} – ${fmtDato(r.end_date)}`;
+  return fmtDato(r.start_date || r.end_date);
+}
+
+async function lastReiser(){
+  // Påmeldinger telles fra BEGGE dagens påmeldingstabeller. Merk: tallene
+  // her er kun til visning og kan underrapportere over 1000 rader samlet
+  // (Supabase-radgrense). Slettesperren i editoren bruker en egen, eksakt
+  // telling og er ikke avhengig av denne.
+  const [{ data: trips, error: e0 }, rRegs, rBooks] = await Promise.all([
+    window.sb.from("trips").select("id,slug,title,trip_type,status,start_date,end_date,destination,updated_at").order("updated_at",{ascending:false}),
+    window.sb.from("registrations").select("trip_id"),
+    window.sb.from("bookings").select("trip_id"),
+  ]);
+  if(e0){ alert("Kunne ikke hente reiser: " + e0.message); return; }
+  // B6: feiler tellingen, skal kolonnen vise "?" - aldri en falsk 0.
+  const tellingOk = !rRegs.error && !rBooks.error;
+  const antallPer = {};
+  (rRegs.data||[]).forEach(r=>{ antallPer[r.trip_id] = (antallPer[r.trip_id]||0)+1; });
+  (rBooks.data||[]).forEach(b=>{ antallPer[b.trip_id] = (antallPer[b.trip_id]||0)+1; });
+  reiser = (trips||[]).map(t=>({ ...t, paameldinger: tellingOk ? (antallPer[t.id] || 0) : null }));
+  render();
+}
+
+function filtrert(){
+  const q = el("sok").value.trim().toLowerCase();
+  const st = el("filterStatus").value;
+  const ty = el("filterType").value;
+  return reiser.filter(r=>{
+    if(st && r.status !== st) return false;
+    if(ty && r.trip_type !== ty) return false;
+    if(q && !((r.title||"").toLowerCase().includes(q) || (r.destination||"").toLowerCase().includes(q))) return false;
+    return true;
+  });
+}
+
+function render(){
+  const rows = filtrert().slice().sort((a,b)=>{
+    let va = a[sortKey], vb = b[sortKey];
+    if(va == null) va = ""; if(vb == null) vb = "";
+    if(typeof va === "string") va = va.toLowerCase();
+    if(typeof vb === "string") vb = vb.toLowerCase();
+    if(va < vb) return sortAsc ? -1 : 1;
+    if(va > vb) return sortAsc ? 1 : -1;
+    return 0;
+  });
+  el("tbody").innerHTML = rows.map(r=>`
+    <tr data-id="${r.id}">
+      <td><span class="reise-tittel">${escapeHtml(r.title)}</span><br><span class="reise-sub">${escapeHtml(r.destination||"")}</span></td>
+      <td><span class="type-chip">${TYPE_LABEL[r.trip_type] || escapeHtml(r.trip_type||"")}</span></td>
+      <td><span class="status-chip ${escapeHtml(r.status||"")}">${STATUS_LABEL[r.status] || escapeHtml(r.status||"")}</span></td>
+      <td>${fmtPeriode(r)}</td>
+      <td><span class="pm-count ${r.paameldinger>0?"har":""}" ${r.paameldinger===null?'title="Tellingen feilet - antallet er ukjent"':""}>${r.paameldinger===null?"?":r.paameldinger}</span></td>
+      <td>${r.updated_at ? new Date(r.updated_at).toLocaleDateString("nb-NO") : ""}</td>
+    </tr>`).join("");
+  el("emptyMsg").style.display = rows.length ? "none" : "block";
+  el("antall").textContent = `${rows.length} av ${reiser.length}`;
+  el("tbody").querySelectorAll("tr").forEach(tr=>{
+    tr.addEventListener("click", ()=>{ window.location.href = `reise-editor.html?id=${encodeURIComponent(tr.dataset.id)}`; });
+  });
+}
+
+/* ---------- Ny reise ---------- */
+
+function slugify(s){
+  return (s||"").toLowerCase()
+    .replaceAll("æ","ae").replaceAll("ø","o").replaceAll("å","a")
+    .normalize("NFD").replace(/[̀-ͯ]/g,"")
+    .replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"")
+    .slice(0,60) || "reise";
+}
+
+async function opprettReise(){
+  const tittel = el("nyTittel").value.trim();
+  if(!tittel){ alert("Skriv en tittel."); return; }
+  // Slug settes ÉN gang ved opprettelse og regenereres aldri automatisk
+  // senere (Neuer B4: slug er offentlig URL - en tittelrettelse skal ikke
+  // brekke utsendte lenker). Unikhet sikres mot allerede lastede reiser,
+  // og databasefeil ved kollisjon håndteres med suffiks.
+  const eksisterende = new Set(reiser.map(r=>r.slug).filter(Boolean));
+  let slug = slugify(tittel), n = 2;
+  while(eksisterende.has(slug)) slug = slugify(tittel) + "-" + (n++);
+
+  // Typen setter KUN startvalg (besluttet modell): hvilke blokker som er på,
+  // og overnattingsmodus. Deretter konsulteres typen aldri igjen.
+  const sections = nyType === "bibelcamp"
+    ? { dagfordag:false, grunnrytme:true }
+    : { dagfordag:true, grunnrytme:false };
+  const mode = nyType === "bibelcamp" ? "kunden_velger" : "fast_reiserute";
+
+  const payload = {
+    title: tittel,
+    slug,
+    trip_type: nyType,
+    status: "kladd",
+    category: nyType === "bibelcamp" ? "bibelreiser" : "oppdagelsesreiser",
+    cta_type: "meld_deg_pa",
+    sections,
+    accommodation_mode: mode,
+  };
+  let { data, error } = await window.sb.from("trips").insert(payload).select("id").single();
+  if(error && /slug/i.test(error.message)){
+    payload.slug = slug + "-" + Math.random().toString(36).slice(2,6);
+    ({ data, error } = await window.sb.from("trips").insert(payload).select("id").single());
+  }
+  if(error){ alert("Kunne ikke opprette reisen: " + error.message); return; }
+  window.location.href = `reise-editor.html?id=${encodeURIComponent(data.id)}`;
+}
+
+/* ---------- Wiring ---------- */
+
+el("sok").addEventListener("input", render);
+el("filterStatus").addEventListener("change", render);
+el("filterType").addEventListener("change", render);
+document.querySelectorAll("thead th").forEach(th=>{
+  th.addEventListener("click", ()=>{
+    const key = th.dataset.key;
+    if(sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = true; }
+    render();
+  });
+});
+
+el("btnNy").addEventListener("click", ()=>{ el("nyModalBg").classList.add("open"); el("nyTittel").focus(); });
+el("nyAvbryt").addEventListener("click", ()=>{ el("nyModalBg").classList.remove("open"); });
+el("nyModalBg").addEventListener("click", (e)=>{ if(e.target === el("nyModalBg")) el("nyModalBg").classList.remove("open"); });
+document.querySelectorAll(".type-valg .tv").forEach(tv=>{
+  tv.addEventListener("click", ()=>{
+    document.querySelectorAll(".type-valg .tv").forEach(x=>x.classList.remove("valgt"));
+    tv.classList.add("valgt");
+    nyType = tv.dataset.type;
+  });
+});
+el("nyOpprett").addEventListener("click", opprettReise);
+el("nyTittel").addEventListener("keydown", (e)=>{ if(e.key === "Enter") opprettReise(); });
+
+(async ()=>{
+  const session = await requireLogin();
+  if(!session) return;
+  await lastReiser();
+})();
+</script>
+</body>
+</html>

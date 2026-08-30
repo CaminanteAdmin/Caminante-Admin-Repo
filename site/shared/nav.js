@@ -20,7 +20,7 @@
     { label: "Oversikt",       href: "index.html" },
     { label: "Priskalkulator", href: "priskalkulator.html" },
     { label: "Reiseforslag",   href: "forslag.html" },
-    { label: "Reiser",         disabled: true },
+    { label: "Reiser",         href: "reiser.html" },
     { label: "Påmeldinger",    disabled: true },
     { label: "Reisemål",       href: "reisemaal.html" },
     { label: "Hoteller",       href: "hoteller.html" },

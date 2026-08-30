@@ -8,7 +8,7 @@ Cloudflare Worker i `worker.js`, Supabase som database og innlogging.
 Vidar beholder godkjenningen og kontrollen. Claude håndterer selve Git-arbeidet.
 
 1. Claude gjør kodeendringene.
-2. `kaia`-subagenten kvalitetssikrer når det er relevant (read-only QA).
+2. `neuer`-subagenten kvalitetssikrer når det er relevant (read-only QA).
 3. Vidar tester manuelt og godkjenner.
 4. **Ikke commit eller push mens vi utvikler eller tester.**
 5. Når Vidar sier at endringen er godkjent, foreslår Claude en kort og
