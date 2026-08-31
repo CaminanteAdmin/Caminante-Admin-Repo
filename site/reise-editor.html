@@ -162,6 +162,11 @@
   }
   .legg-til:hover{ background:var(--card-bg); }
 
+  /* Bildeboksen holdes smal, i samme sjikt som de øvrige kortene i
+     Reiseinfo - selve forhåndsvisningen har sitt eget tak i
+     shared/bildevelger.js. */
+  .forside-wrap{ max-width:260px; }
+
   .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:14px; }
 </style>
 </head>
@@ -269,6 +274,11 @@
       </div>
 
       <div class="card">
+        <div class="card-title"><span>Forsidebilde</span></div>
+        <div class="forside-wrap" id="forsideWrap"></div>
+      </div>
+
+      <div class="card">
         <div class="card-title"><span>Internt (vises aldri offentlig)</span></div>
         <div class="field-grid">
           <div class="field full">
@@ -297,6 +307,7 @@
 <script src="shared/supabase-client.js"></script>
 <script src="shared/auth.js"></script>
 <script src="shared/nav.js"></script>
+<script src="shared/bildevelger.js"></script>
 <script>
 /* ====================================================================
    State-basert editor. ALT som lagres bor i state; DOM er kun visning og
@@ -395,6 +406,14 @@ function tripPayload(){
     end_date: t.end_date || null,
     days: beregnDager(),
     departure_airport: t.departure_airport || null,
+    // Forsidebildet ligger på trips fordi kundesiden skal kunne lese det for
+    // en publisert reise. Reisemål-sporet lagres som id OG navnkopi, slik at
+    // merknaden «hentet fra …» fortsatt gir mening om reisemålet senere
+    // fjernes fra registeret.
+    forsidebilde_url: t.forsidebilde_url || null,
+    forsidebilde_bank_id: t.forsidebilde_bank_id || null,
+    forsidebilde_reisemaal_id: t.forsidebilde_reisemaal_id || null,
+    forsidebilde_reisemaal_navn: t.forsidebilde_reisemaal_navn || null,
     status: t.status || "kladd",
     updated_at: new Date().toISOString(),
   };
@@ -517,7 +536,7 @@ function renderReisemaalKobling(){
     const btn = el("btnFjernReisemaal");
     if(btn) btn.addEventListener("click", ()=>{
       state.trip.reisemaal_id = null;
-      markDirty(); renderReisemaalKobling();
+      markDirty(); renderReisemaalKobling(); renderForsidebilde();
     });
   } else {
     const valg = reisemaalRegister.map(r=>
@@ -535,8 +554,199 @@ function renderReisemaalKobling(){
       // et bevisst valg som ikke skal overskrives av en kobling.
       if(!(state.trip.destination||"").trim()){ state.trip.destination = r.navn; el("ri-reisemaal").value = r.navn; }
       if(!(state.trip.country||"").trim()){ state.trip.country = r.land || null; el("ri-land").value = r.land || ""; }
-      markDirty(); renderReisemaalKobling();
+      markDirty(); renderReisemaalKobling(); renderForsidebilde();
     });
+  }
+}
+
+/* ---------- Forsidebilde ----------
+   Bildet plukkes fra bildebanken til reisemålet reisen er koblet til, eller
+   lastes opp. Ingenting velges automatisk.
+
+   PRODUKTBESLUTNING (godkjent 31.08.2026): bytter man reisemål etter at et
+   forsidebilde er valgt, BEHOLDES bildet. Et bevisst valg skal aldri slettes
+   eller byttes av systemet selv. I stedet vises en tydelig merknad om hvilket
+   reisemål bildet kom fra, med «Bytt bilde» rett ved siden av. Velger man et
+   nytt bilde fra det nye reisemålets bank, forsvinner merknaden av seg selv.
+
+   Forsidebildet låses IKKE når reisen publiseres. Låsen dekker reisenavn og
+   datoer - avtalen med kunden. Å bytte et bilde er ufarlig, og skal ikke
+   kreve en opplåsing. */
+
+// Bankens tak, slik reisemaal.html håndhever det. Brukes KUN til telleren
+// «X / 50 bilder i banken» i plukkeren. Ingen opplasting herfra kan lenger
+// treffe banken, så det er ikke noe tak å håndheve på denne siden.
+const REISEMAAL_BANK_BILDER_MAKS = 50;
+
+// Banken hentes på forespørsel og mellomlagres for resten av sideøkten.
+// Endres banken fra reisemaal.html, er det i en annen fane/økt.
+const reisemaalBankCache = new Map();   // reisemaal_id -> rader fra reisemaal_bilder
+
+// Pågår det en opplasting til forsidebildet nå? Flagget MÅ ligge her, ikke
+// på knappene: boksen tegnes på nytt hvis reisemålet byttes underveis, og en
+// lås som bare lå på DOM-noden ville forsvunnet med den - da kunne to
+// opplastinger kjøre samtidig, og den siste som ble ferdig ville bestemt
+// hvilket bilde reisen satt igjen med.
+let forsidebildeOpptatt = false;
+
+async function hentReisemaalBank(reisemaalId){
+  if(!reisemaalId) return [];
+  if(reisemaalBankCache.has(reisemaalId)) return reisemaalBankCache.get(reisemaalId);
+  const { data, error } = await window.sb.from("reisemaal_bilder")
+    .select("*").eq("reisemaal_id", reisemaalId).order("sortering");
+  // Feiler kallet, skal det BOBLE OPP til plukkeren, som viser feilen. Et
+  // stille "ingen bilder" ville sett ut som en tom bank og fått noen til å
+  // laste opp et bilde de allerede har.
+  if(error) throw new Error(error.message);
+  const rader = data || [];
+  reisemaalBankCache.set(reisemaalId, rader);
+  return rader;
+}
+
+function reisemaalNavnFor(id){
+  if(!id) return null;
+  const r = reisemaalRegister.find(x=>x.id === id);
+  return r ? r.navn : null;
+}
+
+// Leses PÅ KLIKKTIDSPUNKTET, ikke når plassen tegnes - ellers ville boksen
+// huske et foreldet reisemål hvis koblingen endres etterpå.
+function forsidebildeBank(){
+  const rid = state.trip.reisemaal_id;
+  const navn = reisemaalNavnFor(rid);
+  return {
+    tittel: navn ? ("Bildebank for " + navn) : "Reisemålets bildebank",
+    erKoblet: ()=> !!state.trip.reisemaal_id,
+    tomBeskjed: "Koble reisen til et reisemål i feltet over for å se bildene i reisemålets bildebank. "
+              + "Du kan også laste opp et bilde direkte - det blir da liggende kun på denne reisen.",
+    hentBilder: async ()=>{
+      const rader = await hentReisemaalBank(state.trip.reisemaal_id);
+      return rader.slice()
+        .sort((a,b)=>(a.sortering??0)-(b.sortering??0))
+        .map(r=>({ id:r.id, url:r.bilde_url, alt_tekst:r.alt_tekst }));
+    },
+    maks: REISEMAAL_BANK_BILDER_MAKS,
+  };
+}
+
+function settForsidebilde(url, bankId, reisemaalId){
+  const t = state.trip;
+  t.forsidebilde_url = url;
+  t.forsidebilde_bank_id = bankId || null;
+  t.forsidebilde_reisemaal_id = reisemaalId || null;
+  // Navnkopi tas her, mens vi vet det - ikke slått opp senere.
+  t.forsidebilde_reisemaal_navn = reisemaalId ? reisemaalNavnFor(reisemaalId) : null;
+  markDirty();
+}
+
+function fjernForsidebilde(){
+  // Et bilde VALGT FRA BANKEN blir liggende i reisemålets bildebank og kan
+  // velges igjen. Et OPPLASTET bilde finnes derimot ingen andre steder enn
+  // her - fjerning er da endelig, selv om selve filen blir liggende i
+  // lagringen uten at noe i Admin finner den igjen.
+  settForsidebilde(null, null, null);
+}
+
+// Samme tak som workeren håndhever for bildebank-opplasting - gjentatt her
+// slik at et forsidebilde ikke kan bli vesentlig større enn resten av Admin
+// tillater.
+const BILDE_MAKS_BYTES = 15 * 1024 * 1024;
+
+// PRODUKTREGEL (besluttet 31.08.2026), gjelder ALLE bildeplasser i
+// Påmeldingstur - se også toppen av shared/bildevelger.js:
+//
+//   «Velg fra bildebank»  = bruk et bilde som allerede ligger i biblioteket
+//   «Last opp bilde»      = last opp KUN til denne reisen
+//
+// Et bilde som lastes opp mens man bygger en tur skal ALDRI havne i
+// reisemaal_bilder eller et annet registers bildebank - heller ikke når
+// reisen er koblet til et reisemål. Bildebanken er et bevisst kuratert
+// bibliotek, og det kureres i registeret, ikke som en bivirkning av at noen
+// laster opp et bilde på en tur. Skal et bilde inn permanent, legges det
+// inn bevisst i Reisemål-registeret.
+//
+// Opplastingen går derfor alltid til reise-bilder-bucketen, og skriver
+// verken bankkobling eller reisemål-spor på reisen. Konsekvensen er at et
+// opplastet bilde aldri gir merknaden «hentet fra …» - den hører kun til
+// bilder som FAKTISK kommer fra et reisemåls bildebank.
+async function lastOppForsidebilde(file){
+  if(file.size > BILDE_MAKS_BYTES){
+    throw new Error("Filen er for stor (maks 15 MB).");
+  }
+  // Et filnavn uten punktum har ingen endelse - .pop() ville da gitt hele
+  // navnet tilbake og laget "<uuid>.img_0001".
+  const m = file.name.match(/\.([a-z0-9]{1,5})$/i);
+  const ext = m ? m[1].toLowerCase() : "jpg";
+  const path = tripId + "/" + newClientKey() + "." + ext;
+  const { error } = await window.sb.storage.from("reise-bilder").upload(path, file, { upsert:false });
+  if(error) throw error;
+  const { data } = window.sb.storage.from("reise-bilder").getPublicUrl(path);
+  settForsidebilde(data.publicUrl, null, null);
+
+  // Lagre med det samme: bildet ligger allerede i lagringen, og en reise som
+  // mister koblingen til et bilde som ER lastet opp er verre enn et ekstra
+  // lagringskall.
+  //
+  // MERK: lagringen startes, men ventes IKKE på. performSave() returnerer
+  // hele lagringskjeden, ikke bare vår egen lenke - venter vi på den, arver
+  // opplastingen ventetiden til enhver tidligere lagring som måtte henge, og
+  // «Laster opp…» ville blitt stående selv om bildet for lengst er oppe.
+  // Lagringen har sitt eget synlige spor uansett: statuslinjen viser
+  // «Lagrer…»/«Lagret», og en feil gir rødt banner og nytt forsøk.
+  clearTimeout(autosaveTimer);
+  autosaveDirty = false;
+  performSave();
+}
+
+// Merknaden styres av NAVNKOPIEN, ikke av id-en. Id-en har «on delete set
+// null»: slettes reisemålet fra registeret, forsvinner den, mens navnet
+// består. Gikk vi på id-en, ville merknaden stilltiende forsvunnet nettopp
+// i det tilfellet navnkopien ble laget for.
+// Et OPPLASTET bilde har ingen navnkopi (opplasting rører aldri et
+// bildebankregister) og gir derfor aldri merknad - som regelen krever.
+// Merknaden undertrykkes kun når vi POSITIVT kan slå fast at bildet kommer
+// fra det reisemålet reisen er koblet til nå.
+function forsidebildeMerknad(){
+  const t = state.trip;
+  if(!t.forsidebilde_url) return null;
+  if(!t.forsidebilde_reisemaal_navn) return null;
+  const sammeReisemaal = !!t.forsidebilde_reisemaal_id
+    && t.forsidebilde_reisemaal_id === t.reisemaal_id;
+  if(sammeReisemaal) return null;
+  return "Forsidebildet er hentet fra " + t.forsidebilde_reisemaal_navn;
+}
+
+function renderForsidebilde(){
+  const wrap = el("forsideWrap");
+  if(!wrap) return;
+  // Feiler tegningen (f.eks. hvis shared/bildevelger.js ikke ble lastet),
+  // skal RESTEN av editoren fortsatt komme opp. Uten dette ville et kast her
+  // stoppe innlastingen etter at skjermbildet er vist, og etterlate en
+  // publisert reise med ulåste felt og autolagringen avslått.
+  try{
+    wrap.innerHTML = "";
+    wrap.appendChild(window.bildevelger.slot({
+      label: "Forsidebilde",
+      getUrl: ()=> state.trip.forsidebilde_url || null,
+      getMerknad: forsidebildeMerknad,
+      bank: forsidebildeBank,
+      onVelg: (bilde)=> settForsidebilde(bilde.url, bilde.id, state.trip.reisemaal_id),
+      onFjern: fjernForsidebilde,
+      onLastOpp: lastOppForsidebilde,
+      // Bekreftelsen skal komme når bildet IKKE kan velges inn igjen.
+      // Plukkeren viser kun banken til det reisemålet reisen er koblet til
+      // NÅ, så det holder ikke at bildet en gang kom fra en bank: kommer det
+      // fra et ANNET reisemål (eller er bankraden slettet), står det ikke i
+      // plukkeren lenger, og da skal vi spørre.
+      erFraBank: ()=> !!state.trip.forsidebilde_bank_id
+                   && state.trip.forsidebilde_reisemaal_id === state.trip.reisemaal_id,
+      erOpptatt: ()=> forsidebildeOpptatt,
+      settOpptatt: (v)=>{ forsidebildeOpptatt = v; },
+      etterEndring: renderForsidebilde,
+    }));
+  } catch(err){
+    console.error("Kunne ikke tegne bildevelgeren:", err);
+    wrap.innerHTML = '<div class="hint">Kunne ikke vise bildevelgeren. Last siden på nytt.</div>';
   }
 }
 
@@ -704,6 +914,7 @@ function renderGrunnfelter(){
   el("i-notater").value = state.internal.interne_notater || "";
   oppdaterDagerVisning();
   renderReisemaalKobling();
+  renderForsidebilde();
 }
 
 async function lastReise(id){
@@ -732,6 +943,10 @@ async function lastReise(id){
     reisemaal_id: trip.reisemaal_id || null,
     start_date: trip.start_date, end_date: trip.end_date,
     departure_airport: trip.departure_airport, status: trip.status,
+    forsidebilde_url: trip.forsidebilde_url || null,
+    forsidebilde_bank_id: trip.forsidebilde_bank_id || null,
+    forsidebilde_reisemaal_id: trip.forsidebilde_reisemaal_id || null,
+    forsidebilde_reisemaal_navn: trip.forsidebilde_reisemaal_navn || null,
   };
   state.sisteLagredeTittel = trip.title || "";
   state.internal = {

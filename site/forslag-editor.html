@@ -595,36 +595,46 @@
     font-size:11px; color:var(--ink-muted); text-align:center; padding:24px 4px;
     background:rgba(255,255,255,0.55); border-radius:6px; margin-bottom:6px;
   }
-  .bilde-slot-actions{ display:flex; gap:8px; }
+  .bilde-slot-actions{
+    display:flex; gap:8px; margin-top:8px; padding-top:6px;
+    border-top:1px solid rgba(42,120,214,0.22);
+  }
+  .bilde-slot-status{ font-size:10.5px; color:var(--ink-muted); margin-top:6px; text-align:center; }
+  .bilde-slot-box button:disabled{
+    opacity:0.55; cursor:default; background:var(--page); color:var(--ink-muted);
+    border-color:var(--hairline); text-decoration:none;
+  }
   .bilde-slot-actions button{
     flex:1; font-size:10.5px; border:none; background:none; color:var(--blue);
     text-decoration:underline; cursor:pointer; padding:2px 0;
   }
   .bilde-slot-actions .bilde-slot-fjern{ color:#b04a4a; }
+  /* v24: knapp-prioriteringen SNUDD (besluttet 31.08.2026, gjelder
+     gjennomgående i Admin - se shared/bildevelger.js, som bruker samme
+     prioritering for nye bildeplasser): "Velg fra bildebank" er nå
+     PRIMÆRHANDLINGEN (fylt blå, øverst), "Last opp bilde" den sekundære
+     (omrisset, under). Gjenbruk fra banken skal være den naturlige veien;
+     opplasting er unntaket når bildet ikke finnes der ennå.
+     v23 (historikk): motsatt rekkefølge - opplasting var primærknappen. */
   .bilde-slot-velg{
-    width:100%; font-size:11px; padding:6px 4px; border:1px solid var(--blue); border-radius:6px;
-    background:var(--surface-1); color:var(--blue); cursor:pointer;
-  }
-  .bilde-slot-velg:hover{ background:var(--blue); color:#fff; }
-  /* v23: "Last opp bilde" - ett enkelt bilde lastet opp direkte til denne
-     plassen (i stedet for plukket fra bildebanken), plassert over "Åpne
-     bildebank" i den tomme tilstanden. Fylt blå (primærknapp), til forskjell
-     fra den omrisset "Åpne bildebank"-knappen, siden opplasting er den
-     raskeste veien når bildet ikke allerede ligger i banken. */
-  .bilde-slot-last-opp{
     width:100%; font-size:11px; padding:6px 4px; margin-bottom:6px; border:1px solid var(--blue); border-radius:6px;
     background:var(--blue); color:#fff; cursor:pointer;
   }
-  .bilde-slot-last-opp:hover{ background:var(--blue-dark); }
+  .bilde-slot-velg:hover{ background:var(--blue-dark); border-color:var(--blue-dark); }
+  .bilde-slot-last-opp{
+    width:100%; font-size:11px; padding:6px 4px; border:1px solid var(--blue); border-radius:6px;
+    background:var(--surface-1); color:var(--blue); cursor:pointer;
+  }
+  .bilde-slot-last-opp:hover{ background:var(--blue); color:#fff; }
 
   /* v: Bilder-fanen bygget om fra rullegardin-basert kategorisering til én
      "dropbox" per kategori/underkategori - man klikker "Last opp bilde"
-     (flere filer samtidig) eller "Åpne bildebank". Erstatter de gamle
+     (flere filer samtidig) eller "Velg fra bildebank". Erstatter de gamle
      b-kategori/b-knyttet-nedtrekkene i img-card - hvilken boks bildet ligger
      i AVGJØR kategori/tilknytning nå, i stedet for et felt man må huske å
      sette manuelt.
      v23: dra-og-slipp av filer FRA UTENFOR siden (for å laste opp) er
-     fjernet igjen - "Last opp bilde"/"Åpne bildebank"-knappene dekker
+     fjernet igjen - "Velg fra bildebank"/"Last opp bilde"-knappene dekker
      behovet alene og er enklere å bruke. Kortenes EGEN dra-og-slipp for å
      endre REKKEFØLGE på bilder som allerede er lagt til (wireGridReorder)
      er uendret og upåvirket. */
@@ -645,18 +655,22 @@
 
   /* v: "Bildebank" - lar deg hente inn bilder som allerede ligger i den delte
      bildebanken (R2, destinations/<slug>/ og hoteller/<slug>/) i stedet for
-     å laste opp på nytt. Se shared/bildebank.js.
+     å laste opp på nytt. Banken leses fra reisemaal_bilder/hotell_bilder;
+     opplasting herfra skriver aldri til den (se produktregelen i scriptet).
      v21c: banken kan nå romme opptil 50 (reisemål) / 20 (hotell) bilder (se
      REISEMAAL_BANK_BILDER_MAKS/HOTELL_BANK_BILDER_MAKS i hhv.
      reisemaal.html/hoteller.html) - det gamle, lille inline-panelet
      (56x56px-thumbs klemt inn under selve boksen) ville blitt uoversiktlig
      og for trangt ved den størrelsen, så velgeren er nå en egen modal med
      god plass til å bla i et større, scrollbart rutenett. */
+  /* v24: primærknapp (fylt blå), plassert over den nå sekundære
+     "Last opp bilde"-lenken - se prioriteringsmerknaden lenger opp. */
   .bildebank-velg-btn{
     display:block; width:100%; text-align:center;
-    border:none; background:none; color:var(--blue); font-size:12px;
-    text-decoration:underline; cursor:pointer; padding:4px 2px 0;
+    border:1px solid var(--blue); border-radius:7px; background:var(--blue);
+    color:#fff; font-size:12px; cursor:pointer; padding:7px 6px; margin-bottom:6px;
   }
+  .bildebank-velg-btn:hover{ background:var(--blue-dark); border-color:var(--blue-dark); }
   .bildebank-modal-bg{
     position:fixed; inset:0; background:rgba(11,11,11,0.30);
     display:none; align-items:center; justify-content:center; z-index:50;
@@ -1074,7 +1088,6 @@
 <script src="shared/supabase-client.js"></script>
 <script src="shared/auth.js"></script>
 <script src="shared/nav.js"></script>
-<script src="shared/bildebank.js"></script>
 <script>
 /* ============================================================
    Forslag-editor - v1
@@ -2488,11 +2501,11 @@ function hoydepunktBankForValgtReisemaal(){
 // reisemål-/hotell-iden, og mellomlagres i en Map slik at et gjentatt
 // besøk (åpne bildebank-modalen på nytt, bytte fane frem og tilbake) ikke
 // trigger et nytt nettverkskall for samme id. Cachen er bevisst kun
-// gyldig for RESTEN AV DENNE SIDEØKTEN (nullstilles ved omlasting av
-// siden) - forenklet, siden banken uansett kun endres FRA denne samme
-// siden (opplasting via forslaget) eller fra reisemaal.html/hoteller.html
-// (en annen fane/økt) - se leggIBank()-callbackene under, som selv
-// oppdaterer cachen når DENNE siden legger til et nytt bankbilde.
+// gyldig for RESTEN AV DENNE SIDEØKTEN (nullstilles ved omlasting av siden).
+// v24: banken endres nå UTELUKKENDE fra reisemaal.html/hoteller.html (en
+// annen fane/økt), siden opplasting herfra ikke lenger skriver til den.
+// Cachen kan derfor bare bli utdatert av arbeid i en annen fane, og en
+// omlasting av siden henter den friskt.
 const reisemaalBankCache = new Map(); // reisemaal_id -> rader fra reisemaal_bilder
 const hotellBankCache = new Map();    // hotell_id -> rader fra hotell_bilder
 
@@ -2578,7 +2591,7 @@ function renderHoydepunkter(){
         <label>Navn (overstyr)</label><input class="hp-navn-ov" value="${escapeHtml(f.navn_override)}" placeholder="${escapeHtml(bankHp ? bankHp.navn : "")}">
         <label>Korttekst (overstyr)</label><textarea class="hp-korttekst-ov" placeholder="${escapeHtml(bankHp ? bankHp.korttekst : "")}">${escapeHtml(f.korttekst_override)}</textarea>
         <label>Bilde</label>
-        <div class="hp-bilde-status">${f.valgt_bilde_id ? "🖼 Bilde valgt (endre på Bilder-siden)" : "Ingen bilde valgt ennå - velges på Bilder-siden"}</div>
+        <div class="hp-bilde-status">${(f.valgt_bilde_id || f.bilde_url) ? "🖼 Bilde valgt (endre på Bilder-siden)" : "Ingen bilde valgt ennå - velges på Bilder-siden"}</div>
       </div>
     `;
     wrap.appendChild(card);
@@ -2608,7 +2621,7 @@ function renderHoydepunkter(){
 function leggTilHoydepunktFraBank(hoydepunktId){
   state.hoydepunkter.push({
     id:null, clientKey:newClientKey(),
-    fields:{ hoydepunkt_id:hoydepunktId, sortering: state.hoydepunkter.length, navn_override:null, korttekst_override:null, valgt_bilde_id:null },
+    fields:{ hoydepunkt_id:hoydepunktId, sortering: state.hoydepunkter.length, navn_override:null, korttekst_override:null, valgt_bilde_id:null, bilde_url:null },
   });
   renderHoydepunkter();
   renderBilder(); // v21: nytt alternativ i Bilder-fanens høydepunkt-nedtrekk
@@ -2746,29 +2759,39 @@ function fjernRolleBilde(flaggFelt){
   state.bilder = state.bilder.filter(b=> !(b.fields.kategori==="Destinasjon" && b.fields[flaggFelt]));
 }
 // Bygger selve boksen - `opts` = { label, getUrl(), setSlot(url,bankId), clearSlot() }.
-// v23: den tomme tilstanden har nå to knapper - "Last opp bilde" (ett bilde,
-// lastes opp direkte, se uploadFileIntoSlot()) over "Åpne bildebank" (plukk
-// fra reisemålets bildebank, uendret) - Vidar: "vi må ha mulighet til å
-// laste opp ett bilde til hver av hoved-/avslutning- og høydepunkt-bildene.
-// Bare legg en tilsvarende boks som 'Åpne bildebank' over denne knappen som
-// heter 'Last opp bilde'."
+// v24: BEGGE veier er tilgjengelige i begge tilstander - man skal ikke måtte
+// fjerne et eksisterende bilde først for å laste opp et nytt:
+//   "Velg fra bildebank" / "Bytt bilde"  primær (fylt blå), åpner banken
+//   "Last opp bilde"                     sekundær (omrisset), ny lokal fil
+//   "Fjern"                              kun når plassen har et bilde
+// Prioriteringen ble snudd 31.08.2026: gjenbruk fra banken er den normale
+// veien, og opplasting tilhører KUN dette forslaget (se produktregelen over
+// uploadFilesIntoBox()).
+// v23 (historikk): opplasting var primærknappen, og den fylte tilstanden
+// hadde bare "Bytt"/"Fjern" - et nytt opplastet bilde krevde at man fjernet
+// det gamle først.
+// Hvilke bildeplasser som har en opplasting på gang akkurat nå. Flagget må
+// ligge UTENFOR boksen: plassene tegnes på nytt ved enhver endring i
+// Bilder-fanen, og en lås som bare satt "disabled" på knappene ville
+// forsvunnet med den gamle noden. Uten dette kan to raske klikk starte to
+// opplastinger, og den som blir ferdig SIST vinner - altså kan brukeren ende
+// med bildet han valgte FØRST, helt inn i kunde-PDF-en.
+const bildeSlotOpptatt = new Set();
+
 function bildeSlotBox(opts){
   const url = opts.getUrl();
+  const opptatt = bildeSlotOpptatt.has(opts.key);
   const box = document.createElement("div");
   box.className = "bilde-slot-box";
   box.innerHTML = `
     <div class="bilde-slot-label" title="${escapeHtml(opts.label)}">${escapeHtml(opts.label)}</div>
-    ${url ? `
-      <div class="bilde-slot-thumb"><img src="${escapeHtml(url)}"></div>
-      <div class="bilde-slot-actions">
-        <button type="button" class="bilde-slot-bytt">Bytt</button>
-        <button type="button" class="bilde-slot-fjern">Fjern</button>
-      </div>
-    ` : `
-      <div class="bilde-slot-tom">Ingen bilde valgt</div>
-      <button type="button" class="bilde-slot-last-opp">Last opp bilde</button>
-      <button type="button" class="bilde-slot-velg">Åpne bildebank</button>
-    `}
+    ${url
+      ? `<div class="bilde-slot-thumb"><img src="${escapeHtml(url)}"></div>`
+      : `<div class="bilde-slot-tom">Ingen bilde valgt</div>`}
+    <button type="button" class="bilde-slot-velg"${opptatt ? " disabled" : ""}>${url ? "Bytt bilde" : "Velg fra bildebank"}</button>
+    <button type="button" class="bilde-slot-last-opp"${opptatt ? " disabled" : ""}>Last opp bilde</button>
+    ${url ? `<div class="bilde-slot-actions"><button type="button" class="bilde-slot-fjern"${opptatt ? " disabled" : ""}>Fjern</button></div>` : ``}
+    ${opptatt ? `<div class="bilde-slot-status">Laster opp…</div>` : ``}
     <input type="file" accept="image/*" class="bilde-slot-file-input" style="display:none">
   `;
   const apneModal = ()=> openBildebankModal(reisemaalBankInfo(), null, null, null, null, (b)=>{
@@ -2776,20 +2799,61 @@ function bildeSlotBox(opts){
     closeBildebankModal();
     renderBilder();
   });
+  // Samme knapp i begge tilstander - kun teksten skifter ("Velg fra
+  // bildebank" naar plassen er tom, "Bytt bilde" naar den har et bilde).
   const velgBtn = box.querySelector(".bilde-slot-velg");
   if(velgBtn) velgBtn.addEventListener("click", apneModal);
-  const byttBtn = box.querySelector(".bilde-slot-bytt");
-  if(byttBtn) byttBtn.addEventListener("click", apneModal);
   const fjernBtn = box.querySelector(".bilde-slot-fjern");
-  if(fjernBtn) fjernBtn.addEventListener("click", ()=>{ opts.clearSlot(); renderBilder(); });
+  if(fjernBtn) fjernBtn.addEventListener("click", ()=>{
+    // Et bilde fra bildebanken kan velges inn igjen når som helst - der er
+    // «Fjern» ufarlig. Et bilde som er lastet opp her finnes ingen andre
+    // steder, så der spør vi først. Samme regel som i Påmeldingstur.
+    const fraBank = opts.erFraBank ? !!opts.erFraBank() : false;
+    if(!fraBank && !confirm(
+      "Dette bildet kan ikke velges inn igjen fra bildebanken.\n\n"
+      + "Fjerner du det, må du laste det opp på nytt.\n\nFjerne bildet?")) return;
+    opts.clearSlot();
+    renderBilder();
+  });
   const lastOppBtn = box.querySelector(".bilde-slot-last-opp");
   const fileInput = box.querySelector(".bilde-slot-file-input");
   if(lastOppBtn && fileInput){
     lastOppBtn.addEventListener("click", ()=> fileInput.click());
-    fileInput.addEventListener("change", (e)=>{
-      const file = e.target.files[0];
-      e.target.value = "";
-      if(file) uploadFileIntoSlot(file, opts);
+    fileInput.addEventListener("change", async (e)=>{
+      const input = e.target;
+      const valgt = input.files[0];
+      if(!valgt) return;
+      if(bildeSlotOpptatt.has(opts.key)){ input.value = ""; return; }
+      if(!valgt.type || !valgt.type.startsWith("image/")){
+        input.value = "";
+        alert("Kun bildefiler kan lastes opp.");
+        return;
+      }
+      // Lås plassen FØR noe annet - selve lesingen av en stor fil kan ta
+      // flere sekunder (en RAW-fil, eller et bilde som må hentes ned fra
+      // iCloud), og i det vinduet ville knappene ellers stått åpne uten at
+      // noe tydet på at en opplasting var i gang. Det er nettopp da et
+      // utålmodig andreklikk kommer.
+      bildeSlotOpptatt.add(opts.key);
+      renderBilder();                        // viser plassen som låst
+      try{
+        // Filen leses til en uavhengig kopi FØR opplastingen. En File er
+        // bare en peker til en fil på disk, eid av dette input-elementet -
+        // blir elementet revet ut mens filen leses, kan lesingen stoppe uten
+        // at det kastes noen feil, og opplastingen bli hengende. Samme grep
+        // som i shared/bildevelger.js.
+        const bytes = await valgt.arrayBuffer();
+        const fil = new File([bytes], valgt.name, { type: valgt.type });
+        await uploadFileIntoSlot(fil, opts);
+      } catch(err){
+        alert("Kunne ikke laste opp: " + (err && err.message ? err.message : err));
+      } finally{
+        input.value = "";
+        bildeSlotOpptatt.delete(opts.key);
+        // Kaster opptegningen, skal ikke låsen bli hengende igjen.
+        try{ renderBilder(); }
+        catch(tegnefeil){ console.error("Kunne ikke tegne bildeplassene på nytt:", tegnefeil); }
+      }
     });
   }
   return box;
@@ -2797,24 +2861,45 @@ function bildeSlotBox(opts){
 function renderBildeSlotter(){
   const row = el("bildeSlotRow");
   row.innerHTML = "";
+  // key: stabil identitet for plassen, slik at opplastingslåsen overlever at
+  // boksene tegnes på nytt (se bildeSlotOpptatt).
   row.appendChild(bildeSlotBox({
+    key: "hovedbilde",
     label: "Hovedbilde",
     getUrl: ()=>{ const r = finnHovedbildeRad(); return r ? r.fields.bilde_url : null; },
+    erFraBank: ()=>{ const r = finnHovedbildeRad(); return !!(r && r.fields.reisemaal_bilde_id); },
     setSlot: (url, bankId)=> settRolleBilde("er_hovedbilde", url, bankId),
     clearSlot: ()=> fjernRolleBilde("er_hovedbilde"),
   }));
   row.appendChild(bildeSlotBox({
+    key: "avslutningsbilde",
     label: "Avslutningsbilde",
     getUrl: ()=>{ const r = finnAvslutningsbildeRad(); return r ? r.fields.bilde_url : null; },
+    erFraBank: ()=>{ const r = finnAvslutningsbildeRad(); return !!(r && r.fields.reisemaal_bilde_id); },
     setSlot: (url, bankId)=> settRolleBilde("er_avslutningsbilde", url, bankId),
     clearSlot: ()=> fjernRolleBilde("er_avslutningsbilde"),
   }));
   state.hoydepunkter.forEach(hp=>{
     row.appendChild(bildeSlotBox({
+      key: "hp:" + hp.clientKey,
       label: hoydepunktNavn(hp),
-      getUrl: ()=> bankUrlForId(hp.fields.valgt_bilde_id),
-      setSlot: (url, bankId)=>{ fjernBildeFraAlleRoller(bankId); hp.fields.valgt_bilde_id = bankId; },
-      clearSlot: ()=>{ hp.fields.valgt_bilde_id = null; },
+      // Samme prioritering som getUrl under: et opplastet bilde vinner.
+      // Ellers kunne plassen vist det opplastede bildet mens «Fjern»
+      // behandlet det som et bankbilde og slettet uten å spørre.
+      erFraBank: ()=> !hp.fields.bilde_url && !!hp.fields.valgt_bilde_id,
+      // v24: et høydepunkt kan nå ha bildet sitt fra TO kilder, og de er
+      // gjensidig utelukkende:
+      //   valgt_bilde_id  - plukket fra reisemålets bildebank (peker)
+      //   bilde_url       - lastet opp, tilhører KUN dette forslaget
+      // Den ene settes alltid samtidig som den andre nulles, slik at det
+      // aldri er tvil om hvilket bilde som gjelder.
+      getUrl: ()=> hp.fields.bilde_url || bankUrlForId(hp.fields.valgt_bilde_id),
+      setSlot: (url, bankId)=>{
+        fjernBildeFraAlleRoller(bankId);
+        if(bankId){ hp.fields.valgt_bilde_id = bankId; hp.fields.bilde_url = null; }
+        else { hp.fields.bilde_url = url; hp.fields.valgt_bilde_id = null; }
+      },
+      clearSlot: ()=>{ hp.fields.valgt_bilde_id = null; hp.fields.bilde_url = null; },
     }));
   });
 }
@@ -2853,17 +2938,23 @@ function wireGridReorder(grid, matchFn){
   });
 }
 
-// v21: opplasting ("dra hit"/"velg fil") går nå til den DELTE bildebanken
-// (reisemaal_bilder/hotell_bilder + R2, via bankInfo.leggIBank) når
-// reisemålet/hotellet er koblet - nøyaktig samme vei som et bilde lastet opp
-// via Reisemål-/Hotell-registerets egen "3. Bilder"-fane. Det gjør bildet
-// tilgjengelig for gjenbruk (som høydepunkt-bilde her og nå, og i senere
-// forslag), i stedet for å havne i en privat, forslags-bundet lagringsplass
-// bare DETTE forslaget kunne se (den gamle oppførselen). Er reisemålet/
-// hotellet IKKE koblet ennå (bankInfo mangler, eller entityIdGetter() gir
-// null), faller opplastingen tilbake til den gamle, private lagringen -
-// fortsatt fullt funksjonell, bare ikke gjenbrukbar andre steder.
-async function uploadFilesIntoBox(fileList, kategori, extra, matchFn, maks, bankInfo){
+// PRODUKTREGEL (besluttet 31.08.2026), felles for hele Admin - se også
+// toppen av shared/bildevelger.js:
+//
+//   «Velg fra bildebank»  = bruk et bilde som allerede ligger i biblioteket
+//   «Last opp bilde»      = last opp KUN til dette reiseforslaget
+//
+// Bildebanken er et bevisst kuratert bibliotek. Et bilde som lastes opp mens
+// man bygger et forslag skal ALDRI havne i reisemaal_bilder eller
+// hotell_bilder - heller ikke når reisemålet eller hotellet er koblet. Skal
+// et bilde inn permanent, legges det inn bevisst i Reisemål- eller
+// Hotell-registeret.
+//
+// v24: opplasting går derfor ALLTID til den forslags-bundne lagringen
+// (uploadImageFile, bucket "forslag-bilder"), og setter aldri bankIdField.
+// v21 (historikk): opplasting med koblet reisemål/hotell skrev bildet inn i
+// den delte bildebanken. Den flyten er fjernet.
+async function uploadFilesIntoBox(fileList, kategori, extra, matchFn, maks){
   let files = [...fileList].filter(f=> f.type && f.type.startsWith("image/"));
   if(!files.length) return;
   if(maks!=null && matchFn){
@@ -2874,29 +2965,21 @@ async function uploadFilesIntoBox(fileList, kategori, extra, matchFn, maks, bank
       files = files.slice(0, romIgjen);
     }
   }
-  const entityId = bankInfo && bankInfo.entityIdGetter();
-  const slug = entityId ? bankInfo.slugGetter() : null;
   el("saveStatus").textContent = files.length>1 ? "Laster opp bilder…" : "Laster opp bilde…";
+  let lagtTil = 0;
   for(const file of files){
     try{
-      let url, bankId = null;
-      if(entityId && slug){
-        const opplastet = await bildebankUpload(file, bankInfo.mappe, slug);
-        url = opplastet.url;
-        const bankRad = await bankInfo.leggIBank(entityId, url, null);
-        bankId = bankRad.id;
-      } else {
-        url = await uploadImageFile(file);
-      }
+      const url = await uploadImageFile(file);
       state.bilder.push({
         id:null, clientKey:newClientKey(),
-        fields:{ kategori, bilde_url:url, alt_tekst:null, sortering: state.bilder.length, er_hovedbilde:false, er_avslutningsbilde:false,
-          ...(bankId ? { [bankInfo.bankIdField]: bankId } : {}) },
+        fields:{ kategori, bilde_url:url, alt_tekst:null, sortering: state.bilder.length, er_hovedbilde:false, er_avslutningsbilde:false },
         hotellopphold_client_key: (extra && extra.hotellopphold_client_key) || null,
       });
+      lagtTil++;
     } catch(err){ alert("Kunne ikke laste opp: " + err.message); }
   }
-  el("saveStatus").textContent = "Bilde lastet opp.";
+  if(lagtTil) markerSkittenEtterOpplasting();
+  el("saveStatus").textContent = lagtTil ? "Bilde lastet opp." : "";
   renderBilder();
 }
 
@@ -2904,29 +2987,18 @@ async function uploadFilesIntoBox(fileList, kategori, extra, matchFn, maks, bank
 // bildeplassene (Hovedbilde/Avslutningsbilde/Høydepunkt, se
 // bildeSlotBox()/renderBildeSlotter()) - ETT bilde, tildelt direkte til
 // plassen via opts.setSlot(url, bankId) i stedet for lagt til i et galleri.
-// Går samme vei til reisemålets delte bildebank som galleri-opplasting når
-// reisemålet er koblet (og samme fallback til privat lagring hvis ikke), så
-// et bilde lastet opp her blir også valgbart andre steder etterpå (som et
-// annet høydepunkt, i Reisemål-galleriet, osv.) - ikke bare i denne plassen.
+// v24: går ALLTID til den forslags-bundne lagringen, som galleri-opplasting
+// - se produktregelen over uploadFilesIntoBox(). Bildet får derfor ingen
+// bank-id, og blir ikke valgbart i andre forslag.
 async function uploadFileIntoSlot(file, opts){
   if(!file || !file.type || !file.type.startsWith("image/")){ alert("Kun bildefiler kan lastes opp."); return; }
-  const bankInfo = reisemaalBankInfo();
-  const entityId = bankInfo.entityIdGetter();
-  const slug = entityId ? bankInfo.slugGetter() : null;
   el("saveStatus").textContent = "Laster opp bilde…";
   try{
-    let url, bankId = null;
-    if(entityId && slug){
-      const opplastet = await bildebankUpload(file, bankInfo.mappe, slug);
-      url = opplastet.url;
-      const bankRad = await bankInfo.leggIBank(entityId, url, null);
-      bankId = bankRad.id;
-    } else {
-      url = await uploadImageFile(file);
-    }
-    opts.setSlot(url, bankId);
+    const url = await uploadImageFile(file);
+    opts.setSlot(url, null);
+    markerSkittenEtterOpplasting();
     el("saveStatus").textContent = "Bilde lastet opp.";
-    renderBilder();
+    // Kalleren (bildeSlotBox) tegner på nytt i sin finally, når låsen slippes.
   } catch(err){
     alert("Kunne ikke laste opp: " + err.message);
     el("saveStatus").textContent = "";
@@ -2940,9 +3012,10 @@ async function uploadFileIntoSlot(file, opts){
 // hvert kall. Program-/Hotell-underboksene er derimot alltid FRISKE
 // DOM-elementer (bygges på nytt hver gang i renderBilder), så der er det
 // trygt at wiring skjer på nytt hver gang uansett.
-// v: bankInfo = {bankIdField, hent, entityIdGetter, slugGetter, mappe,
-// leggIBank} | null - se reisemaalBankInfo()/hotellBankInfo() lenger ned.
-// entityIdGetter/slugGetter/hent er FUNKSJONER (ikke ferdige verdier) som
+// v: bankInfo = {bankIdField, hent, entityIdGetter, mappe} | null - se
+// reisemaalBankInfo()/hotellBankInfo() lenger ned. Banken er nå KUN en
+// lesekilde for plukkeren; ingenting skriver til den herfra.
+// entityIdGetter/hent er FUNKSJONER (ikke ferdige verdier) som
 // leses PÅ KLIKK-TIDSPUNKTET, ikke ved rendering - ellers ville f.eks.
 // Destinasjon-boksens plukker huske et foreldet reisemål hvis det byttes
 // etter at siden lastet (boksen wires kun én gang, se dataset.wired-guarden
@@ -2978,14 +3051,19 @@ function buildBildeDropbox(boxEl, matchFn, kategori, extra, bankInfo, maks, thum
   if(!boxEl.dataset.wired){
     boxEl.dataset.wired = "1";
 
-    // v23: "Last opp bilde" (flere filer samtidig - multiple) over "Åpne
-    // bildebank", samme knapp-par som de dedikerte bildeplassene
+    // v24: "Velg fra bildebank" (primær) over "Last opp bilde" (sekundær,
+    // flere filer samtidig - multiple) - samme snudde prioritering som de
+    // dedikerte bildeplassene, se CSS-en over.
+    // v23 (historikk): motsatt rekkefølge, samme knapp-par som de dedikerte
+    // bildeplassene
     // (bildeSlotBox()) - Vidar: "De samme to knappene kan du ha på alle
     // bokser, inkludert Reisemål og Hotell. Du kan fjerne muligheten for å
     // dra fil til Reisemål og Hotell. Disse knappene dekker behovet." Selve
     // dra-og-slipp-OPPLASTINGEN (fra utenfor siden) er derfor fjernet -
     // kortenes egen dra-og-slipp for REKKEFØLGE (wireGridReorder over) er
     // upåvirket.
+    if(bankInfo) wireBankVelger(boxEl, kategori, extra, bankInfo, matchFn, maks);
+
     const lastOppBtn = document.createElement("button");
     lastOppBtn.type = "button";
     lastOppBtn.className = "bilde-dropbox-last-opp-btn";
@@ -2999,11 +3077,9 @@ function buildBildeDropbox(boxEl, matchFn, kategori, extra, bankInfo, maks, thum
     boxEl.appendChild(fileInput);
     lastOppBtn.addEventListener("click", ()=> fileInput.click());
     fileInput.addEventListener("change", (e)=>{
-      uploadFilesIntoBox(e.target.files, kategori, extra, matchFn, maks, bankInfo);
+      uploadFilesIntoBox(e.target.files, kategori, extra, matchFn, maks);
       e.target.value = "";
     });
-
-    if(bankInfo) wireBankVelger(boxEl, kategori, extra, bankInfo, matchFn, maks);
 
     const capHint = document.createElement("div");
     capHint.className = "img-kategori-cap";
@@ -3019,7 +3095,7 @@ function buildBildeDropbox(boxEl, matchFn, kategori, extra, bankInfo, maks, thum
 }
 
 // v21: het tidligere wireBildebankVelger() og hentet listen async fra R2-
-// mappen via bildebankList() (samme kall som Reisemål-/Hotell-registerets
+// mappen (samme kall som Reisemål-/Hotell-registerets
 // EGEN bildebank, men lest fra en annen inngang enn den forslaget ellers
 // bruker for høydepunkter). Leser nå i stedet fra reisemaal_bilder/
 // hotell_bilder-tabellene via bankInfo.hent() - nøyaktig samme bank som
@@ -3040,7 +3116,7 @@ function wireBankVelger(boxEl, kategori, extra, bankInfo, matchFn, maks){
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "bildebank-velg-btn";
-  btn.textContent = "Åpne bildebank";
+  btn.textContent = "Velg fra bildebank";
   boxEl.appendChild(btn);
   btn.addEventListener("click", ()=> openBildebankModal(bankInfo, kategori, extra, matchFn, maks));
 }
@@ -3144,10 +3220,12 @@ async function openBildebankModal(bankInfo, kategori, extra, matchFn, maks, sing
   bildebankModalBody.appendChild(grid);
 }
 
-// v21c: samme bank-tak som håndheves i reisemaal.html/hoteller.html sine
-// egne "3. Bilder"-fane (der banken normalt bygges opp) - gjentatt her slik
-// at en opplasting rett fra et forslag (uploadFilesIntoBox, se under) ikke
-// kan smette forbi taket bare fordi den skjer fra en annen side i appen.
+// Bankens tak, slik reisemaal.html/hoteller.html håndhever det i sine egne
+// "3. Bilder"-faner. v24: brukes KUN som nevner i telleren «X / 50 bilder i
+// banken» i plukkeren - ingen opplasting herfra kan lenger treffe banken, så
+// det er ikke noe tak å håndheve på denne siden. Verdiene må holdes i synk
+// med registrene manuelt; endres taket der uten å endres her, viser telleren
+// feil nevner.
 const REISEMAAL_BANK_BILDER_MAKS = 50;
 const HOTELL_BANK_BILDER_MAKS = 20;
 
@@ -3155,37 +3233,20 @@ const HOTELL_BANK_BILDER_MAKS = 20;
 // for det KOBLEDE reisemålet (forslag.reisemaal_id, samme kobling som
 // høydepunkt-banken bruker), IKKE lenger destinasjon-fritekstfeltet. Er
 // reisemålet ikke koblet ennå («Velg fra reisemål-oversikt» i Presentasjon),
-// er banken tom og opplasting faller tilbake til privat lagring (se
-// uploadFilesIntoBox) - koble reisemålet for å få bank-funksjonaliteten.
+// er banken tom - koble reisemålet for å kunne plukke fra den.
 function reisemaalBankInfo(){
   return {
     bankIdField: "reisemaal_bilde_id",
     hent: reisemaalBildebankForValgtReisemaal,
     entityIdGetter: ()=> state.forslag.reisemaal_id || null,
-    slugGetter: ()=>{
-      const r = reisemaalOversikt.find(x=>x.id===state.forslag.reisemaal_id);
-      return r ? slugifyBildebank(r.navn) : null;
-    },
     mappe: "destinations",
-    leggIBank: async (reisemaalId, url, altTekst)=>{
-      const eksisterende = await hentReisemaalBank(reisemaalId);
-      if(eksisterende.length >= REISEMAAL_BANK_BILDER_MAKS){
-        throw new Error(`Reisemålets bildebank har allerede maks ${REISEMAAL_BANK_BILDER_MAKS} bilder - fjern noen i Reisemål-registeret først.`);
-      }
-      const { data, error } = await window.sb.from("reisemaal_bilder").insert({
-        reisemaal_id: reisemaalId, bilde_url: url, alt_tekst: altTekst || null,
-        sortering: eksisterende.length,
-      }).select().single();
-      if(error) throw error;
-      reisemaalBankCache.set(reisemaalId, [...eksisterende, data]);
-      return data;
-    },
+    // v24: leggIBank() er FJERNET. Ingenting i et forslag skal kunne skrive
+    // til reisemålets bildebank - se produktregelen over uploadFilesIntoBox().
   };
 }
 // v21: tilsvarende for et hotellopphold - banken er hotell_bilder for det
 // KOBLEDE hotellet (h.fields.hotell_id, satt av "Velg fra hotelloversikt").
-// Er hotellet ikke koblet (rent manuelt utfylt hotellnavn), er banken tom -
-// samme fallback-prinsipp som Reisemål.
+// Er hotellet ikke koblet (rent manuelt utfylt hotellnavn), er banken tom.
 function hotellBankInfo(hotellopphold){
   return {
     bankIdField: "hotell_bilde_id",
@@ -3197,24 +3258,8 @@ function hotellBankInfo(hotellopphold){
         .map(hb=>({ id:hb.id, url:hb.bilde_url, alt_tekst:hb.alt_tekst }));
     },
     entityIdGetter: ()=> hotellopphold.fields.hotell_id || null,
-    slugGetter: ()=>{
-      const h = hotellopphold.fields.hotell_id ? hotellOversikt.find(x=>x.id===hotellopphold.fields.hotell_id) : null;
-      return h ? slugifyBildebank(h.navn) : null;
-    },
     mappe: "hoteller",
-    leggIBank: async (hotellId, url, altTekst)=>{
-      const eksisterende = await hentHotellBank(hotellId);
-      if(eksisterende.length >= HOTELL_BANK_BILDER_MAKS){
-        throw new Error(`Hotellets bildebank har allerede maks ${HOTELL_BANK_BILDER_MAKS} bilder - fjern noen i Hotell-registeret først.`);
-      }
-      const { data, error } = await window.sb.from("hotell_bilder").insert({
-        hotell_id: hotellId, bilde_url: url, alt_tekst: altTekst || null,
-        sortering: eksisterende.length,
-      }).select().single();
-      if(error) throw error;
-      hotellBankCache.set(hotellId, [...eksisterende, data]);
-      return data;
-    },
+    // v24: leggIBank() er FJERNET - se merknaden i reisemaalBankInfo().
   };
 }
 
@@ -3519,6 +3564,19 @@ function utlosAutolagring(){
 // Slett-knappen, PDF-knappen (den har sin egen umiddelbare lagring, se
 // under) og fane-bryterne (rene navigasjons-/lagreklikk, ingen datainnhold
 // å autolagre av de i seg selv).
+// Autolagringen utløses av input/change/click. En OPPLASTING er ferdig
+// lenge etter det klikket som startet den: change-hendelsen fyrer idet filen
+// velges, og debouncen (2,5 s) kan da rekke å lagre FØR bildet er oppe -
+// hvorpå flagget nullstilles og bildet blir liggende ulagret i minnet. Både
+// 45-sekundersnettet og neste lagring hopper over det, siden flagget er
+// rent. Opplastingene må derfor si fra selv når de faktisk er ferdige.
+function markerSkittenEtterOpplasting(){
+  if(!autosaveKlar) return;
+  autosaveDirty = true;
+  clearTimeout(autosaveDebounceTimer);
+  autosaveDebounceTimer = setTimeout(utlosAutolagring, 2500);
+}
+
 function autolagringDelegert(e){
   if(!autosaveKlar) return;
   const target = e.target;

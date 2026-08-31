@@ -341,8 +341,11 @@ async function main(){
     const bank = hoydepunktBank.find(b=>b.id===h.hoydepunkt_id);
     const navn = h.navn_override || (bank && bank.navn) || "";
     const korttekst = h.korttekst_override || (bank && bank.korttekst) || "";
-    const bilde = h.valgt_bilde_id ? hoydepunktBildeBank.find(b=>b.id===h.valgt_bilde_id) : null;
-    return { navn, korttekst, bilde_url: bilde ? bilde.bilde_url : null };
+    // v24: bildet kan enten være lastet opp på forslaget (bilde_url) eller
+    // plukket fra reisemålets bildebank (valgt_bilde_id). Et opplastet bilde
+    // er det mest spesifikke valget og vinner hvis begge skulle være satt.
+    const bankBilde = h.valgt_bilde_id ? hoydepunktBildeBank.find(b=>b.id===h.valgt_bilde_id) : null;
+    return { navn, korttekst, bilde_url: h.bilde_url || (bankBilde ? bankBilde.bilde_url : null) };
   }).filter(h=> h.navn);
 
   document.title = `${f.tittel || "Reiseforslag"} – Caminante`;
