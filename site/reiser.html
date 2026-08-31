@@ -128,14 +128,14 @@
   <input type="search" id="sok" placeholder="Søk i tittel eller reisemål…">
   <select id="filterStatus">
     <option value="">Alle statuser</option>
-    <option value="kladd">Kladd</option>
+    <option value="kladd">Under arbeid</option>
     <option value="publisert">Publisert</option>
     <option value="utsolgt">Utsolgt</option>
     <option value="kommer_snart">Kommer snart</option>
   </select>
   <select id="filterType">
     <option value="">Alle typer</option>
-    <option value="reise">Påmeldingstur</option>
+    <option value="reise">Reise</option>
     <option value="bibelcamp">Bibelcamp</option>
   </select>
   <button class="action primary" id="btnNy">+ Ny reise</button>
@@ -168,12 +168,12 @@
     <h3>Ny reise</h3>
     <label>Type</label>
     <div class="type-valg">
-      <div class="tv valgt" data-type="reise">Påmeldingstur<small>Dag-for-dag-program, fast reiserute</small></div>
-      <div class="tv" data-type="bibelcamp">Bibelcamp<small>Grunnrytme, valgbare overnattingsalternativ</small></div>
+      <div class="tv valgt" data-type="reise">Reise<small>Vanlig påmeldingstur</small></div>
+      <div class="tv" data-type="bibelcamp">Bibelcamp<small>Egen produktgjennomgang kommer</small></div>
     </div>
     <label for="nyTittel">Tittel</label>
     <input type="text" id="nyTittel" placeholder="F.eks. Eventyrlige Marokko">
-    <div class="modal-hint">Typen setter kun startvalgene for reisen - alt kan justeres i editoren etterpå.</div>
+    <div class="modal-hint">Reise v1.0 bygges nå. Bibelcamp kan opprettes, men får sin egen editoroppsett etter en senere produktgjennomgang.</div>
     <div class="modal-btns">
       <button id="nyAvbryt">Avbryt</button>
       <button class="primary" id="nyOpprett">Opprett</button>
@@ -196,8 +196,8 @@ function escapeHtml(str){
   return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 }
 
-const TYPE_LABEL = { reise:"Påmeldingstur", bibelcamp:"Bibelcamp" };
-const STATUS_LABEL = { kladd:"Kladd", publisert:"Publisert", utsolgt:"Utsolgt", kommer_snart:"Kommer snart" };
+const TYPE_LABEL = { reise:"Reise", bibelcamp:"Bibelcamp" };
+const STATUS_LABEL = { kladd:"Under arbeid", publisert:"Publisert", utsolgt:"Utsolgt", kommer_snart:"Kommer snart" };
 
 function fmtDato(d){
   if(!d) return "";
@@ -289,13 +289,9 @@ async function opprettReise(){
   let slug = slugify(tittel), n = 2;
   while(eksisterende.has(slug)) slug = slugify(tittel) + "-" + (n++);
 
-  // Typen setter KUN startvalg (besluttet modell): hvilke blokker som er på,
-  // og overnattingsmodus. Deretter konsulteres typen aldri igjen.
-  const sections = nyType === "bibelcamp"
-    ? { dagfordag:false, grunnrytme:true }
-    : { dagfordag:true, grunnrytme:false };
-  const mode = nyType === "bibelcamp" ? "kunden_velger" : "fast_reiserute";
-
+  // Typen er et produktkonsept (Reise / Bibelcamp). Reise v1.0 bygges nå;
+  // Bibelcamp får sin egen produktgjennomgang senere. Ingen startverdier
+  // fra den gamle modellen settes lenger.
   const payload = {
     title: tittel,
     slug,
@@ -303,8 +299,6 @@ async function opprettReise(){
     status: "kladd",
     category: nyType === "bibelcamp" ? "bibelreiser" : "oppdagelsesreiser",
     cta_type: "meld_deg_pa",
-    sections,
-    accommodation_mode: mode,
   };
   let { data, error } = await window.sb.from("trips").insert(payload).select("id").single();
   if(error && /slug/i.test(error.message)){
