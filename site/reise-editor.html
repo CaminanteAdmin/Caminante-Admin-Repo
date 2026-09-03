@@ -228,10 +228,10 @@
 <div class="topbar">
   <a class="brand" href="index.html">
     <span class="company">Caminante</span>
-    <span class="tool-name">Påmeldingstur</span>
+    <span class="tool-name" id="modulNavn">Påmeldingstur</span>
   </a>
   <div class="user-area">
-    <a class="back-link" href="reiser.html">← Alle påmeldingsturer</a>
+    <a class="back-link" id="tilbakeLenke" href="reiser.html">← Alle påmeldingsturer</a>
     <span id="userName"></span>
     <button class="logout-btn" id="logoutBtn">Logg ut</button>
   </div>
@@ -260,7 +260,7 @@
         <option value="utsolgt">Utsolgt</option>
         <option value="kommer_snart">Kommer snart</option>
       </select>
-      <button class="danger" id="btnSlett">Slett reise</button>
+      <button class="danger" id="btnSlett">Slett påmeldingstur</button>
     </div>
   </div>
 
@@ -435,7 +435,13 @@ function newClientKey(){ return (crypto.randomUUID ? crypto.randomUUID() : ("k"+
 // Tomt felt skal bli null - aldri 0.
 function numOrNull(v){ return (v===""||v===null||v===undefined||isNaN(v)) ? null : Number(v); }
 
-const TYPE_LABEL = { reise:"Reise", bibelcamp:"Bibelcamp" };
+const TYPE_LABEL = { reise:"Påmeldingstur", bibelcamp:"Bibelcamp" };
+// Ordene rundt reisen følger typen: modulnavn, tilbakelenke og slett-knapp.
+const TYPE_ORD = {
+  reise:     { modul:"Påmeldingstur", liste:"reiser.html",                tilbake:"← Alle påmeldingsturer", slett:"Slett påmeldingstur", en:"påmeldingsturen" },
+  bibelcamp: { modul:"Bibelcamp",     liste:"reiser.html?type=bibelcamp", tilbake:"← Alle bibelcamper",     slett:"Slett bibelcamp",     en:"bibelcampen" },
+};
+function typeOrd(){ return TYPE_ORD[state.trip.trip_type] || TYPE_ORD.reise; }
 
 /* Antall dager beregnes ALLTID fra datoene - det finnes ingen manuell
    overstyring, og dermed ingen mulighet for at datoer og dagtall spriker. */
@@ -1524,10 +1530,10 @@ el("btnSlett").addEventListener("click", async ()=>{
       "Sett reisen til Under arbeid i stedet dersom den ikke lenger skal vises.");
     return;
   }
-  if(!confirm("Slette denne reisen permanent, inkludert program og bilder?")) return;
+  if(!confirm("Slette " + typeOrd().en + " permanent, inkludert program og bilder?")) return;
   const { error } = await window.sb.from("trips").delete().eq("id", tripId);
   if(error){ alert("Kunne ikke slette: " + error.message); return; }
-  window.location.href = "reiser.html";
+  window.location.href = typeOrd().liste;   // tilbake til listen for reisens type
 });
 
 /* ---------- Innlasting ---------- */
@@ -1536,6 +1542,12 @@ function renderGrunnfelter(){
   el("navnVisning").textContent = t.title || "";
   el("f-status").value = t.status || "kladd";
   el("typeLine").textContent = TYPE_LABEL[t.trip_type] || t.trip_type || "";
+  const ord = typeOrd();
+  document.title = ord.modul + " – Caminante Admin";
+  el("modulNavn").textContent = ord.modul;
+  el("tilbakeLenke").href = ord.liste;
+  el("tilbakeLenke").textContent = ord.tilbake;
+  el("btnSlett").textContent = ord.slett;
   el("ri-navn").value = t.title || "";
   el("ri-undertittel").value = t.subtitle || "";
   el("ri-reisemaal").value = t.destination || "";

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reiseforslag – Caminante Admin</title>
+<title>Gruppetilbud – Caminante Admin</title>
 <link rel="stylesheet" href="shared/style.css">
 <style>
   /* v1: samme designprinsipp som Priskalkulatoren (priskalkulator.html /
@@ -743,24 +743,24 @@
 <body>
 
 <div class="topbar">
-  <a class="brand" href="forslag.html"><span class="company">Caminante Admin</span><span class="tool-name">Reiseforslag</span></a>
+  <a class="brand" href="forslag.html"><span class="company">Caminante Admin</span><span class="tool-name">Gruppetilbud</span></a>
   <div class="user-area">
     <span id="userName"></span>
     <button class="logout-btn" id="logoutBtn">Logg ut</button>
   </div>
 </div>
 
-<div id="loadMsg" class="load-msg">Laster forslag…</div>
+<div id="loadMsg" class="load-msg">Laster gruppetilbud…</div>
 
 <div id="editorArea" style="display:none;">
 
   <div class="editor-header">
     <div class="left">
       <div class="nr" id="f-nr"></div>
-      <input type="text" id="f-tittel" placeholder="Forslagstittel">
+      <input type="text" id="f-tittel" placeholder="Tittel på gruppetilbudet">
       <div class="kalkyle-info" id="kalkyleInfo"></div>
       <div class="kalkyle-drift" id="kalkyleDrift" style="display:none;">
-        <span>Kalkylen er endret siden Forslaget ble opprettet.</span>
+        <span>Kalkylen er endret siden gruppetilbudet ble opprettet.</span>
         <button id="oppdaterPrisBtn">Oppdater pris og datoer fra kalkyle</button>
       </div>
       <div class="save-status" id="saveStatus"></div>
@@ -768,7 +768,7 @@
     <div class="right">
       <select id="f-status"></select>
       <a id="btnPdf" href="#" target="_blank" style="text-decoration:none;"><button type="button" class="primary">Forhåndsvis / PDF</button></a>
-      <button id="btnSlett" class="danger">Slett forslag</button>
+      <button id="btnSlett" class="danger">Slett gruppetilbud</button>
     </div>
   </div>
 
@@ -1008,13 +1008,13 @@
           <div class="card-title">Fra forslag til reise</div>
           <textarea id="vv-tekst" class="forbehold-textarea" style="min-height:90px;"></textarea>
           <div class="ordteller" id="vv-tekst-teller">0/40 ord</div>
-          <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan overstyres fritt per forslag.</div>
+          <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan overstyres fritt per gruppetilbud.</div>
         </div>
         <div class="card">
           <div class="card-title">Forbehold</div>
           <textarea id="fb-tekst" class="forbehold-textarea" style="min-height:90px;"></textarea>
           <div class="ordteller" id="fb-tekst-teller">0/40 ord</div>
-          <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan overstyres fritt per forslag.</div>
+          <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan overstyres fritt per gruppetilbud.</div>
         </div>
       </div>
       <!-- v: Høydepunkter - plukkes fra det valgte reisemålets
@@ -1490,7 +1490,7 @@ function renderKalkyleInfo(){
 // kalkyle" i stedet, siden f.kalkyle_id nå er satt.
 async function opprettKalkyleFraForslag(){
   const f = state.forslag;
-  if(!forslagId){ alert("Lagre reiseforslaget først - en kalkyle må kobles til et lagret forslag."); return; }
+  if(!forslagId){ alert("Lagre gruppetilbudet først - en kalkyle må kobles til et lagret gruppetilbud."); return; }
   el("saveStatus").textContent = "Oppretter kalkyle…";
   const { data, error } = await window.sb.from("kalkyler").insert({
     navn: f.tittel || "Uten navn",
@@ -3173,14 +3173,14 @@ async function openBildebankModal(bankInfo, kategori, extra, matchFn, maks, sing
   }
   const tilgjengelig = alleBank.filter(b=> !bruktIdSet.has(b.id));
   bildebankModalTeller.textContent = `${alleBank.length} / ${bankMaks} bilder i banken`
-    + (alleBank.length !== tilgjengelig.length ? ` - ${alleBank.length - tilgjengelig.length} allerede lagt til i dette forslaget` : "");
+    + (alleBank.length !== tilgjengelig.length ? ` - ${alleBank.length - tilgjengelig.length} allerede lagt til i dette gruppetilbudet` : "");
 
   if(!alleBank.length){
     bildebankModalBody.innerHTML = `<div class="bildebank-modal-empty">Ingen bilder i bildebanken ennå.</div>`;
     return;
   }
   if(!tilgjengelig.length){
-    bildebankModalBody.innerHTML = `<div class="bildebank-modal-empty">Alle bildene i banken er allerede i bruk i dette forslaget.</div>`;
+    bildebankModalBody.innerHTML = `<div class="bildebank-modal-empty">Alle bildene i banken er allerede i bruk i dette gruppetilbudet.</div>`;
     return;
   }
 
@@ -3211,7 +3211,7 @@ async function openBildebankModal(bankInfo, kategori, extra, matchFn, maks, sing
       // modalen stå åpen kan man plukke flere bilder på rad.
       wrap.remove();
       if(!grid.children.length){
-        bildebankModalBody.innerHTML = `<div class="bildebank-modal-empty">Alle bildene i banken er allerede i bruk i dette forslaget.</div>`;
+        bildebankModalBody.innerHTML = `<div class="bildebank-modal-empty">Alle bildene i banken er allerede i bruk i dette gruppetilbudet.</div>`;
       }
     });
     grid.appendChild(wrap);
@@ -3597,7 +3597,7 @@ document.addEventListener("click", autolagringDelegert, true);
 setInterval(utlosAutolagring, 45000);
 
 async function slettForslag(){
-  if(!confirm("Slette dette forslaget permanent, inkludert transport, hotellopphold, program og bilder?")) return;
+  if(!confirm("Slette dette gruppetilbudet permanent, inkludert transport, hotellopphold, program og bilder?")) return;
   const { error } = await window.sb.from("forslag").delete().eq("id", forslagId);
   if(error){ alert("Kunne ikke slette: " + error.message); return; }
   window.location.href = "forslag.html";
@@ -3740,7 +3740,7 @@ el("gKundeSkoleClear").addEventListener("click", ()=>{
   const params = new URLSearchParams(location.search);
   forslagId = params.get("id");
   if(!forslagId){
-    document.getElementById("loadMsg").textContent = "Mangler forslags-ID i lenken.";
+    document.getElementById("loadMsg").textContent = "Mangler ID i lenken.";
     return;
   }
 
@@ -3749,7 +3749,7 @@ el("gKundeSkoleClear").addEventListener("click", ()=>{
   document.getElementById("loadMsg").style.display = "none";
   if(!ok){
     document.getElementById("loadMsg").style.display = "block";
-    document.getElementById("loadMsg").textContent = "Fant ikke forslaget, eller det ble slettet.";
+    document.getElementById("loadMsg").textContent = "Fant ikke gruppetilbudet, eller det ble slettet.";
     return;
   }
   // v22: forhåndshenter (og mellomlagrer) det KOBLEDE reisemålets egen

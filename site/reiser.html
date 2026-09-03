@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reiser – Caminante Admin</title>
+<title>Påmeldingsturer – Caminante Admin</title>
 <link rel="stylesheet" href="shared/style.css">
 <style>
   /* Reiser v1: listen over reiser/bibelcamper. Samme designspråk som
@@ -116,7 +116,7 @@
 <div class="topbar">
   <a class="brand" href="index.html">
     <span class="company">Caminante</span>
-    <span class="tool-name">Reiser</span>
+    <span class="tool-name" id="modulNavn">Påmeldingsturer</span>
   </a>
   <div class="user-area">
     <span id="userName"></span>
@@ -133,23 +133,17 @@
     <option value="utsolgt">Utsolgt</option>
     <option value="kommer_snart">Kommer snart</option>
   </select>
-  <select id="filterType">
-    <option value="">Alle typer</option>
-    <option value="reise">Reise</option>
-    <option value="bibelcamp">Bibelcamp</option>
-  </select>
-  <button class="action primary" id="btnNy">+ Ny reise</button>
+  <button class="action primary" id="btnNy">+ Ny påmeldingstur</button>
   <span class="count-pill" id="antall"></span>
 </div>
 
 <div class="main">
   <div class="list-panel">
-    <h2>Reiser og bibelcamper</h2>
+    <h2 id="listeTittel">Påmeldingsturer</h2>
     <table>
       <thead>
         <tr>
           <th data-key="title">Tittel <span class="arrow"></span></th>
-          <th data-key="trip_type">Type <span class="arrow"></span></th>
           <th data-key="status">Status <span class="arrow"></span></th>
           <th data-key="start_date">Datoer <span class="arrow"></span></th>
           <th data-key="paameldinger">Påmeldinger <span class="arrow"></span></th>
@@ -158,22 +152,17 @@
       </thead>
       <tbody id="tbody"></tbody>
     </table>
-    <div class="empty-msg" id="emptyMsg" style="display:none;">Ingen reiser matcher filteret.</div>
+    <div class="empty-msg" id="emptyMsg" style="display:none;">Ingen påmeldingsturer matcher filteret.</div>
   </div>
 </div>
 
-<!-- Ny reise -->
+<!-- Ny påmeldingstur / bibelcamp - typen følger menypunktet du står i -->
 <div class="modal-bg" id="nyModalBg">
   <div class="modal">
-    <h3>Ny reise</h3>
-    <label>Type</label>
-    <div class="type-valg">
-      <div class="tv valgt" data-type="reise">Reise<small>Vanlig påmeldingstur</small></div>
-      <div class="tv" data-type="bibelcamp">Bibelcamp<small>Egen produktgjennomgang kommer</small></div>
-    </div>
+    <h3 id="nyTittelOverskrift">Ny påmeldingstur</h3>
     <label for="nyTittel">Tittel</label>
     <input type="text" id="nyTittel" placeholder="F.eks. Eventyrlige Marokko">
-    <div class="modal-hint">Reise v1.0 bygges nå. Bibelcamp kan opprettes, men får sin egen editoroppsett etter en senere produktgjennomgang.</div>
+    <div class="modal-hint" id="nyHint"></div>
     <div class="modal-btns">
       <button id="nyAvbryt">Avbryt</button>
       <button class="primary" id="nyOpprett">Opprett</button>
@@ -189,14 +178,30 @@
 let reiser = [];            // rader fra trips + paameldinger-antall
 let sortKey = "updated_at";
 let sortAsc = false;
-let nyType = "reise";
+// Siden viser ÉN type, styrt av menypunktet: reiser.html = Påmeldingsturer,
+// reiser.html?type=bibelcamp = Bibelcamp. Samme liste, samme editor, samme
+// database - kun filteret og ordene er forskjellige.
+const sideType = new URLSearchParams(location.search).get("type") === "bibelcamp" ? "bibelcamp" : "reise";
+const SIDE = sideType === "bibelcamp"
+  ? { modul:"Bibelcamper",     en:"bibelcamp",     flertall:"bibelcamper",      nyKnapp:"+ Ny bibelcamp",
+      hint:"Bibelcamp bruker foreløpig samme editor som Påmeldingsturer. Egen produktgjennomgang kommer." }
+  : { modul:"Påmeldingsturer", en:"påmeldingstur", flertall:"påmeldingsturer", nyKnapp:"+ Ny påmeldingstur", hint:"" };
+let nyType = sideType;
+
+document.title = SIDE.modul + " – Caminante Admin";
+document.getElementById("modulNavn").textContent = SIDE.modul;
+document.getElementById("listeTittel").textContent = SIDE.modul;
+document.getElementById("btnNy").textContent = SIDE.nyKnapp;
+document.getElementById("nyTittelOverskrift").textContent = "Ny " + SIDE.en;
+document.getElementById("nyHint").textContent = SIDE.hint;
+document.getElementById("emptyMsg").textContent = "Ingen " + SIDE.flertall + " matcher filteret.";
 
 function el(id){ return document.getElementById(id); }
 function escapeHtml(str){
   return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 }
 
-const TYPE_LABEL = { reise:"Reise", bibelcamp:"Bibelcamp" };
+const TYPE_LABEL = { reise:"Påmeldingstur", bibelcamp:"Bibelcamp" };
 const STATUS_LABEL = { kladd:"Under arbeid", publisert:"Publisert", utsolgt:"Utsolgt", kommer_snart:"Kommer snart" };
 
 function fmtDato(d){
@@ -220,7 +225,7 @@ async function lastReiser(){
     window.sb.from("registrations").select("trip_id"),
     window.sb.from("bookings").select("trip_id"),
   ]);
-  if(e0){ alert("Kunne ikke hente reiser: " + e0.message); return; }
+  if(e0){ alert("Kunne ikke hente listen: " + e0.message); return; }
   // B6: feiler tellingen, skal kolonnen vise "?" - aldri en falsk 0.
   const tellingOk = !rRegs.error && !rBooks.error;
   const antallPer = {};
@@ -233,10 +238,9 @@ async function lastReiser(){
 function filtrert(){
   const q = el("sok").value.trim().toLowerCase();
   const st = el("filterStatus").value;
-  const ty = el("filterType").value;
   return reiser.filter(r=>{
+    if(r.trip_type !== sideType) return false;   // menypunktet bestemmer typen
     if(st && r.status !== st) return false;
-    if(ty && r.trip_type !== ty) return false;
     if(q && !((r.title||"").toLowerCase().includes(q) || (r.destination||"").toLowerCase().includes(q))) return false;
     return true;
   });
@@ -255,14 +259,13 @@ function render(){
   el("tbody").innerHTML = rows.map(r=>`
     <tr data-id="${r.id}">
       <td><span class="reise-tittel">${escapeHtml(r.title)}</span><br><span class="reise-sub">${escapeHtml(r.destination||"")}</span></td>
-      <td><span class="type-chip">${TYPE_LABEL[r.trip_type] || escapeHtml(r.trip_type||"")}</span></td>
       <td><span class="status-chip ${escapeHtml(r.status||"")}">${STATUS_LABEL[r.status] || escapeHtml(r.status||"")}</span></td>
       <td>${fmtPeriode(r)}</td>
       <td><span class="pm-count ${r.paameldinger>0?"har":""}" ${r.paameldinger===null?'title="Tellingen feilet - antallet er ukjent"':""}>${r.paameldinger===null?"?":r.paameldinger}</span></td>
       <td>${r.updated_at ? new Date(r.updated_at).toLocaleDateString("nb-NO") : ""}</td>
     </tr>`).join("");
   el("emptyMsg").style.display = rows.length ? "none" : "block";
-  el("antall").textContent = `${rows.length} av ${reiser.length}`;
+  el("antall").textContent = `${rows.length} av ${reiser.filter(r=>r.trip_type === sideType).length}`;
   el("tbody").querySelectorAll("tr").forEach(tr=>{
     tr.addEventListener("click", ()=>{ window.location.href = `reise-editor.html?id=${encodeURIComponent(tr.dataset.id)}`; });
   });
@@ -289,9 +292,9 @@ async function opprettReise(){
   let slug = slugify(tittel), n = 2;
   while(eksisterende.has(slug)) slug = slugify(tittel) + "-" + (n++);
 
-  // Typen er et produktkonsept (Reise / Bibelcamp). Reise v1.0 bygges nå;
-  // Bibelcamp får sin egen produktgjennomgang senere. Ingen startverdier
-  // fra den gamle modellen settes lenger.
+  // Typen følger menypunktet siden ble åpnet fra (sideType). Bibelcamp får
+  // sin egen produktgjennomgang senere. Ingen startverdier fra den gamle
+  // modellen settes lenger.
   const payload = {
     title: tittel,
     slug,
@@ -305,7 +308,7 @@ async function opprettReise(){
     payload.slug = slug + "-" + Math.random().toString(36).slice(2,6);
     ({ data, error } = await window.sb.from("trips").insert(payload).select("id").single());
   }
-  if(error){ alert("Kunne ikke opprette reisen: " + error.message); return; }
+  if(error){ alert("Kunne ikke opprette " + SIDE.en + "en: " + error.message); return; }
   window.location.href = `reise-editor.html?id=${encodeURIComponent(data.id)}`;
 }
 
@@ -313,7 +316,6 @@ async function opprettReise(){
 
 el("sok").addEventListener("input", render);
 el("filterStatus").addEventListener("change", render);
-el("filterType").addEventListener("change", render);
 document.querySelectorAll("thead th").forEach(th=>{
   th.addEventListener("click", ()=>{
     const key = th.dataset.key;
@@ -325,13 +327,6 @@ document.querySelectorAll("thead th").forEach(th=>{
 el("btnNy").addEventListener("click", ()=>{ el("nyModalBg").classList.add("open"); el("nyTittel").focus(); });
 el("nyAvbryt").addEventListener("click", ()=>{ el("nyModalBg").classList.remove("open"); });
 el("nyModalBg").addEventListener("click", (e)=>{ if(e.target === el("nyModalBg")) el("nyModalBg").classList.remove("open"); });
-document.querySelectorAll(".type-valg .tv").forEach(tv=>{
-  tv.addEventListener("click", ()=>{
-    document.querySelectorAll(".type-valg .tv").forEach(x=>x.classList.remove("valgt"));
-    tv.classList.add("valgt");
-    nyType = tv.dataset.type;
-  });
-});
 el("nyOpprett").addEventListener("click", opprettReise);
 el("nyTittel").addEventListener("keydown", (e)=>{ if(e.key === "Enter") opprettReise(); });
 

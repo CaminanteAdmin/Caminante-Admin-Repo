@@ -534,7 +534,7 @@
           <!-- v10: "Opprett tilbud fra kalkyle"-placeholderen er fjernet -
                Tilbud-flyten går nå via Forslag (se "Gå til forslag"/"Opprett
                forslag fra kalkyle" over) i stedet for en egen snarvei her. -->
-          <button class="btn small" id="btnOpprettForslag" title="Oppretter et nytt reiseforslag basert på denne kalkylen">Opprett forslag fra kalkyle</button>
+          <button class="btn small" id="btnOpprettForslag" title="Oppretter et nytt gruppetilbud basert på denne kalkylen">Opprett gruppetilbud fra kalkyle</button>
         </div>
         <div class="kalkyle-status" id="kalkyleStatus" style="margin-bottom:12px;">Laster…</div>
         <div class="results" id="m1_results"></div>
@@ -2494,7 +2494,7 @@ async function updateForslagLinkDisplay(){
   }
   const f = data[0];
   linkedForslagId = f.id;
-  if(linkEl) linkEl.innerHTML = `📄 <a href="forslag-editor.html?id=${encodeURIComponent(f.id)}">${(f.tittel||'Forslag').replace(/</g,'&lt;')} →</a>`;
+  if(linkEl) linkEl.innerHTML = `📄 <a href="forslag-editor.html?id=${encodeURIComponent(f.id)}">${(f.tittel||'Gruppetilbud').replace(/</g,'&lt;')} →</a>`;
   updateForslagButtonState();
 }
 /* v9: "Opprett forslag fra kalkyle"-knappen skal ikke lage et duplikat-
@@ -2507,11 +2507,11 @@ function updateForslagButtonState(){
   const btn = el('btnOpprettForslag');
   if(!btn) return;
   if(linkedForslagId){
-    btn.textContent = 'Gå til forslag';
-    btn.title = 'Åpner forslaget som allerede er opprettet fra denne kalkylen';
+    btn.textContent = 'Gå til gruppetilbud';
+    btn.title = 'Åpner gruppetilbudet som allerede er opprettet fra denne kalkylen';
   } else {
-    btn.textContent = 'Opprett forslag fra kalkyle';
-    btn.title = 'Oppretter et nytt reiseforslag basert på denne kalkylen';
+    btn.textContent = 'Opprett gruppetilbud fra kalkyle';
+    btn.title = 'Oppretter et nytt gruppetilbud basert på denne kalkylen';
   }
 }
 
@@ -2626,7 +2626,7 @@ function bygInkludertFraKalkyle(gm1){
 
 async function opprettForslagFraKalkyle(){
   if(!currentKalkyleId){
-    alert('Lagre kalkylen først - et forslag må kobles til en lagret kalkyle.');
+    alert('Lagre kalkylen først - et gruppetilbud må kobles til en lagret kalkyle.');
     return;
   }
   let gm1, res1;
@@ -2638,7 +2638,7 @@ async function opprettForslagFraKalkyle(){
     return;
   }
   const destinasjon = strVal('m1_navn','') || '';
-  const tittel = strVal('meta_navn','') || destinasjon || 'Nytt forslag';
+  const tittel = strVal('meta_navn','') || destinasjon || 'Nytt gruppetilbud';
   const payload = {
     tittel,
     destinasjon,
@@ -2671,7 +2671,7 @@ async function opprettForslagFraKalkyle(){
     opprettet_av: currentUserId,
   };
   const { data, error } = await window.sb.from('forslag').insert(payload).select().single();
-  if(error){ alert('Kunne ikke opprette forslag: ' + error.message); return; }
+  if(error){ alert('Kunne ikke opprette gruppetilbud: ' + error.message); return; }
 
   const hotellopphold = bygHotellopphold(gm1).map(h=>({...h, forslag_id: data.id}));
   const transportrader = bygTransportrader(gm1).map(t=>({...t, forslag_id: data.id}));

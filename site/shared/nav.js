@@ -19,8 +19,12 @@
   const CAM_NAV_ITEMS = [
     { label: "Oversikt",       href: "index.html" },
     { label: "Priskalkulator", href: "priskalkulator.html" },
-    { label: "Reiseforslag",   href: "forslag.html" },
-    { label: "Reiser",         href: "reiser.html" },
+    // Påmeldingsturer og Bibelcamp er samme liste og samme editor - menyen
+    // skiller dem bare på type (se reiser.html). Gruppetilbud er modulen
+    // som tidligere het Reiseforslag; filnavnene er bevisst uendret.
+    { label: "Påmeldingsturer", href: "reiser.html" },
+    { label: "Bibelcamper",     href: "reiser.html?type=bibelcamp" },
+    { label: "Gruppetilbud",    href: "forslag.html" },
     { label: "Påmeldinger",    disabled: true },
     { label: "Reisemål",       href: "reisemaal.html" },
     { label: "Hoteller",       href: "hoteller.html" },
@@ -149,7 +153,18 @@
 
     CAM_NAV_ITEMS.forEach(item=>{
       const li = document.createElement("li");
-      const isActive = !item.disabled && item.href === file;
+      // Et menypunkt kan peke på samme fil med ulik spørrestreng
+      // (reiser.html vs. reiser.html?type=bibelcamp). Aktiv-markeringen
+      // sammenligner derfor både fil og spørrestreng: et punkt MED
+      // spørrestreng er aktivt når den matcher nøyaktig, et punkt UTEN er
+      // aktivt når siden ikke har noen spørrestreng som et annet punkt eier.
+      const hrefFil = item.href ? item.href.split("?")[0] : null;
+      const hrefSporring = (item.href && item.href.includes("?")) ? item.href.split("?")[1] : "";
+      const sidensSporring = window.location.search.replace(/^\?/, "");
+      const eidAvAnnet = CAM_NAV_ITEMS.some(o => o !== item && o.href && o.href.split("?")[0] === file
+                                                && o.href.includes("?") && o.href.split("?")[1] === sidensSporring);
+      const isActive = !item.disabled && hrefFil === file
+        && (hrefSporring ? hrefSporring === sidensSporring : !eidAvAnnet);
       const el = document.createElement(item.disabled ? "span" : "a");
       el.className = "cam-nav-item" + (isActive ? " cam-active" : "") + (item.disabled ? " cam-disabled" : "");
       if(!item.disabled) el.href = item.href;
