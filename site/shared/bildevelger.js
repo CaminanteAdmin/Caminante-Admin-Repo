@@ -246,6 +246,10 @@
   //   hentBilder:  async ()=>[{id,url,alt_tekst}]
   //   brukteIds:   ()=>Set|null      - valgfritt: skjul bilder som alt er i bruk
   //   maks:        number|null       - valgfritt: vises i telleren
+  //   tomBankBeskjed: string         - valgfritt: egen tekst når banken er
+  //                                    koblet men tom (standardteksten
+  //                                    peker på «Last opp bilde», som ikke
+  //                                    finnes overalt)
   // }
   // onVelg(bilde) kalles med det valgte bildet. Vinduet lukkes selv.
   //
@@ -293,9 +297,10 @@
       // MÅ ikke love at en opplasting herfra fyller banken - den gjør den
       // ikke, og en tekst som antyder noe annet ville aktivt motarbeide
       // produktregelen øverst i filen.
-      modalKropp.innerHTML = `<div class="bv-modal-empty">Ingen bilder i bildebanken ennå. `
-        + `Bildebanken fylles i registeret. Vil du bruke et bilde bare her, `
-        + `lukk dette vinduet og velg «Last opp bilde».</div>`;
+      modalKropp.innerHTML = `<div class="bv-modal-empty">${bank.tomBankBeskjed
+        ? esc(bank.tomBankBeskjed)
+        : `Ingen bilder i bildebanken ennå. Bildebanken fylles i registeret. `
+          + `Vil du bruke et bilde bare her, lukk dette vinduet og velg «Last opp bilde».`}</div>`;
       return;
     }
     if(!ledige.length){
@@ -337,6 +342,10 @@
   //   onFjern:      ()=>void
   //   onLastOpp:    async (file)=>void   - kalleren gjør selve opplastingen
   //   erFraBank:    ()=>bool             - ligger bildet også i bildebanken?
+  //   utenOpplasting: bool               - valgfri: skjul «Last opp bilde».
+  //                                        Brukes der bildet KUN skal velges
+  //                                        fra en bank (f.eks. en persons
+  //                                        bilde på en reise).
   //   erOpptatt:    ()=>bool             - pågår det en opplasting nå?
   //   settOpptatt:  (bool)=>void         - sett/nullstill det flagget
   //   etterEndring: ()=>void             - be siden tegne plassen på nytt
@@ -368,7 +377,7 @@
            har et bilde: man skal ikke måtte fjerne det gamle bildet først
            for å laste opp et nytt. -->
       <button type="button" class="bv-slot-primar"${opptatt ? " disabled" : ""}>${url ? "Bytt bilde" : "Velg fra bildebank"}</button>
-      <button type="button" class="bv-slot-sekundar"${opptatt ? " disabled" : ""}>Last opp bilde</button>
+      ${opts.utenOpplasting ? `` : `<button type="button" class="bv-slot-sekundar"${opptatt ? " disabled" : ""}>Last opp bilde</button>`}
       ${url
         ? `<div class="bv-slot-actions"><button type="button" class="bv-slot-fjern"${opptatt ? " disabled" : ""}>Fjern</button></div>`
         : ``}

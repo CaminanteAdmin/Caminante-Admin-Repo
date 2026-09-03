@@ -24,6 +24,7 @@
     { label: "Påmeldinger",    disabled: true },
     { label: "Reisemål",       href: "reisemaal.html" },
     { label: "Hoteller",       href: "hoteller.html" },
+    { label: "Personer",       href: "personer.html" },
     { label: "Skoleoversikt",  href: "skoler.html" },
     { label: "Kunder",         disabled: true },
     { label: "EuroBonus",      disabled: true },

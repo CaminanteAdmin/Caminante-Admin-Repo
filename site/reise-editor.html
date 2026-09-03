@@ -7,7 +7,8 @@
 <link rel="stylesheet" href="shared/style.css">
 <style>
   /* ====================================================================
-     Påmeldingstur-editor - Reise v1.0, trinn 1: Rydding og Reiseinfo.
+     Påmeldingstur-editor - Reise v1.0 (trinn 1-4: Reiseinfo, forsidebilde,
+     Program, Om reisen + personer).
 
      Bygget etter produktspesifikasjonen av 31.08.2026. Den gamle modellen
      (overnattingsmodus, overnattingsalternativer, prismatrise, kundevaluta-
@@ -164,6 +165,45 @@
     font-size:11.5px; font-weight:600; color:var(--ink-secondary);
     text-transform:uppercase; letter-spacing:0.03em; margin-bottom:6px;
   }
+  /* ---- Om reisen ---- */
+  .field textarea.om-tekst{ min-height:220px; line-height:1.5; }
+  .person-kort{
+    display:flex; gap:14px; align-items:flex-start; background:var(--surface-1);
+    border:1px solid var(--hairline); border-radius:10px; padding:12px; margin-bottom:10px;
+  }
+  .person-kort .person-bilde{ width:170px; flex:0 0 170px; }
+  .person-kort .person-bilde .bv-slot{ padding:8px; }
+  .person-kort .person-felt{ flex:1; min-width:0; }
+  .person-kort .person-navn{ font-size:14px; font-weight:650; color:var(--ink-primary); margin-bottom:8px; }
+  .person-kort label{ display:block; font-size:11.5px; color:var(--ink-secondary); margin:0 0 3px; }
+  .person-kort input, .person-kort textarea{
+    width:100%; box-sizing:border-box; padding:7px 9px; border:1px solid var(--hairline);
+    border-radius:7px; font-size:13px; background:var(--surface-1); color:var(--ink-primary);
+    font-family:inherit; margin-bottom:8px;
+  }
+  .person-kort textarea{ min-height:90px; resize:vertical; line-height:1.45; }
+  .person-kort .person-knapper{ display:flex; flex-direction:column; gap:4px; }
+  .person-kort .person-knapper button{
+    width:26px; height:26px; border:1px solid var(--hairline); border-radius:6px;
+    background:var(--surface-1); cursor:pointer; font-size:12px; color:var(--ink-secondary); line-height:1;
+  }
+  .person-kort .person-knapper button:hover{ background:var(--page); }
+  .person-kort .person-knapper button:disabled{ opacity:0.3; cursor:default; }
+  /* «Fjern fra reisen»: rød papirkurv, som .icon-btn.danger i Priskalkulator
+     og Reiseforslag - et kryss kan leses som «lukk». */
+  .person-kort .person-knapper button.danger{
+    display:inline-flex; align-items:center; justify-content:center; color:#b04a4a;
+    padding:0;   /* den generelle knappestilen gir 7px 12px - i en 26px bred knapp blir innholdet 0px, og ikonet forsvinner */
+  }
+  .person-kort .person-knapper button.danger svg{ width:15px; height:15px; display:block; flex:0 0 auto; }
+  .person-kort .person-knapper button.danger:hover{ background:#fbeaea; border-color:#d03b3b; }
+  .person-legg-til{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:4px; }
+  .person-legg-til select{
+    padding:7px 9px; border:1px solid var(--hairline); border-radius:7px; font-size:13px;
+    background:var(--surface-1); color:var(--ink-primary); min-width:220px;
+  }
+  .person-legg-til a{ font-size:12px; color:var(--blue-dark); }
+
   .program-melding{
     background:var(--surface-1); border:1px solid var(--hairline); border-radius:10px;
     padding:16px; font-size:13px; color:var(--ink-secondary); line-height:1.5;
@@ -228,7 +268,7 @@
     <button class="tab-btn aktiv" data-tab="reiseinfo">Reiseinfo</button>
     <button class="tab-btn" disabled>Fly<span class="soon">Snart</span></button>
     <button class="tab-btn" disabled>Hotell<span class="soon">Snart</span></button>
-    <button class="tab-btn" disabled>Om reisen<span class="soon">Snart</span></button>
+    <button class="tab-btn" data-tab="omreisen">Om reisen</button>
     <button class="tab-btn" data-tab="program">Program</button>
     <button class="tab-btn" disabled>Priser<span class="soon">Snart</span></button>
     <button class="tab-btn" disabled>Praktisk info<span class="soon">Snart</span></button>
@@ -303,6 +343,44 @@
 
     </div>
 
+    <!-- ============ OM REISEN ============ -->
+    <div class="tab-panel" data-panel="omreisen">
+
+      <div class="card">
+        <div class="card-title"><span>Om reisen</span></div>
+        <div class="hint" style="margin-bottom:10px;">Den redaksjonelle presentasjonen av reisen - det kunden leser først.</div>
+        <div class="field-grid">
+          <div class="field full">
+            <label for="om-overskrift">Overskrift</label>
+            <input type="text" id="om-overskrift" data-f="intro_heading" placeholder="F.eks. En reise til Marokkos hjerte">
+          </div>
+          <div class="field full">
+            <label for="om-tekst">Tekst</label>
+            <textarea id="om-tekst" data-f="intro_text" class="om-tekst" placeholder="Skriv fritt. Avsnitt skilles med linjeskift."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span>Bilder</span></div>
+        <div id="omBilderHolder"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span>Personer på reisen</span></div>
+        <div class="hint" style="margin-bottom:10px;">Reiseledere, talere og andre som presenteres som en del av Om reisen. Personene hentes fra Personregisteret. Rolle og bilde velges her for akkurat denne reisen; presentasjonen hentes inn fra registeret som utgangspunkt og er deretter reisens egen tekst.</div>
+        <div id="personerHolder"></div>
+        <div class="person-legg-til" id="personLeggTil"></div>
+        <datalist id="rolleForslag">
+          <option value="Reiseleder"></option>
+          <option value="Taler"></option>
+          <option value="Musiker"></option>
+          <option value="Yogainstruktør"></option>
+        </datalist>
+      </div>
+
+    </div>
+
     <!-- ============ PROGRAM ============ -->
     <div class="tab-panel" data-panel="program">
       <div id="programHolder"></div>
@@ -333,8 +411,17 @@ let state = {
   // Listen inneholder ALLE dager som finnes i basen - også de som ligger
   // utenfor reiseperioden (bevarte). Hvilke som vises, avgjøres ved tegning.
   days: [],
+  // Om reisen: bildene (trip_images) og personene (trip_trip_leaders).
+  //   omBilder: [{id, clientKey, image_url, alt_text, bank_id, sort_order}]
+  //   personer: [{id, clientKey, trip_leader_id, role, bio_override, bilde_id, sort_order, endret}]
+  omBilder: [], omBilderEndret:false,
+  personer: [], personerEndret:false,
 };
-let originalIds = {};
+let originalIds = { omBilder:new Set(), personer:new Set() };
+// Personregisteret, kun til plukking: [{id, name, bio, bilder:[{id, bilde_url, alt_tekst}]}]
+let personRegister = [];
+let personRegisterFeilet = false;
+let omBilderOpptatt = false;
 let reisemaalRegister = [];   // {id, navn, land} til reisemål-koblingen
 let reisemaalRegisterFeilet = false; // lastefeil skal ikke se ut som slettet reisemål
 let paameldingsAntall = 0;
@@ -420,6 +507,8 @@ function tripPayload(){
     end_date: t.end_date || null,
     days: beregnDager(),
     departure_airport: t.departure_airport || null,
+    intro_heading: t.intro_heading || null,
+    intro_text: t.intro_text || null,
     // Forsidebildet ligger på trips fordi kundesiden skal kunne lese det for
     // en publisert reise. Reisemål-sporet lagres som id OG navnkopi, slik at
     // merknaden «hentet fra …» fortsatt gir mening om reisemålet senere
@@ -526,6 +615,7 @@ async function utforLagring(){
             }).select("id").single();
             if(error) throw new Error("bilde på dag " + d.day_number + ": " + error.message);
             b.id = data.id; b.sort_order = i;
+            d.originalBildeIds.add(b.id);   // straks - se personsynken
           }
         }
         // Det som nå finnes i basen: det som fantes minus det vi slettet,
@@ -540,6 +630,110 @@ async function utforLagring(){
         throw err;
       }
     }
+  }
+
+  // 4) Om reisen - bildene. Samme mønster som dagsbildene: øyeblikksbilde
+  //    av listen, flagget nullstilles før og settes tilbake ved feil.
+  if(state.omBilderEndret){
+    state.omBilderEndret = false;
+    try{
+      const bilderNaa = state.omBilder.slice();
+      const keep = new Set(bilderNaa.map(b=>b.id).filter(Boolean));
+      const slett = [...originalIds.omBilder].filter(id => id && !keep.has(id));
+      if(slett.length){
+        const { error } = await window.sb.from("trip_images").delete().in("id", slett);
+        if(error) throw new Error("sletting av bilde i Om reisen: " + error.message);
+      }
+      for(let i=0; i<bilderNaa.length; i++){
+        const b = bilderNaa[i];
+        if(b.id){
+          if(b.sort_order !== i){
+            const { error } = await window.sb.from("trip_images").update({ sort_order: i }).eq("id", b.id);
+            if(error) throw new Error("bilde i Om reisen: " + error.message);
+            b.sort_order = i;
+          }
+        } else {
+          const { data, error } = await window.sb.from("trip_images").insert({
+            trip_id: tripId, image_url: b.image_url, alt_text: b.alt_text || null, sort_order: i, bank_id: b.bank_id || null,
+          }).select("id").single();
+          if(error) throw new Error("bilde i Om reisen: " + error.message);
+          b.id = data.id; b.sort_order = i;
+          originalIds.omBilder.add(b.id);   // straks - se personsynken
+        }
+      }
+      const slettet = new Set(slett);
+      const nyOriginal = new Set([...originalIds.omBilder].filter(id => !slettet.has(id)));
+      bilderNaa.forEach(b=>{ if(b.id) nyOriginal.add(b.id); });
+      originalIds.omBilder = nyOriginal;
+    } catch(err){ state.omBilderEndret = true; throw err; }
+  }
+
+  // 5) Om reisen - personene. Unik nøkkel på (trip_id, trip_leader_id):
+  //    fjernede kobliger slettes FØR nye settes inn, så en person som
+  //    fjernes og legges til igjen i samme lagring ikke kolliderer.
+  if(state.personerEndret){
+    state.personerEndret = false;
+    try{
+      const personerNaa = state.personer.slice();
+      const keep = new Set(personerNaa.map(k=>k.id).filter(Boolean));
+      const slett = [...originalIds.personer].filter(id => id && !keep.has(id));
+      if(slett.length){
+        const { error } = await window.sb.from("trip_trip_leaders").delete().in("id", slett);
+        if(error) throw new Error("fjerning av person: " + error.message);
+      }
+      for(let i=0; i<personerNaa.length; i++){
+        const k = personerNaa[i];
+        // Er det valgte bildet fjernet fra personens bank i en annen fane,
+        // peker bilde_id på en rad som ikke finnes (FK-feil 23503). Da
+        // nulles valget og kallet gjentas én gang - ellers ville HVER
+        // lagring feilet til siden ble lastet på nytt.
+        const skrivKobling = async (kall)=>{
+          let r = await kall();
+          if(r.error && r.error.code === "23503" && k.bilde_id){
+            k.bilde_id = null;
+            r = await kall();
+          }
+          return r;
+        };
+        const payloadK = ()=>({ role: k.role || null, bio_override: k.bio_override || null, bilde_id: k.bilde_id || null, sort_order: i });
+        if(k.id){
+          if(k.endret || k.sort_order !== i){
+            k.endret = false;
+            const { error } = await skrivKobling(()=> window.sb.from("trip_trip_leaders").update(payloadK()).eq("id", k.id));
+            if(error){ k.endret = true; throw new Error("person på reisen: " + error.message); }
+            k.sort_order = i;
+          }
+        } else {
+          k.endret = false;
+          let { data, error } = await skrivKobling(()=> window.sb.from("trip_trip_leaders")
+            .insert({ trip_id: tripId, trip_leader_id: k.trip_leader_id, ...payloadK() }).select("id").single());
+          if(error && error.code === "23505"){
+            // Personen står allerede på reisen i basen (en annen fane, eller
+            // vårt eget insert gikk gjennom men svaret forsvant). Adopter
+            // raden og skriv vårt innhold over - som for programdagene.
+            const { data: eks, error: e2 } = await window.sb.from("trip_trip_leaders")
+              .select("id").eq("trip_id", tripId).eq("trip_leader_id", k.trip_leader_id).maybeSingle();
+            if(e2 || !eks){ k.endret = true; throw new Error("person på reisen: " + (e2 ? e2.message : "fant ikke eksisterende kobling")); }
+            k.id = eks.id;
+            originalIds.personer.add(k.id);
+            const { error: e3 } = await skrivKobling(()=> window.sb.from("trip_trip_leaders").update(payloadK()).eq("id", k.id));
+            if(e3){ k.endret = true; throw new Error("person på reisen: " + e3.message); }
+            k.sort_order = i;
+            continue;
+          }
+          if(error){ k.endret = true; throw new Error("person på reisen: " + error.message); }
+          k.id = data.id; k.sort_order = i;
+          // Registreres STRAKS: feiler en senere person i samme løkke, må
+          // denne likevel kunne slettes ved neste lagring hvis brukeren
+          // fjerner den imens - ellers blir den et spøkelse i basen.
+          originalIds.personer.add(k.id);
+        }
+      }
+      const slettet = new Set(slett);
+      const nyOriginal = new Set([...originalIds.personer].filter(id => !slettet.has(id)));
+      personerNaa.forEach(k=>{ if(k.id) nyOriginal.add(k.id); });
+      originalIds.personer = nyOriginal;
+    } catch(err){ state.personerEndret = true; throw err; }
   }
 
   skjulFeil();
@@ -1093,6 +1287,218 @@ async function lastOppDagsbilde(d, file){
   performSave();
 }
 
+/* ---------- Om reisen ----------
+   Overskrift og tekst er vanlige data-f-felt på reisen. Bildene er et
+   galleri med samme regler som programdagene. Personene hentes fra
+   Personregisteret; rolle, valgt bilde og presentasjon hører til DENNE
+   reisen og rører aldri personens masterdata. Presentasjonen kopieres fra
+   registeret idet personen legges til, og lever deretter sitt eget liv. */
+
+function renderOmReisen(){
+  const t = state.trip;
+  const o = el("om-overskrift"), x = el("om-tekst");
+  if(o) o.value = t.intro_heading || "";
+  if(x) x.value = t.intro_text || "";
+  renderOmBilder();
+  renderPersoner();
+}
+
+function renderOmBilder(){
+  const wrap = el("omBilderHolder");
+  if(!wrap) return;
+  try{
+    wrap.innerHTML = "";
+    wrap.appendChild(window.bildevelger.galleri({
+      getBilder: ()=>{
+        const bank = reisemaalBankCache.get(state.trip.reisemaal_id);
+        return state.omBilder.map(b=>({
+          key:b.clientKey, url:b.image_url, alt:b.alt_text,
+          erFraBank: !!b.bank_id && (bank ? bank.some(r=>r.id === b.bank_id) : true),
+        }));
+      },
+      bank: ()=> omBilderBank(),
+      onVelg: (bilde)=>{
+        state.omBilder.push({ id:null, clientKey:newClientKey(), image_url:bilde.url, alt_text:bilde.alt_tekst || null, bank_id:bilde.id });
+        state.omBilderEndret = true; markDirty();
+      },
+      onFjern: (key)=>{
+        state.omBilder = state.omBilder.filter(b=>b.clientKey !== key);
+        state.omBilderEndret = true; markDirty();
+      },
+      onFlytt: (key, retning)=>{
+        const i = state.omBilder.findIndex(b=>b.clientKey === key);
+        const j = i + retning;
+        if(i < 0 || j < 0 || j >= state.omBilder.length) return;
+        const [b] = state.omBilder.splice(i,1); state.omBilder.splice(j,0,b);
+        state.omBilderEndret = true; markDirty();
+      },
+      onLastOpp: (file)=> lastOppOmBilde(file),
+      erOpptatt: ()=> omBilderOpptatt,
+      settOpptatt: (v)=>{ omBilderOpptatt = v; },
+      etterEndring: renderOmBilder,
+    }));
+  } catch(err){
+    console.error("Kunne ikke tegne bildene i Om reisen:", err);
+    wrap.innerHTML = '<div class="hint">Kunne ikke vise bildevelgeren. Last siden på nytt.</div>';
+  }
+}
+
+function omBilderBank(){
+  const rid = state.trip.reisemaal_id;
+  const navn = reisemaalNavnFor(rid);
+  return {
+    tittel: navn ? ("Bildebank for " + navn) : "Reisemålets bildebank",
+    erKoblet: ()=> !!state.trip.reisemaal_id,
+    tomBeskjed: "Koble reisen til et reisemål i Reiseinfo for å se bildene i reisemålets bildebank. "
+              + "Du kan også laste opp bilder direkte - de blir da liggende kun på denne reisen.",
+    hentBilder: async ()=>{
+      const rader = await hentReisemaalBank(state.trip.reisemaal_id);
+      return rader.slice()
+        .sort((a,b)=>(a.sortering??0)-(b.sortering??0))
+        .map(r=>({ id:r.id, url:r.bilde_url, alt_tekst:r.alt_tekst }));
+    },
+    brukteIds: ()=> new Set(state.omBilder.map(b=>b.bank_id).filter(Boolean)),
+    maks: REISEMAAL_BANK_BILDER_MAKS,
+  };
+}
+
+// Alltid privat på reisen - aldri inn i reisemålets bank.
+async function lastOppOmBilde(file){
+  if(file.size > BILDE_MAKS_BYTES) throw new Error("Filen er for stor (maks 15 MB).");
+  const m = file.name.match(/\.([a-z0-9]{1,5})$/i);
+  const ext = m ? m[1].toLowerCase() : "jpg";
+  const path = tripId + "/om-reisen/" + newClientKey() + "." + ext;
+  const { error } = await window.sb.storage.from("reise-bilder").upload(path, file, { upsert:false });
+  if(error) throw error;
+  const { data } = window.sb.storage.from("reise-bilder").getPublicUrl(path);
+  state.omBilder.push({ id:null, clientKey:newClientKey(), image_url:data.publicUrl, alt_text:null, bank_id:null });
+  state.omBilderEndret = true;
+  markDirty();
+  clearTimeout(autosaveTimer);
+  autosaveDirty = false;
+  performSave();
+}
+
+/* ---- Personer på reisen ---- */
+
+function personFraRegister(id){ return personRegister.find(p=>p.id === id) || null; }
+
+function renderPersoner(){
+  const holder = el("personerHolder");
+  const leggTil = el("personLeggTil");
+  if(!holder || !leggTil) return;
+  holder.innerHTML = "";
+
+  if(!state.personer.length){
+    holder.innerHTML = '<div class="hint" style="margin-bottom:8px;">Ingen personer lagt til ennå.</div>';
+  }
+
+  state.personer.forEach((k, i)=>{
+    const p = personFraRegister(k.trip_leader_id);
+    const kort = document.createElement("div");
+    kort.className = "person-kort";
+    kort.dataset.key = k.clientKey;
+    kort.innerHTML = `
+      <div class="person-bilde"></div>
+      <div class="person-felt">
+        <div class="person-navn">${p ? escapeHtml(p.name) : (personRegisterFeilet ? "(fikk ikke lastet registeret)" : "(personen finnes ikke lenger i registeret)")}</div>
+        <label>Rolle på denne reisen</label>
+        <input type="text" class="person-rolle" list="rolleForslag" placeholder="F.eks. Reiseleder" value="${escapeHtml(k.role||"")}">
+        <label>Presentasjon på denne reisen</label>
+        <textarea class="person-tekst" placeholder="Presentasjon av personen på denne reisen">${escapeHtml(k.bio_override||"")}</textarea>
+      </div>
+      <div class="person-knapper">
+        <button type="button" class="person-opp" title="Flytt opp"${i === 0 ? " disabled" : ""}>↑</button>
+        <button type="button" class="person-ned" title="Flytt ned"${i === state.personer.length-1 ? " disabled" : ""}>↓</button>
+        <button type="button" class="person-fjern danger" title="${personRegisterFeilet ? "Registeret ble ikke lastet - last siden på nytt før du fjerner" : "Fjern fra reisen"}"${personRegisterFeilet ? " disabled" : ""}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4.6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V6M6.2 6l.6 9.3a1 1 0 0 0 1 .95h4.4a1 1 0 0 0 1-.95L14 6"/></svg></button>
+      </div>`;
+    holder.appendChild(kort);
+
+    kort.querySelector(".person-rolle").addEventListener("input", e=>{ k.role = e.target.value; k.endret = true; state.personerEndret = true; markDirty(); });
+    kort.querySelector(".person-tekst").addEventListener("input", e=>{ k.bio_override = e.target.value; k.endret = true; state.personerEndret = true; markDirty(); });
+    kort.querySelector(".person-opp").addEventListener("click", ()=> flyttPerson(k, -1));
+    kort.querySelector(".person-ned").addEventListener("click", ()=> flyttPerson(k, +1));
+    kort.querySelector(".person-fjern").addEventListener("click", ()=>{
+      // Fjerner kun fra DENNE reisen. Personen står urørt i registeret.
+      if(!confirm("Fjerne " + (p ? p.name : "personen") + " fra denne reisen? Personen beholdes i registeret.")) return;
+      state.personer = state.personer.filter(x=>x !== k);
+      state.personerEndret = true; markDirty(); renderPersoner();
+    });
+    renderPersonBilde(k);
+  });
+
+  // Legg til: personer fra registeret som ikke alt er på reisen.
+  const paaReisen = new Set(state.personer.map(k=>k.trip_leader_id));
+  const ledige = personRegister.filter(p=>!paaReisen.has(p.id));
+  leggTil.innerHTML = personRegisterFeilet
+    ? `<span class="hint">Fikk ikke lastet Personregisteret - last siden på nytt for å legge til personer.</span>`
+    : (ledige.length
+      ? `<select id="velgPerson"><option value="">+ Legg til person fra registeret…</option>${
+          ledige.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("")}</select>
+         <a href="personer.html">Åpne Personregisteret</a>`
+      : `<span class="hint">${personRegister.length ? "Alle personene i registeret er lagt til." : "Registeret er tomt."}</span>
+         <a href="personer.html">Åpne Personregisteret</a>`);
+  const sel = el("velgPerson");
+  if(sel) sel.addEventListener("change", e=>{
+    const p = personFraRegister(e.target.value);
+    if(!p) return;
+    // Rolle og bilde starter tomme og velges for denne reisen. Teksten
+    // derimot KOPIERES fra masterpresentasjonen som utgangspunkt
+    // (produktbeslutning 03.09.2026): mye kan gjenbrukes, men innledningen
+    // eller enkelte formuleringer tilpasses gjerne reisen. Etter kopieringen
+    // er teksten reisens egen - redigering her rører aldri registeret, og
+    // senere endringer i registeret rører aldri denne teksten.
+    state.personer.push({ id:null, clientKey:newClientKey(), trip_leader_id:p.id, role:"", bio_override:(p.bio || ""), bilde_id:null, sort_order:state.personer.length, endret:true });
+    state.personerEndret = true; markDirty(); renderPersoner();
+  });
+}
+
+function flyttPerson(k, retning){
+  const i = state.personer.indexOf(k);
+  const j = i + retning;
+  if(i < 0 || j < 0 || j >= state.personer.length) return;
+  state.personer.splice(i,1); state.personer.splice(j,0,k);
+  state.personerEndret = true; markDirty(); renderPersoner();
+}
+
+// Bildet velges KUN fra personens egen bildebank - ingen opplasting her
+// (produktbeslutning: ingen private personbilder per reise nå).
+function renderPersonBilde(k){
+  const kort = document.querySelector(`.person-kort[data-key="${k.clientKey}"]`);
+  if(!kort) return;
+  const wrap = kort.querySelector(".person-bilde");
+  const p = personFraRegister(k.trip_leader_id);
+  const valgt = p ? p.bilder.find(b=>b.id === k.bilde_id) : null;
+  try{
+    wrap.innerHTML = "";
+    wrap.appendChild(window.bildevelger.slot({
+      label: "Bilde",
+      utenOpplasting: true,
+      getUrl: ()=> valgt ? valgt.bilde_url : null,
+      // Feilet lastingen av registeret, VET vi ikke om bildet finnes - da
+      // skal ingen tekst påstå at det er borte.
+      getMerknad: ()=> (k.bilde_id && !valgt && p && !personRegisterFeilet)
+        ? "Det valgte bildet finnes ikke lenger i personens bildebank" : null,
+      bank: ()=> ({
+        tittel: p ? ("Bilder av " + p.name) : "Personens bilder",
+        erKoblet: ()=> !!p && !personRegisterFeilet,
+        tomBeskjed: personRegisterFeilet
+          ? "Fikk ikke lastet Personregisteret. Last siden på nytt for å velge bilde."
+          : "Personen finnes ikke lenger i Personregisteret.",
+        tomBankBeskjed: "Ingen bilder av " + (p ? p.name : "personen") + " ennå. Bildene lastes opp i Personregisteret.",
+        hentBilder: async ()=> (p ? p.bilder : []).map(b=>({ id:b.id, url:b.bilde_url, alt_tekst:b.alt_tekst })),
+      }),
+      onVelg: (bilde)=>{ k.bilde_id = bilde.id; k.endret = true; state.personerEndret = true; markDirty(); },
+      onFjern: ()=>{ k.bilde_id = null; k.endret = true; state.personerEndret = true; markDirty(); },
+      erFraBank: ()=> true,   // alltid fra banken - kan alltid velges igjen
+      etterEndring: ()=> renderPersonBilde(k),
+    }));
+  } catch(err){
+    console.error("Kunne ikke tegne personbildet:", err);
+    wrap.innerHTML = '<div class="hint">Kunne ikke vise bildevelgeren.</div>';
+  }
+}
+
 /* ---------- Faner ---------- */
 function visFane(navn){
   document.querySelectorAll(".tab-btn[data-tab]").forEach(b=>b.classList.toggle("aktiv", b.dataset.tab === navn));
@@ -1145,17 +1551,23 @@ function renderGrunnfelter(){
 }
 
 async function lastReise(id){
-  const [rTrip, rInternal, rDays, rReisemaal] = await Promise.all([
+  const [rTrip, rInternal, rDays, rReisemaal, rOmBilder, rPersoner, rRegister, rRegisterBilder] = await Promise.all([
     window.sb.from("trips").select("*").eq("id", id).single(),
     window.sb.from("trip_internal").select("*").eq("trip_id", id).maybeSingle(),
     window.sb.from("trip_days").select("*").eq("trip_id", id).order("day_number"),
     window.sb.from("reisemaal").select("id,navn,land").order("navn"),
+    window.sb.from("trip_images").select("*").eq("trip_id", id).order("sort_order"),
+    window.sb.from("trip_trip_leaders").select("*").eq("trip_id", id).order("sort_order"),
+    window.sb.from("trip_leaders").select("id,name,bio").order("name"),
+    window.sb.from("trip_leader_images").select("id,trip_leader_id,bilde_url,alt_tekst,sortering").order("sortering"),
   ]);
   if(rTrip.error || !rTrip.data) return false;
   // Feiler en av datakildene, skal editoren stoppe - ikke vise en
   // tilsynelatende tom reise som en ny lagring så ville duplisert.
   // (Reisemål-registeret er unntaket: brukes kun til nedtrekket.)
-  const lastefeil = [rInternal.error, rDays.error].filter(Boolean);
+  // Personregisteret er som reisemål-registeret: kun til plukking, og
+  // ikke-fatalt. Reisens EGNE data (bilder, personkoblinger) er fatale.
+  const lastefeil = [rInternal.error, rDays.error, rOmBilder.error, rPersoner.error].filter(Boolean);
   if(lastefeil.length){
     el("loadMsg").textContent = "Kunne ikke laste hele reisen (" + lastefeil[0].message + "). Last siden på nytt før du redigerer.";
     return "stopp";
@@ -1174,6 +1586,8 @@ async function lastReise(id){
     forsidebilde_bank_id: trip.forsidebilde_bank_id || null,
     forsidebilde_reisemaal_id: trip.forsidebilde_reisemaal_id || null,
     forsidebilde_reisemaal_navn: trip.forsidebilde_reisemaal_navn || null,
+    intro_heading: trip.intro_heading || null,
+    intro_text: trip.intro_text || null,
   };
   state.sisteLagredeTittel = trip.title || "";
   state.internal = {
@@ -1203,6 +1617,22 @@ async function lastReise(id){
     });
     state.days.forEach(d=>{ d.originalBildeIds = new Set(d.bilder.map(b=>b.id)); });
   }
+
+  // Om reisen
+  state.omBilder = (rOmBilder.data||[]).map(b=>({
+    id:b.id, clientKey:b.id, image_url:b.image_url, alt_text:b.alt_text, bank_id:b.bank_id || null, sort_order:b.sort_order,
+  }));
+  originalIds.omBilder = new Set(state.omBilder.map(b=>b.id));
+  state.personer = (rPersoner.data||[]).map(k=>({
+    id:k.id, clientKey:k.id, trip_leader_id:k.trip_leader_id, role:k.role || "",
+    bio_override:k.bio_override || "", bilde_id:k.bilde_id || null, sort_order:k.sort_order, endret:false,
+  }));
+  originalIds.personer = new Set(state.personer.map(k=>k.id));
+  personRegisterFeilet = !!(rRegister.error || rRegisterBilder.error);
+  personRegister = (rRegister.data||[]).map(p=>({
+    id:p.id, name:p.name, bio:p.bio || "",
+    bilder: (rRegisterBilder.data||[]).filter(b=>b.trip_leader_id===p.id),
+  }));
   return true;
 }
 
@@ -1230,6 +1660,7 @@ async function lastReise(id){
   el("editorArea").style.display = "block";
   renderGrunnfelter();
   renderProgram();
+  renderOmReisen();
   oppdaterLaasUI();
   settStatus("");
   autosaveKlar = true;
