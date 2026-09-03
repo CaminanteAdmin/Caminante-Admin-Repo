@@ -179,6 +179,27 @@
         color:var(--ink-muted,#8a8880); text-decoration:none; cursor:default;
       }
       .bv-slot-status{ font-size:11.5px; color:var(--ink-muted,#8a8880); margin-top:6px; min-height:15px; }
+
+      /* ---- Galleriet (flere bilder på én plass) ---- */
+      .bv-galleri{ display:flex; flex-direction:column; gap:8px; }
+      .bv-galleri-grid{ display:flex; flex-wrap:wrap; gap:8px; }
+      .bv-galleri-kort{
+        width:120px; border-radius:7px; overflow:hidden; background:var(--surface-1,#fff);
+        border:1px solid var(--hairline,#e4e2dc); display:flex; flex-direction:column;
+      }
+      .bv-galleri-kort img{ width:100%; height:80px; object-fit:cover; display:block; background:var(--page,#f6f5f2); }
+      .bv-galleri-kort .bv-galleri-knapper{ display:flex; }
+      .bv-galleri-kort .bv-galleri-knapper button{
+        flex:1; border:none; background:none; font-size:11px; padding:4px 0; cursor:pointer;
+        color:var(--ink-secondary,#5a5850);
+      }
+      .bv-galleri-kort .bv-galleri-knapper button:hover{ background:var(--page,#f6f5f2); }
+      .bv-galleri-kort .bv-galleri-knapper .bv-galleri-fjern{ color:#b04a4a; }
+      .bv-galleri-kort .bv-galleri-knapper button:disabled{ color:var(--ink-muted,#8a8880); cursor:default; background:none; }
+      .bv-galleri-tom{ font-size:12px; color:var(--ink-muted,#8a8880); }
+      .bv-galleri-handlinger{ display:flex; gap:8px; flex-wrap:wrap; }
+      .bv-galleri-handlinger .bv-slot-primar,
+      .bv-galleri-handlinger .bv-slot-sekundar{ width:auto; flex:0 0 auto; margin:0; padding:7px 14px; }
     `;
     document.head.appendChild(css);
   }
@@ -227,7 +248,13 @@
   //   maks:        number|null       - valgfritt: vises i telleren
   // }
   // onVelg(bilde) kalles med det valgte bildet. Vinduet lukkes selv.
-  async function aapne(bank, onVelg){
+  //
+  // valg.flervalg = true (galleri): vinduet blir stående åpent etter et
+  // klikk, det valgte bildet forsvinner fra rutenettet, og brukeren plukker
+  // flere på rad. Standard er ett valg og lukking - slik Forsidebilde bruker
+  // det, uendret.
+  async function aapne(bank, onVelg, valg){
+    const flervalg = !!(valg && valg.flervalg);
     byggModal();
     const mittNr = ++aapentNr;
 
@@ -257,9 +284,10 @@
     const brukte = (bank.brukteIds && bank.brukteIds()) || null;
     const ledige = brukte ? alle.filter(b => !brukte.has(b.id)) : alle;
 
-    modalTeller.textContent = bank.maks
+    modalTeller.textContent = (bank.maks
       ? `${alle.length} / ${bank.maks} bilder i banken`
-      : `${alle.length} bilde${alle.length===1?"":"r"} i banken`;
+      : `${alle.length} bilde${alle.length===1?"":"r"} i banken`)
+      + (flervalg ? " - klikk for å legge til, lukk når du er ferdig" : "");
 
     if(!alle.length){
       // MÅ ikke love at en opplasting herfra fyller banken - den gjør den
@@ -282,7 +310,16 @@
       wrap.className = "bv-thumb-wrap";
       wrap.title = "Klikk for å velge dette bildet";
       wrap.innerHTML = `<img src="${esc(b.url)}" loading="lazy" alt="${esc(b.alt_tekst || "")}">`;
-      wrap.addEventListener("click", ()=>{ lukkModal(); onVelg(b); });
+      wrap.addEventListener("click", ()=>{
+        if(!flervalg){ lukkModal(); onVelg(b); return; }
+        // Flervalg: bildet tas ut av rutenettet med det samme, uten å tegne
+        // hele vinduet på nytt (det ville hoppet til toppen av en lang liste).
+        onVelg(b);
+        wrap.remove();
+        if(!grid.children.length){
+          modalKropp.innerHTML = `<div class="bv-modal-empty">Alle bildene i banken er nå i bruk her.</div>`;
+        }
+      });
       grid.appendChild(wrap);
     });
     modalKropp.innerHTML = "";
@@ -417,5 +454,118 @@
     return box;
   }
 
-  window.bildevelger = { aapne, slot, lukk: lukkModal };
+  /* ---------------- Galleriet: flere bilder på én plass ----------------
+     Sidestilt med slot(), IKKE en utvidelse av den - Forsidebildets kodevei
+     røres ikke. Deler vindu, knapper og regler.
+
+     opts = {
+       getBilder:    ()=>[{key, url, alt, erFraBank}]  - i visningsrekkefølge
+       bank:         ()=>bankObjekt                     - leses PÅ KLIKK
+       onVelg:       (bilde)=>void                      - ett bankbilde lagt til
+       onFjern:      (key)=>void
+       onFlytt:      (key, retning)=>void               - valgfri; -1 = venstre, +1 = høyre
+       onLastOpp:    async (file)=>void                 - kalles én gang PER fil
+       erOpptatt:    ()=>bool
+       settOpptatt:  (bool)=>void
+       etterEndring: ()=>void
+     }
+     Samme produktregel som slot(): "Velg fra bildebank" bruker biblioteket,
+     "Last opp bilde" tilhører kun stedet det lastes opp. */
+  function galleri(opts){
+    sikreStil();
+    const bilder = opts.getBilder() || [];
+    const opptatt = opts.erOpptatt ? !!opts.erOpptatt() : false;
+
+    const box = document.createElement("div");
+    box.className = "bv-galleri";
+    box.innerHTML = `
+      ${bilder.length
+        ? `<div class="bv-galleri-grid">${bilder.map((b,i)=>`
+            <div class="bv-galleri-kort" data-key="${esc(b.key)}">
+              <img src="${esc(b.url)}" alt="${esc(b.alt || "")}" loading="lazy">
+              <div class="bv-galleri-knapper">
+                ${opts.onFlytt ? `<button type="button" class="bv-galleri-venstre" title="Flytt mot venstre"${(opptatt || i===0) ? " disabled" : ""}>←</button>` : ``}
+                <button type="button" class="bv-galleri-fjern" title="Fjern"${opptatt ? " disabled" : ""}>Fjern</button>
+                ${opts.onFlytt ? `<button type="button" class="bv-galleri-hoyre" title="Flytt mot høyre"${(opptatt || i===bilder.length-1) ? " disabled" : ""}>→</button>` : ``}
+              </div>
+            </div>`).join("")}</div>`
+        : `<div class="bv-galleri-tom">Ingen bilder ennå.</div>`}
+      <div class="bv-galleri-handlinger">
+        <button type="button" class="bv-slot-primar"${opptatt ? " disabled" : ""}>Velg fra bildebank</button>
+        <button type="button" class="bv-slot-sekundar"${opptatt ? " disabled" : ""}>Last opp bilde</button>
+      </div>
+      <div class="bv-slot-status">${opptatt ? "Laster opp…" : ""}</div>
+      <input type="file" accept="image/*" multiple class="bv-slot-file" style="display:none">
+    `;
+
+    const status = box.querySelector(".bv-slot-status");
+    const filInput = box.querySelector(".bv-slot-file");
+
+    box.querySelector(".bv-slot-primar").addEventListener("click", ()=>{
+      aapne(opts.bank(), (bilde)=>{
+        opts.onVelg(bilde);
+        if(opts.etterEndring) opts.etterEndring();
+      }, { flervalg: true });
+    });
+
+    box.querySelectorAll(".bv-galleri-kort").forEach(kort=>{
+      const key = kort.dataset.key;
+      const b = bilder.find(x=> String(x.key) === key);
+      if(!b) return;
+      kort.querySelector(".bv-galleri-fjern").addEventListener("click", ()=>{
+        if(!b.erFraBank && !confirm(
+          "Dette bildet kan ikke velges inn igjen fra bildebanken.\n\n"
+          + "Fjerner du det, må du laste det opp på nytt.\n\nFjerne bildet?")) return;
+        opts.onFjern(b.key);
+        if(opts.etterEndring) opts.etterEndring();
+      });
+      const v = kort.querySelector(".bv-galleri-venstre");
+      const h = kort.querySelector(".bv-galleri-hoyre");
+      if(v) v.addEventListener("click", ()=>{ opts.onFlytt(b.key, -1); if(opts.etterEndring) opts.etterEndring(); });
+      if(h) h.addEventListener("click", ()=>{ opts.onFlytt(b.key, +1); if(opts.etterEndring) opts.etterEndring(); });
+    });
+
+    box.querySelector(".bv-slot-sekundar").addEventListener("click", ()=> filInput.click());
+    filInput.addEventListener("change", async (e)=>{
+      const input = e.target;
+      const valgte = [...input.files].filter(f=> f.type && f.type.startsWith("image/"));
+      if(!input.files.length) return;
+      if(!valgte.length){ input.value = ""; alert("Kun bildefiler kan lastes opp."); return; }
+      if(opts.erOpptatt && opts.erOpptatt()){ input.value = ""; return; }
+
+      // Lås FØRST (også mens filene leses inn), så tegn.
+      if(opts.settOpptatt) opts.settOpptatt(true);
+      box.querySelectorAll("button").forEach(b=> b.disabled = true);
+      status.textContent = "Laster opp…";
+      try{
+        // ALLE filene kopieres til minnet før noe annet skjer - se slot()
+        // for hvorfor: input-elementet som eier dem kan bli revet ut når
+        // plassen tegnes på nytt underveis.
+        const kopier = [];
+        for(const f of valgte){
+          const bytes = await f.arrayBuffer();
+          kopier.push(new File([bytes], f.name, { type: f.type }));
+        }
+        if(opts.etterEndring) opts.etterEndring();   // viser plassen som låst
+        for(const fil of kopier){
+          try{ await opts.onLastOpp(fil); }
+          catch(err){ alert("Kunne ikke laste opp " + fil.name + ": " + (err && err.message ? err.message : err)); }
+          // Tegn etter hvert bilde, så de dukker opp fortløpende.
+          if(opts.etterEndring) opts.etterEndring();
+        }
+      } catch(err){
+        alert("Kunne ikke lese filene: " + (err && err.message ? err.message : err));
+      } finally{
+        input.value = "";
+        if(opts.settOpptatt) opts.settOpptatt(false);
+        box.querySelectorAll("button").forEach(b=> b.disabled = false);
+        status.textContent = "";
+        try{ if(opts.etterEndring) opts.etterEndring(); }
+        catch(tegnefeil){ console.error("Kunne ikke tegne galleriet på nytt:", tegnefeil); }
+      }
+    });
+    return box;
+  }
+
+  window.bildevelger = { aapne, slot, galleri, lukk: lukkModal };
 })();
