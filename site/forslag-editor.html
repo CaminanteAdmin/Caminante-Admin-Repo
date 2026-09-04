@@ -159,6 +159,40 @@
   .tab-nav-arrow-btn[hidden]{ display:none; }
 
   .tab-panel{ display:none; padding:20px 24px 60px; max-width:880px; }
+  /* Program: dagkort, samme uttrykk som i Påmeldingstur */
+  .tab-panel[data-tab="program"]{ max-width:none; }
+  .fp-dag-kort{
+    background:var(--surface-1); border:1px solid var(--hairline); border-radius:10px;
+    padding:14px 16px; margin-bottom:12px;
+  }
+  .fp-dag-hode{ display:flex; align-items:baseline; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+  .fp-dag-hode .fp-dag-nr{ font-size:13px; font-weight:700; color:var(--blue-dark); white-space:nowrap; }
+  .fp-dag-hode .fp-dag-dato{ font-size:12.5px; color:var(--ink-secondary); }
+  .fp-dag-hode .fp-dag-slett{
+    margin-left:auto; display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px; padding:0; border:1px solid var(--hairline); border-radius:6px;
+    background:var(--surface-1); color:#b04a4a; cursor:pointer;
+  }
+  .fp-dag-hode .fp-dag-slett svg{ width:15px; height:15px; display:block; }
+  .fp-dag-hode .fp-dag-slett:hover{ background:#fbeaea; border-color:#d03b3b; }
+  .fp-dag-kort input.fp-dag-tittel{
+    width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--hairline);
+    border-radius:7px; font-size:14px; font-weight:600; font-family:inherit; margin-bottom:8px;
+  }
+  .fp-dag-kort textarea.fp-dag-tekst{
+    width:100%; box-sizing:border-box; min-height:120px; padding:8px 10px; line-height:1.5;
+    border:1px solid var(--hairline); border-radius:7px; font-size:13px; font-family:inherit;
+    resize:vertical; margin-bottom:10px;
+  }
+  .fp-dag-bilder-label{
+    font-size:11.5px; font-weight:600; color:var(--ink-secondary);
+    text-transform:uppercase; letter-spacing:0.03em; margin-bottom:6px;
+  }
+  .fp-program-melding{ font-size:13px; color:var(--ink-secondary); line-height:1.5; }
+  .fp-program-bevart{
+    background:#fdf4e3; border:1px solid #eddaaf; border-radius:10px;
+    padding:10px 14px; font-size:12.5px; color:#8a6a1d; margin-bottom:12px; line-height:1.5;
+  }
   .tab-panel.active{ display:block; }
 
   /* v1: hovedinnholdet i hver fane samles i én stor .card - samme visuelle
@@ -775,6 +809,7 @@
   <div class="tab-nav" id="tabNav">
     <button class="tab-btn active" data-tab="grunninfo">Reiseinfo</button>
     <button class="tab-btn" data-tab="hotell">Hotell</button>
+    <button class="tab-btn" data-tab="program">Program</button>
     <button class="tab-btn" data-tab="pris">Priser</button>
     <button class="tab-btn" data-tab="presentasjon">Presentasjon</button>
     <button class="tab-btn" data-tab="bilder">Bilder</button>
@@ -918,6 +953,22 @@
       <div class="card-title">Hotell</div>
       <div class="item-list" id="hotellList"></div>
       <button class="add-item-btn" id="addHotellBtn">+ Legg til hotellopphold</button>
+    </div>
+  </div>
+
+  <!-- ===== Program (Gruppetilbud Del 2) =====
+       Frivillig dag-til-dag-program, samme dagkort som Påmeldingstur:
+       dagnummer, dato når reisen har datoer, overskrift, fritekst, bilder.
+       Er både fra- og til-dato satt, genereres dagene fra datoene (innhold
+       hører til dagnummeret). Uten datoer legges dagene til manuelt, og en
+       manuell sletting rykker de etterfølgende dagene opp - en bevisst
+       handling, ikke noe systemet gjør av seg selv. -->
+  <div class="tab-panel" data-tab="program">
+    <div class="card">
+      <div class="card-title">Program - dag for dag</div>
+      <div class="field-hint" style="margin-bottom:12px;">Frivillig. Tas med i dokumentet bare når det er fylt ut. Med fra- og til-dato i Reiseinfo genereres dagene automatisk; uten datoer legger du dem til selv.</div>
+      <div id="programHolder"></div>
+      <button type="button" class="add-item-btn" id="btnNyDag" style="display:none;">+ Legg til dag</button>
     </div>
   </div>
 
@@ -1088,6 +1139,7 @@
 <script src="shared/supabase-client.js"></script>
 <script src="shared/auth.js"></script>
 <script src="shared/nav.js"></script>
+<script src="shared/bildevelger.js"></script>
 <script>
 /* ============================================================
    Forslag-editor - v1
@@ -1095,11 +1147,10 @@
    alle underlister (transport/hotellopphold/bilder) mot Supabase i
    én operasjon.
 
-   v: Program-fanen (dagsprogram) er fjernet herfra - den ble aldri
-   brukt av forslag-print.html, og feltene var i praksis dødvekt i
-   editoren. forslag_dagsprogram-tabellen og evt. eksisterende data
-   er IKKE slettet eller rørt - kan gjenbrukes i en fremtidig
-   Tilbud-editor om det trengs der.
+   Program-fanen (dagsprogram) ble fjernet en periode og er bygget opp
+   igjen i Gruppetilbud Del 2 (03.09.2026) på forslag_dagsprogram, med
+   samme enkle dagkort som Påmeldingstur. PDF-en leser ennå ikke
+   programmet - dokumentstrukturen tas i en egen gjennomgang før Del 4.
 
    v16: Autolagring lagt til (og den manuelle Lagre-knappen fjernet,
    se v17 under). Bakgrunn: det fantes tidligere INGEN form for
@@ -1168,8 +1219,12 @@ let state = {
   hotellopphold: [],
   bilder: [],
   hoydepunkter: [],
+  // Program (Del 2): {id, clientKey, fields:{dagnummer, overskrift, tekst, sortering}}.
+  // Dagens bilder ligger i state.bilder med kategori "Program" og
+  // dagsprogram_client_key, som hotellbildene gjør med hotellopphold.
+  dagsprogram: [],
 };
-let originalIds = { transport:new Set(), hotellopphold:new Set(), bilder:new Set(), hoydepunkter:new Set() };
+let originalIds = { transport:new Set(), hotellopphold:new Set(), bilder:new Set(), hoydepunkter:new Set(), dagsprogram:new Set() };
 
 // v16/v17: se autolagrings-innledningen over.
 let currentSaveChain = Promise.resolve(); // kjeder alle lagringer etter hverandre, se performSave()
@@ -1189,7 +1244,7 @@ function numOrNull(v){ return (v===""||v===null||v===undefined||isNaN(v)) ? null
 /* ---------- Tabs ---------- */
 
 // v25: rekkefølgen fanene navigeres i med Forrige/Neste-knappene.
-const TAB_REKKEFOLGE = ["grunninfo","hotell","pris","presentasjon","bilder"];
+const TAB_REKKEFOLGE = ["grunninfo","hotell","program","pris","presentasjon","bilder"];
 
 function goToTab(tabName){
   const btn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
@@ -1200,6 +1255,7 @@ function goToTab(tabName){
   btn.classList.add("active");
   panel.classList.add("active");
   oppdaterTabNavPiler();
+  if(tabName === "program" && typeof renderProgram === "function") renderProgram();
 }
 
 function oppdaterTabNavPiler(){
@@ -1255,12 +1311,13 @@ async function loadReferenceData(){
 }
 
 async function loadForslag(id){
-  const [{ data: f, error: e0 }, { data: transportRows }, { data: hotellRows }, { data: bildeRows }, { data: hpRows }] = await Promise.all([
+  const [{ data: f, error: e0 }, { data: transportRows }, { data: hotellRows }, { data: bildeRows }, { data: hpRows }, { data: dagRows }] = await Promise.all([
     window.sb.from("forslag").select("*").eq("id", id).single(),
     window.sb.from("forslag_transport").select("*").eq("forslag_id", id).order("sortering"),
     window.sb.from("forslag_hotellopphold").select("*").eq("forslag_id", id).order("sortering"),
     window.sb.from("forslag_bilder").select("*").eq("forslag_id", id).order("sortering"),
     window.sb.from("forslag_hoydepunkter").select("*").eq("forslag_id", id).order("sortering"),
+    window.sb.from("forslag_dagsprogram").select("*").eq("forslag_id", id).order("dagnummer"),
   ]);
   if(e0 || !f){ return false; }
 
@@ -1317,12 +1374,20 @@ async function loadForslag(id){
     });
   }
 
+  // Program: dagene sorteres på dagnummer; de gamle kolonnene (dato,
+  // aktiviteter, maltider) leses og skrives tilbake uendret, men brukes ikke.
+  state.dagsprogram = (dagRows||[]).map(d=>({ id:d.id, clientKey:d.id, fields: stripMeta(d) }));
+  state.dagsprogram.forEach(d=>{ if(d.fields.dagnummer == null) d.fields.dagnummer = (d.fields.sortering ?? 0) + 1; });
+  state.dagsprogram.sort((a,b)=>a.fields.dagnummer - b.fields.dagnummer);
+  const dagIdSet = new Set(state.dagsprogram.map(d=>d.id));
+
   const hotellIdSet = new Set(state.hotellopphold.map(h=>h.id));
   state.bilder = (bildeRows||[]).map(b=>{
     const fields = stripMeta(b);
     return {
       id:b.id, clientKey:b.id, fields,
       hotellopphold_client_key: (b.hotellopphold_id && hotellIdSet.has(b.hotellopphold_id)) ? b.hotellopphold_id : null,
+      dagsprogram_client_key: (b.dagsprogram_id && dagIdSet.has(b.dagsprogram_id)) ? b.dagsprogram_id : null,
     };
   });
 
@@ -1348,6 +1413,7 @@ async function loadForslag(id){
 
   originalIds.transport = new Set(state.transport.map(i=>i.id));
   originalIds.hotellopphold = new Set(state.hotellopphold.map(i=>i.id));
+  originalIds.dagsprogram = new Set(state.dagsprogram.map(i=>i.id));
   originalIds.bilder = new Set(state.bilder.map(i=>i.id));
   originalIds.hoydepunkter = new Set(state.hoydepunkter.map(i=>i.id));
 
@@ -2155,6 +2221,210 @@ async function velgHotellFraOversiktInn(item, id){
     });
   });
   renderBilder();
+}
+
+/* ---------- Rendering: Program (Del 2) ----------
+   Samme dagkort som Påmeldingstur. Reglene:
+   - Er både fra- og til-dato satt: dagene 1..N genereres fra datoene.
+     Innholdet hører til dagnummeret. Dager utenfor perioden bevares og
+     skjules, med en rolig beskjed.
+   - Uten datoer: dagene legges til og fjernes manuelt. En manuell sletting
+     rykker de etterfølgende dagene opp (bevisst brukerhandling).
+   - Bilder: «Velg fra bildebank» = reisemålets bank, «Last opp bilde» =
+     kun dette gruppetilbudet (uploadImageFile). Aldri inn i banken. */
+
+function programDatoer(){
+  // DOM er sannhetskilden for datoene fram til lagring (collectFieldsFromForm).
+  const fra = el("g-fra").value || null, til = el("g-til").value || null;
+  if(!fra || !til) return { N:null, fra, til };
+  const diff = Math.round((new Date(til) - new Date(fra)) / 86400000) + 1;
+  return { N: diff > 0 ? diff : null, fra, til, omvendt: diff <= 0 };
+}
+function dagDatoFor(fra, dagNr){
+  const d = new Date(fra + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + dagNr - 1);
+  const t = d.toLocaleDateString("nb-NO", { weekday:"long", day:"numeric", month:"long", year:"numeric", timeZone:"UTC" });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+function dagBilder(d){
+  // Sortert på sortering - et filter alene ville gitt arrayrekkefølgen, og
+  // da hadde pilknappene byttet verdier uten at noe flyttet seg på skjermen.
+  return state.bilder
+    .filter(b => b.fields.kategori === "Program" && b.dagsprogram_client_key === d.clientKey)
+    .sort((a,b)=>(a.fields.sortering??0)-(b.fields.sortering??0));
+}
+function dagHarInnhold(d){
+  return !!((d.fields.overskrift||"").trim() || (d.fields.tekst||"").trim() || dagBilder(d).length);
+}
+function nesteBildeSorteringFor(d){
+  const mine = dagBilder(d);
+  return mine.length ? Math.max(...mine.map(b=>b.fields.sortering??0)) + 1 : 0;
+}
+function nyProgramDag(nr){
+  return { id:null, clientKey:newClientKey(), fields:{ dagnummer:nr, overskrift:"", tekst:"", sortering:nr-1 } };
+}
+const programDagOpptatt = new Set();   // clientKey for dager med opplasting på gang
+
+function renderProgram(){
+  const holder = el("programHolder");
+  const nyBtn = el("btnNyDag");
+  if(!holder) return;
+  const { N, fra, omvendt } = programDatoer();
+
+  if(N && N > 365){
+    holder.innerHTML = `<div class="fp-program-melding">Reisen er satt til ${N} dager - mer enn ett år. Sjekk datoene i Reiseinfo.</div>`;
+    nyBtn.style.display = "none";
+    return;
+  }
+
+  // Sørg for at dagene er sammenhengende fra 1: med datoer 1..N, uten
+  // datoer 1..høyeste dagnummer som finnes. Hullene fylles med tomme dager
+  // uten rad (lat oppretting), så innhold aldri flyttes til et annet
+  // dagnummer - verken av datoendringer eller av en omlasting.
+  const maks = state.dagsprogram.length ? Math.max(...state.dagsprogram.map(d=>d.fields.dagnummer)) : 0;
+  const topp = N ? N : maks;
+  for(let n=1; n<=topp; n++){
+    if(!state.dagsprogram.some(d=>d.fields.dagnummer === n)) state.dagsprogram.push(nyProgramDag(n));
+  }
+  state.dagsprogram.sort((a,b)=>a.fields.dagnummer - b.fields.dagnummer);
+
+  const synlige = N ? state.dagsprogram.filter(d=>d.fields.dagnummer <= N) : state.dagsprogram;
+  const bevarte = N ? state.dagsprogram.filter(d=>d.fields.dagnummer > N && dagHarInnhold(d)) : [];
+
+  holder.innerHTML = "";
+  if(omvendt){
+    holder.innerHTML = `<div class="fp-program-melding" style="margin-bottom:12px;">Til-datoen er før fra-datoen. Rett datoene i Reiseinfo, så genereres dagene automatisk.</div>`;
+  }
+  if(bevarte.length){
+    const nr = bevarte.map(d=>d.fields.dagnummer);
+    const b = document.createElement("div");
+    b.className = "fp-program-bevart";
+    b.textContent = (bevarte.length === 1 ? "Én dag" : bevarte.length + " dager") + " med innhold ligger bevart utenfor reiseperioden (dag "
+      + (nr.length === 1 ? nr[0] : nr[0] + "–" + nr[nr.length-1]) + "). De vises ikke, og kommer tilbake hvis reisen forlenges igjen.";
+    holder.appendChild(b);
+  }
+  if(!synlige.length && !omvendt){
+    holder.innerHTML += `<div class="fp-program-melding" style="margin-bottom:12px;">Ingen programdager ennå. Sett fra- og til-dato i Reiseinfo for å få dagene generert, eller legg dem til her.</div>`;
+  }
+
+  synlige.forEach(d=>{
+    const kort = document.createElement("div");
+    kort.className = "fp-dag-kort";
+    kort.dataset.key = d.clientKey;
+    kort.innerHTML = `
+      <div class="fp-dag-hode">
+        <span class="fp-dag-nr">Dag ${d.fields.dagnummer}</span>
+        <span class="fp-dag-dato">${fra && N ? escapeHtml(dagDatoFor(fra, d.fields.dagnummer)) : ""}</span>
+        ${(N || omvendt) ? "" : `<button type="button" class="fp-dag-slett" title="Fjern dagen"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4.6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V6M6.2 6l.6 9.3a1 1 0 0 0 1 .95h4.4a1 1 0 0 0 1-.95L14 6"/></svg></button>`}
+      </div>
+      <input type="text" class="fp-dag-tittel" placeholder="Dagens overskrift" value="${escapeHtml(d.fields.overskrift||"")}">
+      <textarea class="fp-dag-tekst" placeholder="Programtekst for dagen">${escapeHtml(d.fields.tekst||"")}</textarea>
+      <div class="fp-dag-bilder-label">Bilder</div>
+      <div class="fp-dag-galleri"></div>`;
+    // Tekstfeltene tegnes aldri på nytt mens man skriver. Autolagringen
+    // utløses av det delegerte input-lytteren; her oppdateres bare state.
+    kort.querySelector(".fp-dag-tittel").addEventListener("input", e=>{ d.fields.overskrift = e.target.value; });
+    kort.querySelector(".fp-dag-tekst").addEventListener("input", e=>{ d.fields.tekst = e.target.value; });
+    const slett = kort.querySelector(".fp-dag-slett");
+    if(slett) slett.addEventListener("click", ()=> slettProgramDag(d));
+    holder.appendChild(kort);
+    renderProgramDagGalleri(d);
+  });
+
+  nyBtn.style.display = (N || omvendt) ? "none" : "";
+}
+
+// Manuell sletting (kun uten datoer): dagene etter rykker opp. Bildene på
+// dagen fjernes fra state - i basen forsvinner radene via cascade når dagen
+// slettes, og de skal ikke leve videre som løse "Program"-bilder.
+function slettProgramDag(d){
+  if(programDagOpptatt.has(d.clientKey)){ alert("Dagen laster opp bilder. Vent til opplastingen er ferdig før du fjerner den."); return; }
+  const antallBilder = dagBilder(d).length;
+  const advarsel = antallBilder ? "Dagen har " + antallBilder + " bilde" + (antallBilder===1?"":"r") + " som også fjernes.\n\n" : "";
+  const harEtter = state.dagsprogram.some(x => x.fields.dagnummer > d.fields.dagnummer);
+  if(!confirm(advarsel + "Fjerne dag " + d.fields.dagnummer + "?" + (harEtter ? " Dagene etter rykker opp." : ""))) return;
+  state.bilder = state.bilder.filter(b => !(b.fields.kategori === "Program" && b.dagsprogram_client_key === d.clientKey));
+  state.dagsprogram = state.dagsprogram.filter(x => x !== d);
+  state.dagsprogram.forEach((x, i)=>{ x.fields.dagnummer = i + 1; x.fields.sortering = i; });
+  markerSkittenEtterOpplasting();   // samme skitten-mekanisme som opplastingene
+  renderProgram();
+}
+
+el("btnNyDag").addEventListener("click", ()=>{
+  const neste = state.dagsprogram.length ? Math.max(...state.dagsprogram.map(d=>d.fields.dagnummer)) + 1 : 1;
+  state.dagsprogram.push(nyProgramDag(neste));
+  renderProgram();
+  // Klikket selv setter skitten-flagget (delegert click-lytter). Dagen får
+  // ingen rad før den har innhold - se lat oppretting i utforLagring().
+});
+
+// Datoendring i Reiseinfo -> programmet speiler datoene når man går inn i
+// fanen, og når en dato er FERDIG endret (change, ikke hvert tastetrykk).
+el("g-fra").addEventListener("change", ()=> renderProgram());
+el("g-til").addEventListener("change", ()=> renderProgram());
+
+function renderProgramDagGalleri(d){
+  const kort = document.querySelector(`.fp-dag-kort[data-key="${d.clientKey}"]`);
+  if(!kort) return;
+  const wrap = kort.querySelector(".fp-dag-galleri");
+  try{
+    wrap.innerHTML = "";
+    wrap.appendChild(window.bildevelger.galleri({
+      getBilder: ()=> dagBilder(d).map(b=>({ key:b.clientKey, url:b.fields.bilde_url, alt:b.fields.alt_tekst, erFraBank: !!b.fields.reisemaal_bilde_id })),
+      bank: ()=> programDagBank(),
+      onVelg: (bilde)=>{
+        state.bilder.push({ id:null, clientKey:newClientKey(),
+          fields:{ kategori:"Program", bilde_url:bilde.url, alt_tekst:bilde.alt_tekst||null, sortering:nesteBildeSorteringFor(d), er_hovedbilde:false, er_avslutningsbilde:false, reisemaal_bilde_id:bilde.id },
+          hotellopphold_client_key:null, dagsprogram_client_key:d.clientKey });
+        markerSkittenEtterOpplasting();
+      },
+      onFjern: (key)=>{ state.bilder = state.bilder.filter(b=>b.clientKey !== key); markerSkittenEtterOpplasting(); },
+      onFlytt: (key, retning)=>{
+        // Flytt i den SORTERTE listen og skriv 0..k tilbake - entydig
+        // rekkefølge uansett hvilke verdier bildene hadde fra før.
+        const mine = dagBilder(d);
+        const i = mine.findIndex(b=>b.clientKey === key), j = i + retning;
+        if(i < 0 || j < 0 || j >= mine.length) return;
+        const [m] = mine.splice(i,1); mine.splice(j,0,m);
+        mine.forEach((x,k)=>{ x.fields.sortering = k; });
+        markerSkittenEtterOpplasting();
+      },
+      onLastOpp: async (file)=>{
+        const url = await uploadImageFile(file);   // privat på gruppetilbudet - aldri inn i banken
+        state.bilder.push({ id:null, clientKey:newClientKey(),
+          fields:{ kategori:"Program", bilde_url:url, alt_tekst:null, sortering:nesteBildeSorteringFor(d), er_hovedbilde:false, er_avslutningsbilde:false },
+          hotellopphold_client_key:null, dagsprogram_client_key:d.clientKey });
+        markerSkittenEtterOpplasting();
+      },
+      erOpptatt: ()=> programDagOpptatt.has(d.clientKey),
+      settOpptatt: (v)=>{ if(v) programDagOpptatt.add(d.clientKey); else programDagOpptatt.delete(d.clientKey); },
+      etterEndring: ()=> renderProgramDagGalleri(d),
+    }));
+  } catch(err){
+    console.error("Kunne ikke tegne bildene for dagen:", err);
+    wrap.innerHTML = '<div class="field-hint">Kunne ikke vise bildevelgeren. Last siden på nytt.</div>';
+  }
+}
+
+// Banken for en programdag: reisemålets bildebank. Samme regel som resten
+// av gruppetilbudet: et bankbilde som alt er brukt et sted i dette
+// gruppetilbudet (galleri, hovedbilde, høydepunkt, annen dag) skjules.
+function programDagBank(){
+  const rid = state.forslag.reisemaal_id;
+  const r = rid ? reisemaalOversikt.find(x=>x.id===rid) : null;
+  return {
+    tittel: r ? ("Bildebank for " + r.navn) : "Reisemålets bildebank",
+    erKoblet: ()=> !!state.forslag.reisemaal_id,
+    tomBeskjed: "Koble et reisemål under Presentasjon («Velg fra reisemål-oversikt») for å se bildene i reisemålets bildebank. "
+              + "Du kan også laste opp bilder direkte - de blir da liggende kun på dette gruppetilbudet.",
+    hentBilder: reisemaalBildebankForValgtReisemaal,
+    brukteIds: ()=>{
+      const s = new Set(state.bilder.map(b=>b.fields.reisemaal_bilde_id).filter(Boolean));
+      state.hoydepunkter.forEach(hp=>{ if(hp.fields.valgt_bilde_id) s.add(hp.fields.valgt_bilde_id); });
+      return s;
+    },
+    maks: REISEMAAL_BANK_BILDER_MAKS,
+  };
 }
 
 /* ---------- Rendering: Pris ---------- */
@@ -3339,6 +3609,7 @@ function renderBilder(){
 
 function renderAll(){
   renderGrunninfo();
+  renderProgram();
   renderTransport();
   renderHotell();
   renderPris();
@@ -3489,7 +3760,7 @@ async function syncChildTable(table, fkField, items, originalIdSet, extraResolve
 // lagringer aldri kjører samtidig.
 async function utforLagring(trigger){
   collectFieldsFromForm();
-  el("saveStatus").textContent = trigger === "auto" ? "Autolagrer…" : "Lagrer…";
+  el("saveStatus").textContent = "Lagrer …";
   try{
     const { error: e0 } = await window.sb.from("forslag").update(collectForslagFields()).eq("id", forslagId);
     if(e0) throw new Error("forslag: " + e0.message);
@@ -3497,16 +3768,19 @@ async function utforLagring(trigger){
     await syncChildTable("forslag_transport", "forslag_id", state.transport, originalIds.transport);
     const hotellKeyToId = await syncChildTable("forslag_hotellopphold", "forslag_id", state.hotellopphold, originalIds.hotellopphold);
 
-    // v: Program-fanen (og dermed forslag_dagsprogram) er fjernet fra
-    // forslagseditoren - eksisterende rader i tabellen røres bevisst ikke
-    // (verken lest eller slettet herfra), i tilfelle de får ny bruk i en
-    // fremtidig Tilbud-variant. forslag_bilder-rader med dagsprogram_id satt
-    // fra før (kategori "Program") beholder også sin kobling og lagres
-    // fortsatt uendret her (state.bilder er urørt av UI-endringen) - v8
-    // fjernet kun "Andre bilder"-BOKSEN i Bilder-fanen (se renderBilder()),
-    // ikke selve dataene, så denne typen bilder blir bare ikke lenger vist.
+    // Program (Del 2). LAT oppretting: en dag uten innhold og uten rad får
+    // ingen rad - å åpne eller lagre et gruppetilbud skal ikke fylle basen
+    // med tomme dager.
+    // Innholdet hører til DAGNUMMERET - lagringen renummererer aldri. Tomme
+    // virtuelle dager lagres ikke, så listen i minnet kan ha hull etter en
+    // omlasting; dagnummeret på hver rad er sannheten, ikke posisjonen.
+    state.dagsprogram.forEach(d=>{ d.fields.sortering = d.fields.dagnummer - 1; });
+    const dagerTilSynk = state.dagsprogram.filter(d => d.id || dagHarInnhold(d));
+    const dagKeyToId = await syncChildTable("forslag_dagsprogram", "forslag_id", dagerTilSynk, originalIds.dagsprogram);
+
     await syncChildTable("forslag_bilder", "forslag_id", state.bilder, originalIds.bilder, (item)=>{
       item.fields.hotellopphold_id = item.hotellopphold_client_key ? (hotellKeyToId[item.hotellopphold_client_key] || null) : null;
+      item.fields.dagsprogram_id = item.dagsprogram_client_key ? (dagKeyToId[item.dagsprogram_client_key] || null) : null;
     });
 
     // v: sortering settes eksplisitt fra listens rekkefølge rett før lagring
@@ -3518,16 +3792,17 @@ async function utforLagring(trigger){
     originalIds.hotellopphold = new Set(state.hotellopphold.map(i=>i.id));
     originalIds.bilder = new Set(state.bilder.map(i=>i.id));
     originalIds.hoydepunkter = new Set(state.hoydepunkter.map(i=>i.id));
+    originalIds.dagsprogram = new Set(state.dagsprogram.map(i=>i.id).filter(Boolean));
 
     // Hent oppdatert forslagsnummer/sist_endret (uendret av oss, men greit å ha korrekt visning)
     const { data: fresh } = await window.sb.from("forslag").select("forslagsnummer,sist_endret").eq("id", forslagId).single();
     if(fresh){ el("f-nr").textContent = fresh.forslagsnummer || ""; }
 
     const tid = new Date().toLocaleString("nb-NO");
-    el("saveStatus").textContent = (trigger === "auto" ? "Autolagret " : "Lagret ") + tid;
+    el("saveStatus").textContent = "Lagret " + tid;
   } catch(err){
     console.error(err);
-    el("saveStatus").textContent = (trigger === "auto" ? "Autolagring feilet: " : "Kunne ikke lagre: ") + err.message;
+    el("saveStatus").textContent = "Kunne ikke lagre: " + err.message;
   }
 }
 
