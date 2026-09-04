@@ -405,6 +405,10 @@ async function dupliserForslag(id){
     // (annen kunde/forhandling), ikke en fortsettelse av samme kobling.
     kalkyle_id: null,
     kalkyle_sist_endret_ved_kobling: null,
+    // Tilbudsfristen arves IKKE: en kopi laget senere ville ellers fått en
+    // gammel dato som ser bevisst satt ut. Tekstfeltene i Vilkår og frister
+    // arves som resten av innholdet.
+    tilbudsfrist: null,
   };
   const { data, error } = await window.sb.from("forslag").insert(payload).select().single();
   if(error){ alert("Kunne ikke duplisere: " + error.message); return; }

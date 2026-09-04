@@ -161,6 +161,7 @@
   .tab-panel{ display:none; padding:20px 24px 60px; max-width:880px; }
   /* Program: dagkort, samme uttrykk som i Påmeldingstur */
   .tab-panel[data-tab="program"]{ max-width:none; }
+  .tab-panel[data-tab="vilkaar"]{ max-width:760px; }
   .fp-dag-kort{
     background:var(--surface-1); border:1px solid var(--hairline); border-radius:10px;
     padding:14px 16px; margin-bottom:12px;
@@ -543,6 +544,14 @@
   /* v7: ordteller under nederste høyre hjørne av tekstfeltet - samme
      hjelpefunksjon (refreshOrdteller()) håndhever en hard 60-ords-sperre. */
   .ordteller{ font-size:11px; color:var(--ink-muted); text-align:right; margin-top:4px; }
+  /* Gruppering av felt som hører til én bruk - f.eks. tekstene som bare
+     brukes når det genereres et Reiseforslag. */
+  .felt-gruppe{ margin:4px 0 10px; padding-top:14px; border-top:1px solid var(--hairline); }
+  .felt-gruppe-tittel{
+    font-size:12px; font-weight:650; color:var(--ink-secondary);
+    text-transform:uppercase; letter-spacing:0.04em;
+  }
+  .felt-gruppe-hint{ font-size:11.5px; color:var(--ink-muted); margin-top:3px; }
   /* v7: Høydepunkt-kortenes felt-labels komprimert (fra standard 170px) -
      de bor nå i en 50%-bred kolonne og trenger mer plass til selve feltet. */
   .tab-panel[data-tab="presentasjon"] #hoydepunktList .field-grid{ grid-template-columns:110px 1fr; }
@@ -812,6 +821,7 @@
     <button class="tab-btn" data-tab="program">Program</button>
     <button class="tab-btn" data-tab="pris">Priser</button>
     <button class="tab-btn" data-tab="presentasjon">Presentasjon</button>
+    <button class="tab-btn" data-tab="vilkaar">Vilkår og frister</button>
     <button class="tab-btn" data-tab="bilder">Bilder</button>
     <div class="tab-nav-arrows" id="tabNavArrows">
       <button type="button" class="tab-nav-arrow-btn" id="tabPrevBtn">← Forrige</button>
@@ -1054,18 +1064,25 @@
              "Forbehold" er flyttet hit fra den nå fjernede Forbehold-fanen,
              plassert under Reisemål i venstre kolonne. Samme
              ordtellermønster som Om reisen/Reisemål over, men med 40-ords
-             sperre i stedet for 60. -->
+             sperre i stedet for 60.
+             Del 3: gruppert under en egen overskrift, fordi disse to
+             tekstene hører til REISEFORSLAGET. Tilbudets forbehold er et
+             eget felt under Vilkår og frister - to forskjellige tekster. -->
+        <div class="felt-gruppe">
+          <div class="felt-gruppe-tittel">Til bruk ved Reiseforslag</div>
+          <div class="felt-gruppe-hint">Disse tekstene brukes når du genererer et Reiseforslag.</div>
+        </div>
         <div class="card" style="margin-bottom:28px;">
           <div class="card-title">Fra forslag til reise</div>
           <textarea id="vv-tekst" class="forbehold-textarea" style="min-height:90px;"></textarea>
           <div class="ordteller" id="vv-tekst-teller">0/40 ord</div>
-          <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan overstyres fritt per gruppetilbud.</div>
+          <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
         </div>
         <div class="card">
           <div class="card-title">Forbehold</div>
           <textarea id="fb-tekst" class="forbehold-textarea" style="min-height:90px;"></textarea>
           <div class="ordteller" id="fb-tekst-teller">0/40 ord</div>
-          <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan overstyres fritt per gruppetilbud.</div>
+          <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
         </div>
       </div>
       <!-- v: Høydepunkter - plukkes fra det valgte reisemålets
@@ -1084,6 +1101,54 @@
           <button type="button" class="btn-small-add" id="hpNyttBtn">+ Opprett nytt høydepunkt i banken</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== Vilkår og frister (Gruppetilbud Del 3) =====
+       Informasjonen trengs først og fremst når saken skal bli et TILBUD.
+       Ingenting her er påkrevd under vanlig arbeid - kravene gjelder først
+       ved «Generer tilbud» (Del 4).
+       MERK at Forbehold-kortet her er TILBUDETS forbehold
+       (tilbud_forbehold_tekst) - et helt eget felt. Reiseforslagets
+       forbehold (forbehold_tekst) ligger under Presentasjon og står urørt.
+       Det er to forskjellige tekster, ikke samme felt vist to steder. -->
+  <div class="tab-panel" data-tab="vilkaar">
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title">Tilbudsfrist</div>
+      <div class="field-hint" style="margin-bottom:12px;">Fristen kunden har på tilbudet. Fylles ut når saken går mot et tilbud - ingenting her er påkrevd under vanlig arbeid.</div>
+      <div class="field-grid" style="grid-template-columns:160px 1fr; max-width:520px;">
+        <label for="vk-frist">Tilbudsfrist</label>
+        <input type="date" id="vk-frist">
+      </div>
+    </div>
+
+    <!-- Forbehold for TILBUD. Reiseforslagets forbehold ligger under
+         Presentasjon og er et helt separat felt - ikke samme tekst to
+         steder. Et reiseforslag kan ta forbehold om at kapasitet ikke
+         holdes; i et tilbud har vi normalt undersøkt og ofte holdt
+         kapasitet, men kan ikke garantere endelig kapasitet og pris før
+         bestillingen er bekreftet hos leverandørene. -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title">Forbehold</div>
+      <div class="field-hint" style="margin-bottom:10px;">Forbehold for tilbudet. Reiseforslagets forbehold står uendret under Presentasjon.</div>
+      <textarea id="vk-forbehold" class="forbehold-textarea" style="min-height:110px;" placeholder="Forbehold som gjelder tilbudet."></textarea>
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title">Betalingsbetingelser</div>
+      <div class="field-hint" style="margin-bottom:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
+      <textarea id="vk-betaling" class="forbehold-textarea" style="min-height:110px;" placeholder="F.eks. depositum, forfall og sluttbetaling."></textarea>
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title">Avbestillingsbetingelser</div>
+      <textarea id="vk-avbestilling" class="forbehold-textarea" style="min-height:110px;" placeholder="F.eks. frister og gebyrer ved avbestilling."></textarea>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Særlige vilkår</div>
+      <div class="field-hint" style="margin-bottom:10px;">Bare det som gjelder akkurat denne saken. Generelle forbehold hører hjemme i Forbehold-feltet over.</div>
+      <textarea id="vk-saerlige" class="forbehold-textarea" style="min-height:90px;" placeholder="Valgfritt."></textarea>
     </div>
   </div>
 
@@ -1244,7 +1309,7 @@ function numOrNull(v){ return (v===""||v===null||v===undefined||isNaN(v)) ? null
 /* ---------- Tabs ---------- */
 
 // v25: rekkefølgen fanene navigeres i med Forrige/Neste-knappene.
-const TAB_REKKEFOLGE = ["grunninfo","hotell","program","pris","presentasjon","bilder"];
+const TAB_REKKEFOLGE = ["grunninfo","hotell","program","pris","presentasjon","vilkaar","bilder"];
 
 function goToTab(tabName){
   const btn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
@@ -2915,6 +2980,17 @@ el("hpNyttBtn").addEventListener("click", opprettHoydepunktInline);
 
 /* ---------- Rendering: Forbehold (bor nå i Presentasjon-fanen, se v9) ---------- */
 
+/* ---------- Rendering: Vilkår og frister ---------- */
+
+function renderVilkaar(){
+  const f = state.forslag;
+  el("vk-frist").value = f.tilbudsfrist || "";
+  el("vk-forbehold").value = f.tilbud_forbehold_tekst || "";
+  el("vk-betaling").value = f.betalingsbetingelser || "";
+  el("vk-avbestilling").value = f.avbestillingsbetingelser || "";
+  el("vk-saerlige").value = f.saerlige_vilkaar || "";
+}
+
 function renderForbehold(){
   el("vv-tekst").value = state.forslag.veien_videre_tekst || "";
   el("fb-tekst").value = state.forslag.forbehold_tekst || "";
@@ -3617,6 +3693,7 @@ function renderAll(){
   renderListEditor("ikkeInkludertList","ikke_inkludert");
   renderPresentasjon();
   renderForbehold();
+  renderVilkaar();
   renderBilder();
   el("btnPdf").href = `forslag-print.html?id=${encodeURIComponent(forslagId)}`;
 }
@@ -3666,6 +3743,11 @@ function collectForslagFields(){
     om_reisemalet: f.om_reisemalet || null,
     forbehold_tekst: f.forbehold_tekst || "",
     veien_videre_tekst: f.veien_videre_tekst || "",
+    tilbudsfrist: f.tilbudsfrist || null,
+    tilbud_forbehold_tekst: f.tilbud_forbehold_tekst || null,
+    betalingsbetingelser: f.betalingsbetingelser || null,
+    avbestillingsbetingelser: f.avbestillingsbetingelser || null,
+    saerlige_vilkaar: f.saerlige_vilkaar || null,
     hovedbilde_url: f.hovedbilde_url || null,
   };
 }
@@ -3697,6 +3779,12 @@ function collectFieldsFromForm(){
 
   f.om_reisen = el("pres-omreisen").value;
   f.om_reisemalet = el("pres-reisemal").value;
+
+  f.tilbudsfrist = el("vk-frist").value || null;
+  f.tilbud_forbehold_tekst = el("vk-forbehold").value;
+  f.betalingsbetingelser = el("vk-betaling").value;
+  f.avbestillingsbetingelser = el("vk-avbestilling").value;
+  f.saerlige_vilkaar = el("vk-saerlige").value;
 
   f.veien_videre_tekst = el("vv-tekst").value;
   f.forbehold_tekst = el("fb-tekst").value;
