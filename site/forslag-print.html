@@ -1091,6 +1091,11 @@ async function main(){
 
   // Hotellene parvis; flyet i den ledige halvsiden etter et enslig siste
   // hotell hvis HELE blokken får plass, ellers på egen side.
+  // Hard regel (06.09.2026): et hotell med 4 bilder er et bevisst valg om
+  // en stor, visuell presentasjon og får ALLTID egen side - selv om målt
+  // høyde teknisk hadde gitt plass til et kompakt hotell under. Hoteller
+  // med 0 eller 2 bilder er kompakte og kan dele side med hverandre.
+  const hotellStor = hoteller.map(h=> bilderForHotell(h.id).length >= 4);
   function hotellOgFlySider(){
     const sider = [];
     if(hotellBlokker.length){
@@ -1099,7 +1104,8 @@ async function main(){
       let i = 0;
       while(i < hotellBlokker.length){
         const par = [hotellBlokker[i]];
-        if(i + 1 < hotellBlokker.length && hoyderStart[i] + hoyder[i+1] <= SIDE_MAKS) par.push(hotellBlokker[i+1]);
+        const kanDele = i + 1 < hotellBlokker.length && !hotellStor[i] && !hotellStor[i+1];
+        if(kanDele && hoyderStart[i] + hoyder[i+1] <= SIDE_MAKS) par.push(hotellBlokker[i+1]);
         sider.push(par);
         i += par.length;
       }
