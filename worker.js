@@ -3,7 +3,8 @@
 // også /api/bildebank/*-endepunktene mot R2-bucketen "caminante-bilder"
 // (opplasting/liste/sletting av bilder for Reisemål/Hoteller/Forslag), og
 // faller tilbake til å servere de statiske filene (env.ASSETS.fetch) for
-// alt annet - akkurat som før.
+// alt annet - akkurat som før. Fra 2026-09-06 lager den også PDF-ene
+// (/api/pdf) med Cloudflare Browser Run, se «PDF» lenger ned.
 //
 // Mapper i bucketen: destinations/<slug>/... og hoteller/<slug>/...
 
@@ -124,10 +125,181 @@ async function handleDelete(request, env) {
   return jsonSvar({ ok: true });
 }
 
+
+// ---------- PDF (Cloudflare Browser Run) ----------
+// «Reiseforslag / PDF» og «Tilbud / PDF» lages her, ikke med nettleserens
+// Skriv ut. Flyt: editoren kaller GET /api/pdf?id=…[&type=tilbud] med
+// brukerens Supabase-token → workeren henter forslagets rader fra Supabase
+// REST med SAMME token (RLS gjelder som i appen) → radene settes inn i
+// forslag-print.html som window.PDF_DATA → Browser Run (headless Chromium)
+// kjører malens egen måle- og sidefordelingskode, venter på fonter, bilder
+// og markøren #pdf-klar, og tar PDF-en med faste A4-innstillinger.
+// Tokenet sendes aldri til Browser Run: headless-siden får ferdige data,
+// Supabase-/CDN-skriptene i malen fjernes (pdf-datakilde-markørene) og
+// forespørsler dit blokkeres i tillegg.
+
+const PDF_VENT_MS = 45000;
+
+async function sbHent(env, token, sti) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${sti}`, {
+    headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Supabase svarte ${res.status} for ${sti.split("?")[0]}`);
+  return res.json();
+}
+
+// Nøyaktig de radene forslag-print.html sin hentData() ellers henter selv i
+// forhåndsvisningen - samme tabeller, samme sortering.
+async function hentForslagData(env, token, id) {
+  const q = encodeURIComponent(id);
+  const [forslagRader, transportRows, hotellRows, bildeRows, hpRows, dagRows] = await Promise.all([
+    sbHent(env, token, `forslag?id=eq.${q}&select=*`),
+    sbHent(env, token, `forslag_transport?forslag_id=eq.${q}&select=*&order=sortering.asc`),
+    sbHent(env, token, `forslag_hotellopphold?forslag_id=eq.${q}&select=*&order=sortering.asc`),
+    sbHent(env, token, `forslag_bilder?forslag_id=eq.${q}&select=*&order=sortering.asc`),
+    sbHent(env, token, `forslag_hoydepunkter?forslag_id=eq.${q}&select=*&order=sortering.asc`),
+    sbHent(env, token, `forslag_dagsprogram?forslag_id=eq.${q}&select=*&order=dagnummer.asc`),
+  ]);
+  const f = forslagRader[0];
+  if (!f) return null;
+
+  let ansvarligNavn = null;
+  if (f.ansvarlig) {
+    const p = await sbHent(env, token, `profiles?id=eq.${encodeURIComponent(f.ansvarlig)}&select=navn`);
+    ansvarligNavn = (p[0] && p[0].navn) || null;
+  }
+  let hoydepunktBank = [], hoydepunktBildeBank = [], reisemaalLand = null;
+  if (f.reisemaal_id) {
+    const r = encodeURIComponent(f.reisemaal_id);
+    const [hpBank, rmBilder, rm] = await Promise.all([
+      sbHent(env, token, `reisemaal_hoydepunkter?reisemaal_id=eq.${r}&select=*`),
+      sbHent(env, token, `reisemaal_bilder?reisemaal_id=eq.${r}&select=*`),
+      sbHent(env, token, `reisemaal?id=eq.${r}&select=land`),
+    ]);
+    hoydepunktBank = hpBank;
+    hoydepunktBildeBank = rmBilder;
+    reisemaalLand = (rm[0] && rm[0].land) || null;
+  }
+  return { f, transportRows, hotellRows, bildeRows, hpRows, dagRows, ansvarligNavn, hoydepunktBank, hoydepunktBildeBank, reisemaalLand };
+}
+
+// Malen leses fra de statiske filene. Med standard html_handling kan
+// «/forslag-print.html» svare med en omdirigering til «/forslag-print» -
+// den følges.
+async function hentPdfMal(env, request) {
+  let url = new URL("/forslag-print.html", request.url);
+  for (let i = 0; i < 3; i++) {
+    const res = await env.ASSETS.fetch(new Request(url.toString()));
+    const videre = res.headers.get("Location");
+    if (res.status >= 300 && res.status < 400 && videre) { url = new URL(videre, url); continue; }
+    if (!res.ok) throw new Error(`Fant ikke PDF-malen (${res.status}).`);
+    return res.text();
+  }
+  throw new Error("Fant ikke PDF-malen (omdirigering).");
+}
+
+// Samme tittelregel som PDF-ens forside: «Reisemål, Land», landet utelatt
+// når reisemålet ER landet.
+function pdfFilnavn(data, erTilbud) {
+  const f = data.f;
+  const dest = (f.destinasjon || f.tittel || "Reiseforslag").trim();
+  const land = (data.reisemaalLand || "").trim();
+  const tittel = land && dest.toLowerCase() !== land.toLowerCase() ? `${dest}, ${land}` : dest;
+  const navn = `${erTilbud ? "Tilbud" : "Reiseforslag"} - ${tittel}`
+    .replace(/[\\/:*?"<>|\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+  return `${navn}.pdf`;
+}
+
+async function handlePdf(request, env) {
+  const bruker = await krevInnlogget(request, env);
+  if (!bruker) return jsonSvar({ error: "Ikke innlogget." }, 401);
+  const token = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
+
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id") || "";
+  const erTilbud = url.searchParams.get("type") === "tilbud";
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return jsonSvar({ error: "Ugyldig forslag-id." }, 400);
+  if (!env.BROWSER) return jsonSvar({ error: "PDF-tjenesten (Browser Run) er ikke konfigurert på serveren." }, 500);
+
+  let data;
+  try {
+    data = await hentForslagData(env, token, id);
+  } catch (err) {
+    return jsonSvar({ error: "Kunne ikke hente forslaget: " + err.message }, 502);
+  }
+  if (!data) return jsonSvar({ error: "Fant ikke dette forslaget." }, 404);
+
+  let html;
+  try {
+    html = await hentPdfMal(env, request);
+  } catch (err) {
+    return jsonSvar({ error: err.message }, 500);
+  }
+  if (!html.includes("<!-- pdf-data -->")) return jsonSvar({ error: "PDF-malen mangler datamarkøren." }, 500);
+  html = html.replace(/<!-- pdf-datakilde:start[\s\S]*?pdf-datakilde:slutt -->/, "");
+  const json = JSON.stringify({ ...data, erTilbud })
+    .replace(/<\//g, "<\\/").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
+  html = html.replace("<!-- pdf-data -->", `<script>window.PDF_DATA = ${json};</script>`);
+
+  let svar;
+  try {
+    svar = await env.BROWSER.quickAction("pdf", {
+      html,
+      // Samme medium som dokumentet er målt og designet mot (@media print,
+      // @page A4 uten marg) - også under selve målingen i siden.
+      emulateMediaType: "print",
+      viewport: { width: 1000, height: 1400 },
+      gotoOptions: { waitUntil: "load", timeout: 30000 },
+      // Siden setter #pdf-klar først når dokumentet er bygget og alle
+      // bilder er lastet og dekodet (fontene ventes på før målingen).
+      waitForSelector: { selector: "#pdf-klar", timeout: PDF_VENT_MS },
+      rejectRequestPattern: ["supabase\\.co", "cdn\\.jsdelivr\\.net"],
+      pdfOptions: {
+        format: "a4",
+        printBackground: true,
+        preferCSSPageSize: true,
+        margin: { top: "0", right: "0", bottom: "0", left: "0" },
+        timeout: 60000,
+      },
+    });
+  } catch (err) {
+    console.error("Browser Run-kall feilet", err);
+    return jsonSvar({ error: "PDF-tjenesten svarte ikke: " + (err && err.message ? err.message : err) }, 502);
+  }
+
+  if (!svar.ok) {
+    const detalj = (await svar.text()).slice(0, 500);
+    console.error("Browser Run feilet", svar.status, detalj);
+    if (svar.status === 429) return jsonSvar({ error: "Mange PDF-er lages samtidig. Prøv igjen om noen sekunder." }, 429);
+    const melding = /timeout|timed out/i.test(detalj)
+      ? "Dokumentet ble ikke ferdig bygget innen tidsfristen. Prøv igjen, og si fra hvis det gjentar seg."
+      : `PDF-genereringen feilet hos Browser Run (${svar.status}).`;
+    return jsonSvar({ error: melding }, 502);
+  }
+
+  const filnavn = pdfFilnavn(data, erTilbud);
+  const ascii = filnavn.replace(/[^\x20-\x7e]/g, "_").replace(/"/g, "");
+  return new Response(svar.body, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filnavn)}`,
+      "Cache-Control": "no-store",
+      "X-Browser-Ms-Used": svar.headers.get("X-Browser-Ms-Used") || "",
+    },
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin");
+
+    if (url.pathname === "/api/pdf") {
+      if (request.method === "OPTIONS") return cors(new Response(null, { status: 204 }), origin);
+      if (request.method !== "GET") return cors(jsonSvar({ error: "Ukjent endepunkt." }, 404), origin);
+      return cors(await handlePdf(request, env), origin);
+    }
 
     if (url.pathname.startsWith("/api/bildebank/")) {
       if (request.method === "OPTIONS") return cors(new Response(null, { status: 204 }), origin);

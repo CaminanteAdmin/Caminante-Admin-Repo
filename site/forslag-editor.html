@@ -88,6 +88,9 @@
   .editor-header button.primary:hover{ background:var(--blue-dark); }
   .editor-header button.danger{ color:#b04a4a; }
   .editor-header button.danger:hover{ background:#fbeaea; border-color:#d03b3b; }
+  .editor-header button:disabled{ opacity:0.7; cursor:progress; }
+  .editor-header .pdf-preview-lenker{ font-size:11.5px; color:var(--ink-muted); white-space:nowrap; }
+  .editor-header .pdf-preview-lenker a{ color:var(--ink-secondary); }
   .save-status{ font-size:11.5px; color:var(--ink-muted); margin-top:4px; }
 
   .kalkyle-info{ font-size:11.5px; margin-top:6px; }
@@ -856,9 +859,14 @@
       <select id="f-status"></select>
       <!-- Reiseforslag og Tilbud er to dokumenter fra samme sak - samme mal
            (forslag-print.html), «type=tilbud» velger tilbudsutgaven. Selve
-           «Generer tilbud» med krav om pris og tilbudsfrist er Del 4. -->
-      <a id="btnPdf" href="#" target="_blank" style="text-decoration:none;"><button type="button" class="primary">Reiseforslag / PDF</button></a>
-      <a id="btnPdfTilbud" href="#" target="_blank" style="text-decoration:none;"><button type="button" class="primary">Tilbud / PDF</button></a>
+           «Generer tilbud» med krav om pris og tilbudsfrist er Del 4.
+           Knappene lager en ferdig PDF på serveren (worker.js /api/pdf via
+           Cloudflare Browser Run, se shared/pdf-nedlasting.js) - ikke via
+           nettleserens Skriv ut. Forhåndsvisningen i nettleseren er egne
+           lenker under. -->
+      <button type="button" id="btnPdf" class="primary">Reiseforslag / PDF</button>
+      <button type="button" id="btnPdfTilbud" class="primary">Tilbud / PDF</button>
+      <span class="pdf-preview-lenker">Forhåndsvis: <a id="lnkPreview" href="#" target="_blank">reiseforslag</a> · <a id="lnkPreviewTilbud" href="#" target="_blank">tilbud</a></span>
       <button id="btnSlett" class="danger">Slett gruppetilbud</button>
     </div>
   </div>
@@ -1289,6 +1297,7 @@
 <script src="shared/auth.js"></script>
 <script src="shared/nav.js"></script>
 <script src="shared/bildevelger.js"></script>
+<script src="shared/pdf-nedlasting.js"></script>
 <script>
 /* ============================================================
    Forslag-editor - v1
@@ -4095,8 +4104,8 @@ function renderAll(){
   renderForbehold();
   renderVilkaar();
   renderBilder();
-  el("btnPdf").href = `forslag-print.html?id=${encodeURIComponent(forslagId)}`;
-  el("btnPdfTilbud").href = `forslag-print.html?id=${encodeURIComponent(forslagId)}&type=tilbud`;
+  el("lnkPreview").href = `forslag-print.html?id=${encodeURIComponent(forslagId)}`;
+  el("lnkPreviewTilbud").href = `forslag-print.html?id=${encodeURIComponent(forslagId)}&type=tilbud`;
 }
 
 /* ---------- Lagring ---------- */
@@ -4391,7 +4400,9 @@ async function aapnePdf(knappId){
   clearTimeout(autosaveDebounceTimer);
   autosaveDirty = false;
   await performSave("manuell");
-  window.open(el(knappId).href, "_blank", "noopener");
+  // Servergenerert PDF (worker.js /api/pdf + Browser Run) - knappen viser
+  // «Genererer PDF…» underveis, og filen lastes ned som en vanlig PDF.
+  await lastNedForslagPdf(forslagId, knappId === "btnPdfTilbud", el(knappId));
 }
 el("btnPdf").addEventListener("click", e=>{ e.preventDefault(); aapnePdf("btnPdf"); });
 el("btnPdfTilbud").addEventListener("click", e=>{ e.preventDefault(); aapnePdf("btnPdfTilbud"); });

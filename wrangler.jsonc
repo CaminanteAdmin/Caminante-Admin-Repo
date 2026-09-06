@@ -11,6 +11,10 @@
   "r2_buckets": [
     { "binding": "BILDEBANK", "bucket_name": "caminante-bilder" }
   ],
+  // Browser Run (headless Chromium) - lager PDF av forslag-print.html via
+  // env.BROWSER.quickAction("pdf", …) i worker.js (/api/pdf). Krever
+  // compatibility_date 2026-03-24 eller nyere.
+  "browser": { "binding": "BROWSER" },
   "vars": {
     "SUPABASE_URL": "https://ihabhsqpzafusvxpikga.supabase.co",
     "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloYWJoc3FwemFmdXN2eHBpa2dhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMDM0NTAsImV4cCI6MjA5OTg3OTQ1MH0.bvNkA7t0hz0t7jTx8jHf4dEtrjFhGgkK9fcEqlo_L8s",
