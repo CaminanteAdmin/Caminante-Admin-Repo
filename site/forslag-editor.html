@@ -89,6 +89,16 @@
   .editor-header button.danger{ color:#b04a4a; }
   .editor-header button.danger:hover{ background:#fbeaea; border-color:#d03b3b; }
   .editor-header button:disabled{ opacity:0.7; cursor:progress; }
+  /* Liten spinner foran «Genererer PDF…» (settes av pdfKnappStart i
+     shared/pdf-nedlasting.js) - umiddelbar, tydelig respons på klikket. */
+  .editor-header button.pdf-opptatt{ opacity:0.85; }
+  button.pdf-opptatt::before{
+    content:""; display:inline-block; width:11px; height:11px; margin-right:7px;
+    vertical-align:-1px; border-radius:50%;
+    border:2px solid currentColor; border-right-color:transparent;
+    animation:pdf-spinn 0.8s linear infinite;
+  }
+  @keyframes pdf-spinn{ to{ transform:rotate(360deg); } }
   .editor-header .pdf-preview-lenker{ font-size:11.5px; color:var(--ink-muted); white-space:nowrap; }
   .editor-header .pdf-preview-lenker a{ color:var(--ink-secondary); }
   .save-status{ font-size:11.5px; color:var(--ink-muted); margin-top:4px; }
@@ -4392,17 +4402,30 @@ async function slettForslag(){
 // énlinjers-felt). Kravene som gjelder KUN tilbud (pris, tilbudsfrist)
 // kommer med «Generer tilbud» i Del 4.
 async function aapnePdf(knappId){
+  const knapp = el(knappId);
   oppdaterPdfVarsler();
   if(pdfVarslerNaa.length){
     alert("PDF-en kan ikke genereres ennå:\n\n- " + pdfVarslerNaa.join("\n- "));
     return;
   }
-  clearTimeout(autosaveDebounceTimer);
-  autosaveDirty = false;
-  await performSave("manuell");
-  // Servergenerert PDF (worker.js /api/pdf + Browser Run) - knappen viser
-  // «Genererer PDF…» underveis, og filen lastes ned som en vanlig PDF.
-  await lastNedForslagPdf(forslagId, knappId === "btnPdfTilbud", el(knappId));
+  // Knappen settes til «Genererer PDF…» HER, synkront i klikket - før
+  // lagringen. performSave() køer seg bak en eventuell pågående autolagring
+  // og skriver alle undertabeller, og tok flere sekunder der brukeren ikke
+  // fikk noen respons (knappen ble først endret inne i lastNedForslagPdf,
+  // etter lagringen). pdfKnappStart() avviser også et nytt klikk mens
+  // knappen jobber. Se shared/pdf-nedlasting.js.
+  if(!pdfKnappStart(knapp)) return;
+  await laNettleserenTegne();
+  try{
+    clearTimeout(autosaveDebounceTimer);
+    autosaveDirty = false;
+    await performSave("manuell");
+    // Servergenerert PDF (worker.js /api/pdf + Browser Run). Filen lastes
+    // ned som en vanlig PDF; feil vises som norsk melding der inne.
+    await lastNedForslagPdf(forslagId, knappId === "btnPdfTilbud", knapp);
+  }finally{
+    pdfKnappFerdig(knapp);
+  }
 }
 el("btnPdf").addEventListener("click", e=>{ e.preventDefault(); aapnePdf("btnPdf"); });
 el("btnPdfTilbud").addEventListener("click", e=>{ e.preventDefault(); aapnePdf("btnPdfTilbud"); });

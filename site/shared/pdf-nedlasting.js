@@ -8,10 +8,54 @@
 // Forutsetter window.sb (shared/supabase-client.js) for brukerens token.
 // Tokenet går bare til vår egen worker - aldri videre til Browser Run.
 
+// Knappetilstand. Settes SYNKRONT i selve klikket, før noe som helst
+// asynkront (lagring, nettverk) - ellers står knappen urørt i flere
+// sekunder mens editoren lagrer først, og brukeren vet ikke om klikket
+// tok. Returnerer false hvis knappen allerede er opptatt (dobbeltklikk).
+// Original tekst huskes på elementet, så tilstanden kan gjenopprettes av
+// hvem som helst som har knappen - uansett hvor feilen oppstår.
+function pdfKnappStart(knapp){
+  if(!knapp) return true;
+  if(knapp.dataset.pdfOpptatt === "1") return false;
+  knapp.dataset.pdfOpptatt = "1";
+  knapp.dataset.pdfTekst = knapp.textContent;
+  knapp.disabled = true;
+  knapp.classList.add("pdf-opptatt");
+  knapp.textContent = "Genererer PDF…";
+  return true;
+}
+function pdfKnappFerdig(knapp){
+  if(!knapp || knapp.dataset.pdfOpptatt !== "1") return;
+  knapp.textContent = knapp.dataset.pdfTekst || knapp.textContent;
+  knapp.classList.remove("pdf-opptatt");
+  knapp.disabled = false;
+  delete knapp.dataset.pdfOpptatt;
+  delete knapp.dataset.pdfTekst;
+}
+// Gir nettleseren én tegnerunde, slik at den nye knappetilstanden faktisk
+// er malt på skjermen før det tunge arbeidet starter. requestAnimationFrame
+// fyrer ikke i en skjult fane - derfor et lite tidsavbrudd som reserve, så
+// PDF-en aldri blir stående og vente på at fanen blir synlig.
+function laNettleserenTegne(){
+  return new Promise(res=>{
+    const reserve = setTimeout(res, 120);
+    requestAnimationFrame(()=> requestAnimationFrame(()=>{ clearTimeout(reserve); res(); }));
+  });
+}
+
 async function lastNedForslagPdf(forslagId, erTilbud, knapp){
   if(!forslagId){ alert("Mangler forslag-id."); return false; }
-  const original = knapp ? knapp.textContent : "";
-  if(knapp){ knapp.disabled = true; knapp.textContent = "Genererer PDF…"; }
+  // Kalleren kan ha satt knappen opptatt allerede (editoren gjør det før
+  // lagringen). Er den ikke det, gjøres det her - og et nytt klikk på en
+  // knapp som allerede jobber, ignoreres.
+  const startetHer = knapp && knapp.dataset.pdfOpptatt !== "1";
+  if(startetHer){
+    if(!pdfKnappStart(knapp)) return false;
+    await laNettleserenTegne();
+  }
+  // Aldri to samtidige PDF-kall fra samme knapp, uansett hvem som kaller.
+  if(knapp && knapp.dataset.pdfHenter === "1") return false;
+  if(knapp) knapp.dataset.pdfHenter = "1";
   try{
     const { data: { session } } = await window.sb.auth.getSession();
     if(!session) throw new Error("Du er ikke innlogget lenger. Logg inn på nytt og prøv igjen.");
@@ -43,7 +87,8 @@ async function lastNedForslagPdf(forslagId, erTilbud, knapp){
     alert("Kunne ikke lage PDF:\n\n" + (err && err.message ? err.message : err));
     return false;
   }finally{
-    if(knapp){ knapp.disabled = false; knapp.textContent = original; }
+    if(knapp) delete knapp.dataset.pdfHenter;
+    if(startetHer) pdfKnappFerdig(knapp);
   }
 }
 
