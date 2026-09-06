@@ -220,13 +220,16 @@
     margin:0 0 6px; line-height:1.25;
   }
   .program-dag p{ margin-bottom:0; }
-  /* 0/2/4 bilder per programdag (06.09.2026): to i bredden, fire blir 2x2. */
-  .program-bilder{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
-  /* Ett bilde bruker bildeplass 1 av 2 (samme størrelse som med to bilder),
-     ikke full bredde - full bredde ble 66 mm høyt mot 32 mm, og gjorde
-     dagblokkens høyde uforutsigbar. */
+  /* Programbilder (06.09.2026, ny retning): ÉN horisontal bilderad per dag
+     med 0-4 bilder. Alle bildene har nøyaktig samme høyde (PROGRAM_RAD_PX),
+     samme crop (object-fit: cover), liten konsekvent gap, og fyller hele
+     innholdsbredden samlet - antallet styrer BREDDEN på hvert bilde, ikke
+     radens høyde. 1 bilde = panorama over hele bredden, 4 bilder = fire
+     små landskapsutsnitt. Radhøyden 132 px (35 mm): 1 → 666x132 (5:1),
+     2 → 329x132 (2,5:1), 3 → 217x132 (1,6:1), 4 → 160x132 (1,2:1). */
+  .program-bilder{ display:flex; gap:8px; margin-top:12px; }
   .program-bilder img{
-    width:100%; aspect-ratio:16/6; object-fit:cover; border-radius:0; display:block;
+    flex:1 1 0; min-width:0; width:0; height:132px; object-fit:cover; border-radius:0; display:block;
     background:var(--tint);
   }
   /* PDF-designregel (06.09.2026): fotografiene i dokumentet har rette
@@ -991,7 +994,8 @@ async function main(){
      programmet ut av dokumentet. */
 
   const dagRader = (dagRows || []).slice().sort((a,b)=>(a.dagnummer||0)-(b.dagnummer||0));
-  // 0/2/4 bilder per dag. Ingenting kappes - editoren varsler ved oddetall.
+  // 0-4 bilder per dag i én rad. Ingenting kappes - editoren stopper flere
+  // enn fire (PROGRAM_BILDER_MAKS).
   const bilderForDag = (dagId)=> bilder
     .filter(b=> b.kategori === "Program" && b.dagsprogram_id === dagId)
     .sort((a,b)=>(a.sortering??0)-(b.sortering??0));
@@ -1059,7 +1063,7 @@ async function main(){
           </div>
           ${d.overskrift ? `<div class="dag-tittel">${esc(d.overskrift)}</div>` : ""}
           ${d.tekst ? `<p>${nl2br(d.tekst)}</p>` : ""}
-          ${bl.length ? `<div class="program-bilder${bl.length === 1 ? " enkelt" : ""}">${
+          ${bl.length ? `<div class="program-bilder">${
             bl.map(b=>`<img src="${esc(b.bilde_url)}" alt="${esc(b.alt_tekst||"")}">`).join("")}</div>` : ""}
         </section>`);
         forsteBlokk = false;

@@ -2443,8 +2443,9 @@ function nyProgramDag(nr){
 const programDagOpptatt = new Set();   // clientKey for dager med opplasting på gang
 // Maks antall bilder per programdag. Samme tall i editoren og i dokumentet:
 // bildene som ligger på dagen ER bildene som brukes i PDF-en.
-// 06.09.2026: 0/2/4 bilder per dag (to i bredden, fire blir 2x2 i PDF-en).
-// 1 og 3 er ugyldig - varsles i oppdaterPdfVarsler(), aldri kappet.
+// 06.09.2026 (ny retning): 0-4 bilder per dag, alle i ÉN rad med samme
+// høyde i PDF-en - antallet styrer bredden på hvert bilde. Flere enn fire
+// varsles i oppdaterPdfVarsler(), aldri kappet. Ingen partallskrav.
 const PROGRAM_BILDER_MAKS = 4;
 
 function renderProgram(){
@@ -3147,10 +3148,11 @@ function oppdaterPdfVarsler(){
     if(n > HOTELL_BILDER_MAKS) varsler.push(`${navn} har ${n} bilder - PDF-en tar 0, 2 eller 4 per hotell. Fjern ${n - HOTELL_BILDER_MAKS}.`);
     else if(n % 2 === 1) varsler.push(`${navn} har ${n} bilde${n===1?"":"r"} - PDF-en tar 0, 2 eller 4 per hotell. Legg til eller fjern ett bilde (Bilder-fanen).`);
   });
+  // Programdager: 0-4 bilder i én rad (ingen partallskrav). Kun flere enn
+  // fire stoppes.
   state.dagsprogram.forEach(d=>{
     const n = dagBilder(d).length;
-    if(n > PROGRAM_BILDER_MAKS) varsler.push(`Dag ${d.fields.dagnummer} har ${n} bilder - PDF-en tar 0, 2 eller 4 per dag. Fjern ${n - PROGRAM_BILDER_MAKS}.`);
-    else if(n % 2 === 1) varsler.push(`Dag ${d.fields.dagnummer} har ${n} bilde${n===1?"":"r"} - PDF-en tar 0, 2 eller 4 per dag. Legg til eller fjern ett bilde (Program-fanen).`);
+    if(n > PROGRAM_BILDER_MAKS) varsler.push(`Dag ${d.fields.dagnummer} har ${n} bilder - PDF-en tar maks ${PROGRAM_BILDER_MAKS} per dag. Fjern ${n - PROGRAM_BILDER_MAKS}.`);
   });
   // Generell bilderegel: ingen fotografier gjentas i PDF-en. Avslutnings-
   // bildet hentes derfor ikke lenger automatisk fra galleriet - det må
