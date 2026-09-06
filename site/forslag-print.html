@@ -1145,7 +1145,14 @@ async function meldPdfKlar(){
     img.addEventListener("load", res, { once:true });
     img.addEventListener("error", res, { once:true });
   })));
-  await Promise.all(bilder.map(img => img.decode().catch(()=>{})));
+  // decode() er bare en forhåndsdekoding for tegningen; Chromium utsetter
+  // den i et skjult dokument og lar løftet stå. Den skal aldri kunne holde
+  // markøren tilbake når bildene faktisk ER lastet (complete over), så den
+  // får et kort tak. PDF-utskriften dekoder uansett selv.
+  await Promise.race([
+    Promise.all(bilder.map(img => img.decode().catch(()=>{}))),
+    new Promise(res => setTimeout(res, 3000)),
+  ]);
   const m = document.createElement("div");
   m.id = "pdf-klar";
   m.style.cssText = "position:absolute; width:0; height:0; overflow:hidden;";

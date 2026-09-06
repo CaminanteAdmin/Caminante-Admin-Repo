@@ -183,19 +183,39 @@ async function hentForslagData(env, token, id) {
   return { f, transportRows, hotellRows, bildeRows, hpRows, dagRows, ansvarligNavn, hoydepunktBank, hoydepunktBildeBank, reisemaalLand };
 }
 
-// Malen leses fra de statiske filene. Med standard html_handling kan
+// Statiske filer leses fra ASSETS. Med standard html_handling kan
 // «/forslag-print.html» svare med en omdirigering til «/forslag-print» -
 // den følges.
-async function hentPdfMal(env, request) {
-  let url = new URL("/forslag-print.html", request.url);
+async function hentAsset(env, request, sti) {
+  let url = new URL(sti, request.url);
   for (let i = 0; i < 3; i++) {
     const res = await env.ASSETS.fetch(new Request(url.toString()));
     const videre = res.headers.get("Location");
     if (res.status >= 300 && res.status < 400 && videre) { url = new URL(videre, url); continue; }
-    if (!res.ok) throw new Error(`Fant ikke PDF-malen (${res.status}).`);
+    if (!res.ok) throw new Error(`Fant ikke ${sti} (${res.status}).`);
     return res.text();
   }
-  throw new Error("Fant ikke PDF-malen (omdirigering).");
+  throw new Error(`Fant ikke ${sti} (omdirigering).`);
+}
+
+// Malen sendes til Browser Run som ren HTML-streng, og siden får da ingen
+// adresse (about:blank). Relative skript som <script src="shared/…">
+// kan derfor ikke lastes der - de må bakes inn i selve HTML-en. (Feilen
+// 06.09.2026: shared/pdf-maal.js ble lagt til i malen, ble aldri lastet
+// i Browser Run, main() feilet på PDF_MAAL og #pdf-klar kom aldri.)
+// Bilder (absolutte R2-adresser), fonter (Google) og logoer (data-URI)
+// er upåvirket.
+async function hentPdfMal(env, request) {
+  let html = await hentAsset(env, request, "/forslag-print.html");
+  // Supabase-/innloggingsskriptene fjernes FØR innbakingen, så de aldri
+  // havner i det som sendes til Browser Run.
+  html = html.replace(/<!-- pdf-datakilde:start[\s\S]*?pdf-datakilde:slutt -->/, "");
+  const relative = [...html.matchAll(/<script\s+src="(shared\/[^"]+\.js)"><\/script>/g)];
+  for (const m of relative) {
+    const kode = await hentAsset(env, request, "/" + m[1]);
+    html = html.replace(m[0], `<script>/* ${m[1]} */\n${kode.replace(/<\/script/gi, "<\\/script")}\n</script>`);
+  }
+  return html;
 }
 
 // Samme tittelregel som PDF-ens forside: «Reisemål, Land», landet utelatt
@@ -236,7 +256,6 @@ async function handlePdf(request, env) {
     return jsonSvar({ error: err.message }, 500);
   }
   if (!html.includes("<!-- pdf-data -->")) return jsonSvar({ error: "PDF-malen mangler datamarkøren." }, 500);
-  html = html.replace(/<!-- pdf-datakilde:start[\s\S]*?pdf-datakilde:slutt -->/, "");
   const json = JSON.stringify({ ...data, erTilbud })
     .replace(/<\//g, "<\\/").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
   html = html.replace("<!-- pdf-data -->", `<script>window.PDF_DATA = ${json};</script>`);
