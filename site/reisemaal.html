@@ -710,16 +710,19 @@ function renderHoydepunkter(r){
           <button class="hp-opp" ${idx===0 ? "disabled" : ""} title="Flytt opp">▲</button>
           <button class="hp-ned" ${idx===sorted.length-1 ? "disabled" : ""} title="Flytt ned">▼</button>
         </div>
-        <input class="hp-navn" value="${escapeHtml(h.navn)}" placeholder="Navn på høydepunkt">
+        <input class="hp-navn" maxlength="20" value="${escapeHtml(h.navn)}" placeholder="Navn på høydepunkt (maks 20 tegn)">
         <button class="hp-delete">Slett</button>
       </div>
-      <textarea class="hp-korttekst" placeholder="Kort tekst (ca. 10-18 ord)…">${escapeHtml(h.korttekst)}</textarea>
+      <textarea class="hp-korttekst" maxlength="120" placeholder="Kort tekst (maks 120 tegn, ca. 15-20 ord)…">${escapeHtml(h.korttekst)}</textarea>
       <div class="hp-bilde-hint">Bilde til dette høydepunktet velges per forslag, i Bilder-fanen i Forslag-editoren.</div>
     `;
     wrap.appendChild(card);
 
-    card.querySelector(".hp-navn").addEventListener("change", (e)=> updateHoydepunkt(r, h, { navn: e.target.value || "Uten navn" }));
-    card.querySelector(".hp-korttekst").addEventListener("change", (e)=> updateHoydepunkt(r, h, { korttekst: e.target.value || null }));
+    // PDF-struktur: navn maks 20 tegn (én linje i høydepunktkortet på
+    // forsiden), korttekst maks 120 tegn uten linjeskift (fem linjer) -
+    // samme grenser som overstyringsfeltene i Gruppetilbud-editoren.
+    card.querySelector(".hp-navn").addEventListener("change", (e)=> updateHoydepunkt(r, h, { navn: e.target.value.slice(0,20) || "Uten navn" }));
+    card.querySelector(".hp-korttekst").addEventListener("change", (e)=> updateHoydepunkt(r, h, { korttekst: e.target.value.replace(/\s*\n\s*/g, " ").slice(0,120) || null }));
     card.querySelector(".hp-delete").addEventListener("click", ()=> deleteHoydepunkt(r, h));
     const oppBtn = card.querySelector(".hp-opp");
     const nedBtn = card.querySelector(".hp-ned");

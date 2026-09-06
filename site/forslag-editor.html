@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gruppetilbud – Caminante Admin</title>
 <link rel="stylesheet" href="shared/style.css">
+<!-- PDF-struktur: Fraunces lastes KUN for å måle bredden på PDF-tittelen
+     (samme font/størrelse som forsidens H1 i forslag-print.html). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&display=swap" rel="stylesheet">
 <style>
   /* v1: samme designprinsipp som Priskalkulatoren (priskalkulator.html /
      kalkyle-editor.html) - lokale ekstra-tokens for større, blåtonede
@@ -544,6 +549,40 @@
   /* v7: ordteller under nederste høyre hjørne av tekstfeltet - samme
      hjelpefunksjon (refreshOrdteller()) håndhever en hard 60-ords-sperre. */
   .ordteller{ font-size:11px; color:var(--ink-muted); text-align:right; margin-top:4px; }
+  /* PDF-struktur: tegntelleren er hard (teksten kappes ved grensen) og
+     blir rød når den står på grensen. Et linjeskift teller som 100 tegn,
+     fordi det koster en hel linje i PDF-en uansett hvor få tegn det er. */
+  .ordteller.full{ color:#b3261e; font-weight:600; }
+  /* UX-runde 06.09.2026: én måleenhet i editoren - tegn. Om reisen har i
+     tillegg en diskret anbefaling til venstre for telleren. */
+  .ordteller-rad{ display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-top:4px; }
+  .ordteller-rad .ordteller{ margin-top:0; flex:none; }
+  .ordteller-hint{ font-size:11px; color:var(--ink-muted); }
+  /* Om reisen er hovedteksten på PDF-side 2 - skriveflaten skal gjenspeile
+     at dette er en vesentlig tekst, ikke et lite felt. */
+  .pres-textarea.pres-omreisen{ min-height:420px; }
+  /* Reisemål-kortet (høyre kolonne): kompakt statusvisning av hvilket
+     reisemål som er koblet. .valgt = aktivt/koblet reisemål. */
+  .pres-reisemaal-status{
+    display:flex; align-items:center; gap:10px; margin-bottom:10px;
+    font-size:13px; color:var(--ink-muted);
+  }
+  .pres-reisemaal-status.valgt{ color:var(--ink-primary); }
+  .pres-reisemaal-navn{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:6px 12px; border-radius:7px;
+    background:var(--surface-1); border:1px solid var(--blue);
+    font-size:14px; font-weight:650; color:var(--blue-dark);
+  }
+  .pres-reisemaal-navn::before{ content:"✓"; font-size:12px; color:var(--blue); }
+  .pres-reisemaal-status .pres-reisemaal-sted{ font-size:12px; color:var(--ink-muted); }
+  .pres-reisemaal-kort .btn-small-add{ margin-top:0; }
+  .pdf-varsel{
+    display:none; background:#fdecec; border:1px solid #f0b8b8; border-radius:8px;
+    padding:8px 12px; font-size:12.5px; color:#8a1f1f; line-height:1.5; margin-top:8px;
+  }
+  .pdf-varsel.vis{ display:block; }
+  .editor-header .pdf-varsel{ max-width:640px; }
   /* Gruppering av felt som hører til én bruk - f.eks. tekstene som bare
      brukes når det genereres et Reiseforslag. */
   .felt-gruppe{ margin:4px 0 10px; padding-top:14px; border-top:1px solid var(--hairline); }
@@ -807,10 +846,19 @@
         <button id="oppdaterPrisBtn">Oppdater pris og datoer fra kalkyle</button>
       </div>
       <div class="save-status" id="saveStatus"></div>
+      <!-- PDF-struktur: det som må rettes før dokumentet kan genereres
+           (tittel som ikke får plass på én linje, oddetall bilder i
+           Om reisen-galleriet, for mange hotellbilder). Se
+           oppdaterPdfVarsler(). -->
+      <div class="pdf-varsel" id="pdfVarsel"></div>
     </div>
     <div class="right">
       <select id="f-status"></select>
-      <a id="btnPdf" href="#" target="_blank" style="text-decoration:none;"><button type="button" class="primary">Forhåndsvis / PDF</button></a>
+      <!-- Reiseforslag og Tilbud er to dokumenter fra samme sak - samme mal
+           (forslag-print.html), «type=tilbud» velger tilbudsutgaven. Selve
+           «Generer tilbud» med krav om pris og tilbudsfrist er Del 4. -->
+      <a id="btnPdf" href="#" target="_blank" style="text-decoration:none;"><button type="button" class="primary">Reiseforslag / PDF</button></a>
+      <a id="btnPdfTilbud" href="#" target="_blank" style="text-decoration:none;"><button type="button" class="primary">Tilbud / PDF</button></a>
       <button id="btnSlett" class="danger">Slett gruppetilbud</button>
     </div>
   </div>
@@ -876,9 +924,14 @@
             <!-- v11: "Destinasjon / reiseidé" er omdøpt til "Reisemål" - id
                  (g-destinasjon) og databasefeltet (destinasjon) er uendret.
                  v13: står nå på samme linje som Avreiseflyplass. -->
+            <!-- PDF-struktur: Reisemål er PDF-ens tittel (H1 på forsiden) og
+                 skal alltid stå på ÉN linje. Produktgrense 35 tegn; i tillegg
+                 måles den sammensatte tittelen («Reisemål, Land») mot den
+                 faktiske bredden i PDF-en, se sjekkPdfTittel(). -->
             <div class="gi-field">
               <label for="g-destinasjon">Reisemål</label>
-              <input type="text" id="g-destinasjon">
+              <input type="text" id="g-destinasjon" maxlength="35">
+              <div class="ordteller" id="g-destinasjon-teller"></div>
             </div>
             <!-- v: label endret fra "Avreisested" til "Avreiseflyplass" - id/felt
                  (g-avreisested / avreisested) uendret, kun visningstekst. -->
@@ -1037,28 +1090,25 @@
              (skiller seg fra "Om reisemålet" under, som handler om
              destinasjonen generelt). Nytt felt (forslag.om_reisen), del av
              den godkjente 3-siders design v6g. -->
+        <!-- PDF-struktur: forsiden har en kort ingress (nytt felt
+             forslag.ingress, maks 350 tegn, ingen linjeskift). «Om reisen»
+             (forslag.om_reisen) er nå den romslige salgsteksten på side 2,
+             sammen med Om reisen-galleriet fra Bilder-fanen. -->
         <div class="card" style="margin-bottom:28px;">
-          <div class="card-title">Om reisen</div>
-          <textarea id="pres-omreisen" class="pres-textarea" placeholder="Kort tekst om selve reisen - vises øverst på side 1"></textarea>
-          <div class="ordteller" id="pres-omreisen-teller">0/60 ord</div>
+          <div class="card-title">Ingress (forside)</div>
+          <textarea id="pres-ingress" class="pres-textarea" style="min-height:70px;" placeholder="Kort ingress øverst på forsiden - inntil fire linjer i PDF-en"></textarea>
+          <div class="ordteller" id="pres-ingress-teller"></div>
         </div>
         <div class="card" style="margin-bottom:28px;">
-          <div class="card-title">Reisemål</div>
-          <!-- v: "Om reisemålet" standardiseres via Reisemål-registeret
-               (reisemaal.html) - IKKE fra hotellet. Hentes inn som
-               fritekstkopi ved valg, samme mønster som «Velg fra
-               hotelloversikt». v: feltet "Muligheter og opplevelser" er
-               fjernet - Reisemål-registeret har nå kun ett
-               presentasjonsfelt. -->
-          <div style="position:relative; margin-bottom:14px;">
-            <button type="button" class="btn-small-add" id="presVelgReisemaalBtn">Velg fra reisemål-oversikt</button>
-            <div class="pres-reisemaal-wrap" id="presReisemaalWrap" style="display:none; position:relative; margin-top:8px;">
-              <input type="text" id="presReisemaalSok" placeholder="Søk reisemål…" autocomplete="off">
-              <div class="pres-reisemaal-dropdown" id="presReisemaalDropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:240px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
-            </div>
+          <div class="card-title">Om reisen (side 2)</div>
+          <!-- UX-runde 06.09.2026: Reisemål-kortet er flyttet til høyre kolonne
+               (velge/konfigurere), og den frigjorte plassen gis til
+               skriveflaten - Om reisen er hovedteksten på en egen PDF-side. -->
+          <textarea id="pres-omreisen" class="pres-textarea pres-omreisen" placeholder="Den kundetilpassede salgsteksten - fyller øvre halvdel av side 2, bildene fyller nedre"></textarea>
+          <div class="ordteller-rad">
+            <div class="ordteller-hint">Anbefalt 1000–1300 tegn · maks 1500</div>
+            <div class="ordteller" id="pres-omreisen-teller"></div>
           </div>
-          <textarea id="pres-reisemal" class="pres-textarea" placeholder="Om reisemålet - vises på side 2"></textarea>
-          <div class="ordteller" id="pres-reisemal-teller">0/60 ord</div>
         </div>
         <!-- v9: "Fra forslag til reise" (tidligere "Veien videre") og
              "Forbehold" er flyttet hit fra den nå fjernede Forbehold-fanen,
@@ -1075,13 +1125,13 @@
         <div class="card" style="margin-bottom:28px;">
           <div class="card-title">Fra forslag til reise</div>
           <textarea id="vv-tekst" class="forbehold-textarea" style="min-height:90px;"></textarea>
-          <div class="ordteller" id="vv-tekst-teller">0/40 ord</div>
+          <div class="ordteller" id="vv-tekst-teller"></div>
           <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
         </div>
         <div class="card">
           <div class="card-title">Forbehold</div>
           <textarea id="fb-tekst" class="forbehold-textarea" style="min-height:90px;"></textarea>
-          <div class="ordteller" id="fb-tekst-teller">0/40 ord</div>
+          <div class="ordteller" id="fb-tekst-teller"></div>
           <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
         </div>
       </div>
@@ -1093,6 +1143,31 @@
            uten å endre banken. v7: flyttet til høyre kolonne, komprimert i
            bredden fra tidligere fullbredde-løsning. -->
       <div class="pres-col">
+        <!-- UX-runde 06.09.2026: Reisemål flyttet hit fra venstre kolonne -
+             høyre kolonne = velge/konfigurere (Reisemål, Høydepunkter),
+             venstre = skrive (Ingress, Om reisen). Reisemål står rett over
+             Høydepunkter fordi valgt reisemål styrer høydepunktbanken.
+             Kortet viser nå tydelig hvilket reisemål som er koblet (se
+             renderReisemaalStatus()) - før viste det bare valgknappen. -->
+        <div class="card pres-reisemaal-kort" style="margin-bottom:28px;">
+          <div class="card-title">Reisemål</div>
+          <div class="pres-reisemaal-status" id="presReisemaalStatus"></div>
+          <div style="position:relative;">
+            <button type="button" class="btn-small-add" id="presVelgReisemaalBtn">Velg reisemål</button>
+            <div class="pres-reisemaal-wrap" id="presReisemaalWrap" style="display:none; position:relative; margin-top:8px;">
+              <input type="text" id="presReisemaalSok" placeholder="Søk reisemål…" autocomplete="off">
+              <div class="pres-reisemaal-dropdown" id="presReisemaalDropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:240px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
+            </div>
+          </div>
+          <!-- PDF-struktur: «Om reisemålet» vises ikke lenger i PDF-en og
+               er skjult her. Feltet (forslag.om_reisemalet) beholdes i
+               basen og lagres uendret, så ingenting går tapt. -->
+          <div style="display:none;">
+            <textarea id="pres-reisemal" class="pres-textarea"></textarea>
+            <div class="ordteller" id="pres-reisemal-teller"></div>
+          </div>
+          <div class="field-hint" style="margin-top:10px;">Reisemålet gir høydepunktbank og landnavn i PDF-tittelen.</div>
+        </div>
         <div class="card">
           <div class="card-title">Høydepunkter</div>
           <div class="field-hint" style="margin-bottom:12px;">Anbefalt: ca. 4 høydepunkter. Hentes fra reisemålets høydepunktbank (Reisemål-registeret).</div>
@@ -1132,23 +1207,27 @@
       <div class="card-title">Forbehold</div>
       <div class="field-hint" style="margin-bottom:10px;">Forbehold for tilbudet. Reiseforslagets forbehold står uendret under Presentasjon.</div>
       <textarea id="vk-forbehold" class="forbehold-textarea" style="min-height:110px;" placeholder="Forbehold som gjelder tilbudet."></textarea>
+      <div class="ordteller" id="vk-forbehold-teller" style="width:604px; max-width:100%;"></div>
     </div>
 
     <div class="card" style="margin-bottom:20px;">
       <div class="card-title">Betalingsbetingelser</div>
       <div class="field-hint" style="margin-bottom:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
       <textarea id="vk-betaling" class="forbehold-textarea" style="min-height:110px;" placeholder="F.eks. depositum, forfall og sluttbetaling."></textarea>
+      <div class="ordteller" id="vk-betaling-teller" style="width:604px; max-width:100%;"></div>
     </div>
 
     <div class="card" style="margin-bottom:20px;">
       <div class="card-title">Avbestillingsbetingelser</div>
       <textarea id="vk-avbestilling" class="forbehold-textarea" style="min-height:110px;" placeholder="F.eks. frister og gebyrer ved avbestilling."></textarea>
+      <div class="ordteller" id="vk-avbestilling-teller" style="width:604px; max-width:100%;"></div>
     </div>
 
     <div class="card">
       <div class="card-title">Særlige vilkår</div>
       <div class="field-hint" style="margin-bottom:10px;">Bare det som gjelder akkurat denne saken. Generelle forbehold hører hjemme i Forbehold-feltet over.</div>
       <textarea id="vk-saerlige" class="forbehold-textarea" style="min-height:90px;" placeholder="Valgfritt."></textarea>
+      <div class="ordteller" id="vk-saerlige-teller" style="width:604px; max-width:100%;"></div>
     </div>
   </div>
 
@@ -1168,9 +1247,14 @@
     </div>
 
     <div class="card">
-      <div class="card-title">Reisemål (galleri)</div>
-      <div class="field-hint" style="margin-bottom:12px;">Øvrige bilder fra reisemålet, vist i "Om reisemålet"-galleriet i PDF-en.</div>
+      <div class="card-title">Om reisen (galleri)</div>
+      <!-- PDF-struktur: galleriet fyller nedre halvdel av side 2, alltid to i
+           bredden. Derfor 0, 2, 4 eller 6 bilder - et oddetall gir en halv
+           rad, og bilder brukeren har valgt skal aldri stilles vekk i det
+           stille. Editoren sier fra; PDF-en trimmer ingenting. -->
+      <div class="field-hint" style="margin-bottom:12px;">Bildene under «Om reisen» på side 2 - to i bredden, så 0, 2, 4 eller 6 bilder.</div>
       <div class="bilde-dropbox" id="bildeBoxDestinasjon"></div>
+      <div class="pdf-varsel" id="galleriPartallVarsel"></div>
     </div>
 
     <div class="card">
@@ -1936,7 +2020,7 @@ function renderFlySection(kategori, containerId, placeholder){
         <button class="item-remove">Fjern</button>
       </div>
       <div class="kv-row">
-        <div class="kv-field fl-field-strekning"><label>Strekning</label><input class="fl-rute" value="${escapeHtml(f.beskrivelse)}" placeholder="${placeholder}"></div>
+        <div class="kv-field fl-field-strekning"><label>Strekning</label><input class="fl-rute" maxlength="${TEGN.flyRute}" value="${escapeHtml(f.beskrivelse)}" placeholder="${placeholder}"></div>
       </div>
       <div class="kv-row">
         <div class="kv-field fl-field-avreise"><label>Avreise</label><input type="datetime-local" class="fl-avreise" value="${f.avreise_tidspunkt ? f.avreise_tidspunkt.slice(0,16) : ""}"></div>
@@ -2122,6 +2206,7 @@ function renderHotell(){
       <div class="egenskaper-wrap h-egenskaper-wrap" style="margin-top:20px; margin-bottom:14px;"></div>
       <div class="field-grid">
         <label class="span-full">Hotellbeskrivelse</label><textarea class="h-beskrivelse span-full">${escapeHtml(f.beskrivelse)}</textarea>
+        <div class="ordteller h-beskrivelse-teller span-full" style="margin-top:-6px;"></div>
         <label class="span-full">Intern kommentar</label><textarea class="h-prisinfo span-full">${escapeHtml(f.prisinfo)}</textarea>
       </div>
     `;
@@ -2131,11 +2216,16 @@ function renderHotell(){
     card.querySelector(".h-netter").addEventListener("change", e=>{ f.netter = numOrNull(e.target.value); syncOgRenderInkludert(); });
     bind(".h-navn","hotellnavn");
     bind(".h-maltider","maltider"); bind(".h-beskrivelse","beskrivelse"); bind(".h-prisinfo","prisinfo");
+    // PDF-struktur: hotellbeskrivelsen er en halvsideblokk i PDF-en - hard
+    // tegngrense, samme teller som Presentasjon-feltene.
+    const hBeskr = card.querySelector(".h-beskrivelse"), hTeller = card.querySelector(".h-beskrivelse-teller");
+    refreshTegnteller(hBeskr, hTeller, TEGN.hotell);
+    hBeskr.addEventListener("input", ()=>{ f.beskrivelse = refreshTegnteller(hBeskr, hTeller, TEGN.hotell, false, true) || null; });
     // v20: Hotellnavn, Netter, Romtype og Måltider kan alle påvirke den
     // auto-foreslåtte hotell-linjen i Inkludert - synk på nytt når en av dem
     // endres (Netter/Romtype har egne addEventListener-kall like ved siden
     // av selve feltoppdateringen, se over/under).
-    card.querySelector(".h-navn").addEventListener("change", syncOgRenderInkludert);
+    card.querySelector(".h-navn").addEventListener("change", ()=>{ syncOgRenderInkludert(); oppdaterPdfVarsler(); });
     card.querySelector(".h-maltider").addEventListener("change", syncOgRenderInkludert);
     card.querySelector(".h-stjerner-select").addEventListener("change", e=>{ f.stjerner = e.target.value ? Number(e.target.value) : null; });
     renderHotellegenskaper(card.querySelector(".h-egenskaper-wrap"), f);
@@ -2329,6 +2419,9 @@ function nyProgramDag(nr){
   return { id:null, clientKey:newClientKey(), fields:{ dagnummer:nr, overskrift:"", tekst:"", sortering:nr-1 } };
 }
 const programDagOpptatt = new Set();   // clientKey for dager med opplasting på gang
+// Maks antall bilder per programdag. Samme tall i editoren og i dokumentet:
+// bildene som ligger på dagen ER bildene som brukes i PDF-en.
+const PROGRAM_BILDER_MAKS = 2;
 
 function renderProgram(){
   const holder = el("programHolder");
@@ -2382,14 +2475,19 @@ function renderProgram(){
         <span class="fp-dag-dato">${fra && N ? escapeHtml(dagDatoFor(fra, d.fields.dagnummer)) : ""}</span>
         ${(N || omvendt) ? "" : `<button type="button" class="fp-dag-slett" title="Fjern dagen"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4.6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V6M6.2 6l.6 9.3a1 1 0 0 0 1 .95h4.4a1 1 0 0 0 1-.95L14 6"/></svg></button>`}
       </div>
-      <input type="text" class="fp-dag-tittel" placeholder="Dagens overskrift" value="${escapeHtml(d.fields.overskrift||"")}">
+      <input type="text" class="fp-dag-tittel" placeholder="Dagens overskrift" maxlength="${TEGN.programTittel}" value="${escapeHtml(d.fields.overskrift||"")}">
       <textarea class="fp-dag-tekst" placeholder="Programtekst for dagen">${escapeHtml(d.fields.tekst||"")}</textarea>
+      <div class="ordteller fp-dag-teller" style="margin-top:-6px; margin-bottom:8px;"></div>
       <div class="fp-dag-bilder-label">Bilder</div>
       <div class="fp-dag-galleri"></div>`;
     // Tekstfeltene tegnes aldri på nytt mens man skriver. Autolagringen
     // utløses av det delegerte input-lytteren; her oppdateres bare state.
-    kort.querySelector(".fp-dag-tittel").addEventListener("input", e=>{ d.fields.overskrift = e.target.value; });
-    kort.querySelector(".fp-dag-tekst").addEventListener("input", e=>{ d.fields.tekst = e.target.value; });
+    kort.querySelector(".fp-dag-tittel").addEventListener("input", e=>{ d.fields.overskrift = e.target.value.slice(0, TEGN.programTittel); oppdaterPdfVarsler(); });
+    // PDF-struktur: hard tegngrense (≈ 60 ord) så tre dager alltid får
+    // plass på én side i PDF-en.
+    const dagTekst = kort.querySelector(".fp-dag-tekst"), dagTeller = kort.querySelector(".fp-dag-teller");
+    refreshTegnteller(dagTekst, dagTeller, TEGN.program);
+    dagTekst.addEventListener("input", ()=>{ d.fields.tekst = refreshTegnteller(dagTekst, dagTeller, TEGN.program, false, true); });
     const slett = kort.querySelector(".fp-dag-slett");
     if(slett) slett.addEventListener("click", ()=> slettProgramDag(d));
     holder.appendChild(kort);
@@ -2436,6 +2534,10 @@ function renderProgramDagGalleri(d){
     wrap.innerHTML = "";
     wrap.appendChild(window.bildevelger.galleri({
       getBilder: ()=> dagBilder(d).map(b=>({ key:b.clientKey, url:b.fields.bilde_url, alt:b.fields.alt_tekst, erFraBank: !!b.fields.reisemaal_bilde_id })),
+      // Taket er det samme som dokumentet kan vise. Editoren skal ikke la
+      // deg velge flere bilder enn PDF-en bruker - da ville det oppstått et
+      // uklart ekstra valg om hvilke som faktisk kommer med.
+      maksBilder: PROGRAM_BILDER_MAKS,
       bank: ()=> programDagBank(),
       onVelg: (bilde)=>{
         state.bilder.push({ id:null, clientKey:newClientKey(),
@@ -2480,7 +2582,7 @@ function programDagBank(){
   return {
     tittel: r ? ("Bildebank for " + r.navn) : "Reisemålets bildebank",
     erKoblet: ()=> !!state.forslag.reisemaal_id,
-    tomBeskjed: "Koble et reisemål under Presentasjon («Velg fra reisemål-oversikt») for å se bildene i reisemålets bildebank. "
+    tomBeskjed: "Koble et reisemål under Presentasjon («Velg reisemål») for å se bildene i reisemålets bildebank. "
               + "Du kan også laste opp bilder direkte - de blir da liggende kun på dette gruppetilbudet.",
     hentBilder: reisemaalBildebankForValgtReisemaal,
     brukteIds: ()=>{
@@ -2661,14 +2763,78 @@ function syncOgRenderInkludert(){
 
 /* ---------- Rendering: Inkludert / ikke inkludert ---------- */
 
+/* PDF-struktur: deterministiske grenser for punktlistene på
+   avslutningssiden - antall OG tegn per punkt (40 tegn i PDF-ens to
+   kolonner). «Ikke inkludert» er én løpende linje: 6 punkter à 20 tegn,
+   samlet maks 110 tegn medregnet « · » mellom punktene. Tegn er en grov
+   sperre - bredden måles i tillegg i oppdaterPdfVarsler() med PDF-ens
+   egen font.
+   De AUTOMATISKE linjene (fly: «Flyreise … t/r, inkl. …», hotell:
+   «7 netter på … i delt …, inkl. …») er systemgenererte og informative;
+   de skal aldri kortes ned for hånd. De får bruke to linjer i PDF-en og
+   er unntatt 40-tegnsgrensen. Til gjengjeld teller de DOBBELT i
+   antallet: listen har plass til 17 «vekt» (fly + 15 manuelle punkter =
+   PDF-ens målte worst case, 8 rader). Linjene ligger alltid øverst (se
+   flyttFlyOgHotellLinjerTilTopp), så to-linjers radene deler rad. */
+function erAutoFlyLinje(v){ return /^Flyreise .+ t\/r, .+$/.test(v || ""); }
+function erAutoHotellLinje(v){
+  return /^\d+ (natt|netter) på .+ i delt .+\.$/.test(v || "") || (state.forslag.auto_hotell_linjer || []).includes(v);
+}
+function erAutoLinje(v){ return erAutoFlyLinje(v) || erAutoHotellLinje(v); }
+function listeGrenser(arrKey){
+  return arrKey === "inkludert"
+    ? { punkt: TEGN.inkludertPunkt, vekt: TEGN.inkludertVekt, samlet: null }
+    : { punkt: TEGN.ikkePunkt, antall: TEGN.ikkeAntall, samlet: TEGN.ikkeSamlet };
+}
+function samletTegn(arr){ return (arr||[]).filter(Boolean).join(" · ").length; }
+function inkludertVekt(arr){ return (arr||[]).reduce((sum, v)=> sum + (erAutoLinje(v) ? 2 : 1), 0); }
+function oppdaterListeTeller(containerId, arrKey){
+  const g = listeGrenser(arrKey);
+  const arr = state.forslag[arrKey] || [];
+  let teller = el(containerId).parentElement.querySelector(".liste-teller");
+  if(!teller){
+    teller = document.createElement("div");
+    teller.className = "ordteller liste-teller";
+    el(containerId).parentElement.appendChild(teller);
+  }
+  let full;
+  if(arrKey === "inkludert"){
+    const vekt = inkludertVekt(arr);
+    teller.textContent = `${vekt}/${g.vekt} · fly- og hotellinjen teller som to · maks ${g.punkt} tegn per manuelt punkt`;
+    full = vekt >= g.vekt;
+  } else {
+    teller.textContent = `${arr.length}/${g.antall} punkter · maks ${g.punkt} tegn per punkt · ${samletTegn(arr)}/${g.samlet} tegn samlet`;
+    full = arr.length >= g.antall || samletTegn(arr) >= g.samlet;
+  }
+  oppdaterPdfVarsler();
+  teller.classList.toggle("full", full);
+  const addBtn = el(arrKey === "inkludert" ? "addInkludertBtn" : "addIkkeInkludertBtn");
+  addBtn.style.display = full ? "none" : "";
+}
+
 function renderListEditor(containerId, arrKey){
   const wrap = el(containerId);
+  const g = listeGrenser(arrKey);
   wrap.innerHTML = "";
   (state.forslag[arrKey]||[]).forEach((val, idx)=>{
     const row = document.createElement("div");
     row.className = "list-editor-row";
-    row.innerHTML = `<span class="drag-handle" draggable="true" title="Dra for å endre rekkefølge">⠿</span><input value="${escapeHtml(val)}"><button title="Fjern">✕</button>`;
-    row.querySelector("input").addEventListener("change", e=>{ state.forslag[arrKey][idx] = e.target.value; });
+    const maxlength = erAutoLinje(val) ? "" : `maxlength="${g.punkt}"`;
+    row.innerHTML = `<span class="drag-handle" draggable="true" title="Dra for å endre rekkefølge">⠿</span><input ${maxlength} value="${escapeHtml(val)}"><button title="Fjern">✕</button>`;
+    const input = row.querySelector("input");
+    input.addEventListener("input", e=>{
+      let v = e.target.value;
+      if(!erAutoLinje(v) && v.length > g.punkt) v = v.slice(0, g.punkt);
+      if(g.samlet != null){
+        // Samlet grense: dette punktet får det som er igjen etter de andre.
+        const andre = samletTegn((state.forslag[arrKey]||[]).filter((_, i)=> i !== idx));
+        v = v.slice(0, Math.max(0, g.samlet - andre - (andre ? 3 : 0)));
+      }
+      if(v !== e.target.value) e.target.value = v;
+      state.forslag[arrKey][idx] = v;
+      oppdaterListeTeller(containerId, arrKey);
+    });
+    input.addEventListener("change", e=>{ state.forslag[arrKey][idx] = e.target.value; });
     row.querySelector("button").addEventListener("click", ()=>{
       state.forslag[arrKey].splice(idx,1);
       renderListEditor(containerId, arrKey);
@@ -2703,14 +2869,17 @@ function renderListEditor(containerId, arrKey){
 
     wrap.appendChild(row);
   });
+  oppdaterListeTeller(containerId, arrKey);
 }
 el("addInkludertBtn").addEventListener("click", ()=>{
   state.forslag.inkludert = state.forslag.inkludert || [];
+  if(inkludertVekt(state.forslag.inkludert) >= TEGN.inkludertVekt) return;
   state.forslag.inkludert.push("");
   renderListEditor("inkludertList","inkludert");
 });
 el("addIkkeInkludertBtn").addEventListener("click", ()=>{
   state.forslag.ikke_inkludert = state.forslag.ikke_inkludert || [];
+  if(state.forslag.ikke_inkludert.length >= TEGN.ikkeAntall) return;
   state.forslag.ikke_inkludert.push("");
   renderListEditor("ikkeInkludertList","ikke_inkludert");
 });
@@ -2722,30 +2891,240 @@ el("addIkkeInkludertBtn").addEventListener("click", ()=>{
 // renderPresentasjon() ved innlasting (viser riktig antall fra start, uten
 // å vente på et tastetrykk). Sperren er HARD: skrives det forbi grensen,
 // kappes teksten til de første 60 ordene i stedet for bare å varsle.
-function refreshOrdteller(taId, tellerId, max){
-  const ta = el(taId);
-  const teller = el(tellerId);
-  const ord = ta.value.trim() ? ta.value.trim().split(/\s+/) : [];
-  if(ord.length > max){
-    ta.value = ord.slice(0, max).join(" ");
-  }
-  const antall = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0;
-  teller.textContent = `${antall}/${max} ord`;
+/* ---------- PDF-struktur: tegnbaserte grenser ----------
+   Ordgrenser ga ikke forutsigbar høyde i PDF-en (30 lange ord ble fem
+   linjer, 60 vanlige ord fire), så alle PDF-tekster begrenses i TEGN. Et
+   linjeskift teller som 100 tegn - det koster en hel linje uansett.
+   Grensene er målt mot den faktiske PDF-layouten (sluttkontroll
+   05.09.2026): ingress 4 linjer, Om reisen ≈ 250 ord, hotell ≈ 60 ord,
+   programdag ≈ 60 ord, vilkårsfelt ≈ 80 ord, forbehold/veien videre ≈ 40. */
+const TEGN = {
+  ingress: 350, omReisen: 1500, hotell: 370, program: 370, programTittel: 60,
+  veienVidere: 250, forbehold: 200, vilkaar: 500,
+  hpNavn: 20, hpKorttekst: 120, flyRute: 38,
+  inkludertPunkt: 40, inkludertVekt: 17, ikkePunkt: 20, ikkeAntall: 6, ikkeSamlet: 110,
+  tittel: 35,
+};
+const LINJESKIFT_VEKT = 100;
+const PDF_TITTEL_BREDDE_PX = 656;   // H1-feltet er 666 px (210 mm - 2 x 64 px); 10 px slingringsmonn, samme som forslag-print.html
+
+function vektetLengde(str){
+  const s = str || "";
+  const linjeskift = (s.match(/\n/g) || []).length;
+  return s.length + linjeskift * (LINJESKIFT_VEKT - 1);
 }
-el("pres-omreisen").addEventListener("input", ()=> refreshOrdteller("pres-omreisen","pres-omreisen-teller",60));
-el("pres-reisemal").addEventListener("input", ()=> refreshOrdteller("pres-reisemal","pres-reisemal-teller",60));
-// v9: "Fra forslag til reise"/"Forbehold" flyttet inn i Presentasjon-fanen
-// - samme ordteller-mønster, men 40-ords sperre.
-el("vv-tekst").addEventListener("input", ()=> refreshOrdteller("vv-tekst","vv-tekst-teller",40));
-el("fb-tekst").addEventListener("input", ()=> refreshOrdteller("fb-tekst","fb-tekst-teller",40));
+// Kapper teksten bakfra til den vektede lengden er innenfor grensen.
+function kappTilVektet(str, maks){
+  let s = str || "";
+  while(s.length && vektetLengde(s) > maks) s = s.slice(0, -1);
+  return s;
+}
+// Teller + hard sperre. Tar elementer (ikke id-er) slik at den også kan
+// brukes på feltene inne i hotell- og dagkortene. ingenLinjeskift: feltet
+// er én linje i PDF-en (forsidens ingress) - linjeskift blir mellomrom.
+// Sperren kapper KUN mens det skrives (kapp=true). Tekst som allerede er
+// lagret over grensen (fra før grensene kom) røres ikke ved innlasting -
+// den vises med rød teller og «for langt», og PDF-forhåndsvisningen
+// markerer siden. Innhold skal aldri fjernes i det stille.
+function refreshTegnteller(ta, teller, maks, ingenLinjeskift, kapp){
+  if(kapp){
+    if(ingenLinjeskift && /\n/.test(ta.value)) ta.value = ta.value.replace(/\s*\n\s*/g, " ");
+    if(vektetLengde(ta.value) > maks) ta.value = kappTilVektet(ta.value, maks);
+  }
+  const brukt = vektetLengde(ta.value);
+  // UX-runde 06.09.2026: kun tegn vises - ordtelling er fjernet, én
+  // måleenhet i editoren. Valideringen (vektet lengde, hard sperre) er uendret.
+  if(teller){
+    teller.textContent = `${brukt} / ${maks} tegn` + (brukt > maks ? " - for langt, kort ned" : "");
+    teller.classList.toggle("full", brukt >= maks);
+  }
+  return ta.value;
+}
+function kobleTegnteller(taId, tellerId, maks, ingenLinjeskift){
+  el(taId).addEventListener("input", ()=> refreshTegnteller(el(taId), el(tellerId), maks, ingenLinjeskift, true));
+}
+kobleTegnteller("pres-ingress","pres-ingress-teller",TEGN.ingress,true);
+el("pres-ingress").addEventListener("input", oppdaterPdfVarsler);
+kobleTegnteller("pres-omreisen","pres-omreisen-teller",TEGN.omReisen);
+kobleTegnteller("vv-tekst","vv-tekst-teller",TEGN.veienVidere);
+kobleTegnteller("fb-tekst","fb-tekst-teller",TEGN.forbehold);
+kobleTegnteller("vk-forbehold","vk-forbehold-teller",TEGN.vilkaar);
+kobleTegnteller("vk-betaling","vk-betaling-teller",TEGN.vilkaar);
+kobleTegnteller("vk-avbestilling","vk-avbestilling-teller",TEGN.vilkaar);
+kobleTegnteller("vk-saerlige","vk-saerlige-teller",TEGN.vilkaar);
+
+/* PDF-tittelen er «Reisemål» + «, Land» (landet fra Reisemål-registeret,
+   utelatt når reisemålet ER landet - samme regel som forslag-print.html).
+   35 tegn er produktgrensen på selve feltet; i tillegg måles den
+   sammensatte tittelen med canvas i PDF-ens egen font, som teknisk garanti
+   for at den aldri bryter til to linjer. */
+function pdfTittel(){
+  const f = state.forslag;
+  const dest = (el("g-destinasjon").value || f.tittel || "Reiseforslag").trim();
+  const r = f.reisemaal_id ? reisemaalOversikt.find(x=>x.id===f.reisemaal_id) : null;
+  const land = r && r.land ? r.land.trim() : "";
+  const medLand = land && dest.toLowerCase() !== land.toLowerCase();
+  return medLand ? `${dest}, ${land}` : dest;
+}
+let tittelCanvas = null;
+// Bredde i piksler slik PDF-en setter teksten (samme font, størrelse og
+// bokstavavstand som i forslag-print.html). Tegngrenser er bare en grov
+// sperre for proporsjonal skrift - bredden er den egentlige linjevakten.
+function tekstBredde(tekst, font, letterSpacingPx){
+  if(!tittelCanvas) tittelCanvas = document.createElement("canvas");
+  const ctx = tittelCanvas.getContext("2d");
+  ctx.font = font;
+  return ctx.measureText(tekst).width + (letterSpacingPx || 0) * Math.max(0, tekst.length - 1);
+}
+function pdfTittelBredde(tekst){ return tekstBredde(tekst, "600 34px Fraunces, Georgia, serif"); }
+// PDF-en setter tittelen i 34 px og skalerer den ned - aldri under
+// PDF_TITTEL_MIN_PX - når «Reisenavn, Land» er litt for bred for én
+// linje. Samme regel som i forslag-print.html (tittelStorrelse()).
+const PDF_TITTEL_MIN_PX = 28;
+function pdfTittelStorrelse(tekst){
+  const b = pdfTittelBredde(tekst);
+  if(b <= PDF_TITTEL_BREDDE_PX) return 34;
+  return Math.max(PDF_TITTEL_MIN_PX, Math.floor(34 * PDF_TITTEL_BREDDE_PX / b * 2) / 2);
+}
+// Énlinjers-felt i PDF-en: [font, letter-spacing, tilgjengelig bredde]
+// Bredder: tekstfeltet er 666 px (210 mm - 2 x 64 px); Inkludert-kolonnen
+// 299 px (to kolonner, 24 px mellom, 22 px hake); høydepunktkortets
+// tekstdel 179 px (323 px kolonne - 130 px bilde - 14 px luft).
+const PDF_LINJE = {
+  ikke:        ["400 11.5px 'DM Sans', sans-serif", 0, 666 - 84],   // «Ikke inkludert: » i fet står foran
+  hpNavn:      ["700 11.5px 'DM Sans', sans-serif", 11.5 * 0.03, 176],
+  dagTittel:   ["600 18px Fraunces, Georgia, serif", 0, 660],
+  hotellNavn:  ["600 19px Fraunces, Georgia, serif", 0, 600],   // stjernene står ved siden av
+};
+function passerEnLinje(tekst, nokkel){
+  const [font, ls, maks] = PDF_LINJE[nokkel];
+  return tekstBredde(tekst || "", font, ls) <= maks;
+}
+// Faktisk linjetall slik nettleseren bryter teksten - et skjult element
+// med PDF-ens font, linjehøyde og kolonnebredde. Brukes der teksten får
+// bryte (Inkludert-punktene: manuelle ≤ 1 linje, automatiske ≤ 2).
+let linjeMaaler = null;
+function antallLinjer(tekst, font, breddePx, lineHeight){
+  if(!linjeMaaler){
+    linjeMaaler = document.createElement("div");
+    linjeMaaler.style.cssText = "position:absolute; left:-10000px; top:0; visibility:hidden; white-space:normal; overflow-wrap:break-word;";
+    document.body.appendChild(linjeMaaler);
+  }
+  linjeMaaler.style.font = font;
+  linjeMaaler.style.lineHeight = String(lineHeight);
+  linjeMaaler.style.width = breddePx + "px";
+  linjeMaaler.textContent = tekst || "";
+  const px = parseFloat(getComputedStyle(linjeMaaler).fontSize);
+  return Math.round(linjeMaaler.getBoundingClientRect().height / (px * lineHeight));
+}
+// Inkludert-punktene i PDF-en: 14 px DM Sans, linjehøyde 1,4, 299 px tekstbredde per kolonne.
+function inkludertLinjer(tekst){ return antallLinjer(tekst, "400 14px 'DM Sans', sans-serif", 299, 1.4); }
+let pdfTittelForBred = false;
+let pdfVarslerNaa = [];
+async function sjekkPdfTittel(){
+  const felt = el("g-destinasjon");
+  if(vektetLengde(felt.value) > TEGN.tittel) felt.value = felt.value.slice(0, TEGN.tittel);
+  const teller = el("g-destinasjon-teller");
+  if(document.fonts){
+    try{ await Promise.all(["600 34px Fraunces","600 19px Fraunces","600 18px Fraunces","400 14px 'DM Sans'","400 11.5px 'DM Sans'","700 11.5px 'DM Sans'"].map(f=> document.fonts.load(f))); }catch(e){}
+  }
+  const tittel = pdfTittel();
+  const storrelse = pdfTittelStorrelse(tittel);
+  // For bred = får ikke plass på én linje selv ved minste tillatte størrelse.
+  pdfTittelForBred = pdfTittelBredde(tittel) * storrelse / 34 > PDF_TITTEL_BREDDE_PX;
+  teller.textContent = `${felt.value.length}/${TEGN.tittel} tegn · PDF-tittel: «${tittel}»` + (storrelse < 34 ? ` (skaleres til ${storrelse} px)` : "");
+  teller.classList.toggle("full", pdfTittelForBred || felt.value.length >= TEGN.tittel);
+  oppdaterPdfVarsler();
+}
+el("g-destinasjon").addEventListener("input", sjekkPdfTittel);
+
+/* Samler det som må rettes før dokumentet kan genereres, øverst i editoren.
+   Alt regnes fra state (ikke DOM), samme kilde som lagringen. */
+function oppdaterPdfVarsler(){
+  const varsler = [];
+  // Ingressen er obligatorisk i begge dokumenter - uten den står forsiden
+  // med et tomt felt. De ni eksisterende sakene får den fylt manuelt;
+  // om_reisen kopieres bevisst ikke, da ville samme tekst stått to steder.
+  if(!(el("pres-ingress").value || "").trim()) varsler.push("Ingress (forside) mangler - fylles ut under Presentasjon.");
+  if(pdfTittelForBred) varsler.push(`Tittelen «${pdfTittel()}» er for bred for én linje i PDF-en - kort ned Reisemål i Reiseinfo.`);
+  (state.forslag.inkludert || []).forEach(v=>{
+    if(!v) return;
+    if(erAutoLinje(v)){
+      // To linjer er regnet inn; tre ville sprengt avslutningssiden.
+      if(inkludertLinjer(v) > 2) varsler.push(`Den automatiske linjen «${v}» blir mer enn to linjer i PDF-en - forkort hotellnavnet i Hotell-fanen.`);
+    } else if(inkludertLinjer(v) > 1){
+      varsler.push(`Punktet «${v}» under Turen inkluderer er for langt for én linje - kort ned.`);
+    }
+  });
+  const ikkeLinje = (state.forslag.ikke_inkludert || []).filter(Boolean).join(" · ");
+  if(ikkeLinje && !passerEnLinje(ikkeLinje, "ikke")) varsler.push("Ikke inkludert blir mer enn én linje i PDF-en - kort ned punktene.");
+  state.hoydepunkter.forEach(h=>{
+    const bank = hoydepunktBankOversikt.find(b=>b.id===h.fields.hoydepunkt_id);
+    const navn = h.fields.navn_override || (bank && bank.navn) || "";
+    if(navn && !passerEnLinje(navn.toUpperCase(), "hpNavn")) varsler.push(`Høydepunktnavnet «${navn}» er for bredt for én linje - kort ned (overstyr navnet i Presentasjon).`);
+  });
+  state.dagsprogram.forEach(d=>{
+    if(d.fields.overskrift && !passerEnLinje(d.fields.overskrift, "dagTittel")) varsler.push(`Overskriften på dag ${d.fields.dagnummer} er for bred for én linje - kort ned.`);
+  });
+  state.hotellopphold.forEach((h, idx)=>{
+    if(h.fields.hotellnavn && !passerEnLinje(h.fields.hotellnavn, "hotellNavn")) varsler.push(`Hotellnavnet «${h.fields.hotellnavn}» er for bredt for én linje - kort ned.`);
+  });
+  const galleri = state.bilder.filter(b=> b.fields.kategori==="Destinasjon" && !b.fields.er_hovedbilde && !b.fields.er_avslutningsbilde).length;
+  if(galleri % 2 === 1) varsler.push(`Om reisen-galleriet har ${galleri} bilde${galleri===1?"":"r"} - legg til eller fjern ett (0, 2, 4 eller 6).`);
+  state.hotellopphold.forEach((h, idx)=>{
+    const n = state.bilder.filter(b=> b.fields.kategori==="Hotell" && b.hotellopphold_client_key===h.clientKey).length;
+    if(n > HOTELL_BILDER_MAKS) varsler.push(`${h.fields.hotellnavn || "Hotell " + (idx+1)} har ${n} bilder - PDF-en viser maks ${HOTELL_BILDER_MAKS}. Fjern ${n - HOTELL_BILDER_MAKS}.`);
+  });
+  const boks = el("pdfVarsel");
+  boks.innerHTML = (varsler.length ? `<div style="font-weight:600; margin-bottom:2px;">Må rettes før PDF kan genereres:</div>` : "")
+    + varsler.map(v=>`<div>${escapeHtml(v)}</div>`).join("");
+  boks.classList.toggle("vis", varsler.length > 0);
+  pdfVarslerNaa = varsler;
+  const galleriVarsel = el("galleriPartallVarsel");
+  if(galleriVarsel){
+    const odde = galleri % 2 === 1;
+    galleriVarsel.textContent = odde ? `Galleriet har ${galleri} bilde${galleri===1?"":"r"}. Legg til eller fjern ett bilde før dokumentet genereres - PDF-en viser alltid to i bredden.` : "";
+    galleriVarsel.classList.toggle("vis", odde);
+  }
+}
 
 function renderPresentasjon(){
   const f = state.forslag;
+  el("pres-ingress").value = f.ingress || "";
   el("pres-omreisen").value = f.om_reisen || "";
   el("pres-reisemal").value = f.om_reisemalet || "";
-  refreshOrdteller("pres-omreisen","pres-omreisen-teller",60);
-  refreshOrdteller("pres-reisemal","pres-reisemal-teller",60);
+  renderReisemaalStatus();
+  refreshTegnteller(el("pres-ingress"), el("pres-ingress-teller"), TEGN.ingress, true);
+  refreshTegnteller(el("pres-omreisen"), el("pres-omreisen-teller"), TEGN.omReisen);
   renderHoydepunkter();
+  sjekkPdfTittel();
+}
+
+/* UX-runde 06.09.2026: Reisemål-kortet viser hvilket reisemål som er
+   koblet (forslag.reisemaal_id) - før viste det bare valgknappen, selv om
+   koblingen virket og høydepunktene ble oppdatert. Ren statusvisning; selve
+   koblingen (velgReisemaalInn) er uendret. */
+function renderReisemaalStatus(){
+  const f = state.forslag;
+  const status = el("presReisemaalStatus");
+  const btn = el("presVelgReisemaalBtn");
+  const r = f.reisemaal_id ? reisemaalOversikt.find(x=>x.id===f.reisemaal_id) : null;
+  if(r){
+    const sted = [r.by, r.land].filter(Boolean).filter(x=> x.toLowerCase() !== (r.navn||"").toLowerCase()).join(", ");
+    status.className = "pres-reisemaal-status valgt";
+    status.innerHTML = `<span class="pres-reisemaal-navn">${escapeHtml(r.navn||"")}</span>`
+      + (sted ? `<span class="pres-reisemaal-sted">${escapeHtml(sted)}</span>` : "");
+    btn.textContent = "Endre reisemål";
+  } else if(f.reisemaal_id){
+    // reisemaal_id satt, men reisemålet finnes ikke (lenger) i registeret.
+    status.className = "pres-reisemaal-status";
+    status.textContent = "Koblet reisemål finnes ikke i Reisemål-registeret";
+    btn.textContent = "Endre reisemål";
+  } else {
+    status.className = "pres-reisemaal-status";
+    status.textContent = "Ingen reisemål valgt";
+    btn.textContent = "Velg reisemål";
+  }
 }
 
 /* ---------- "Velg fra reisemål-oversikt" (Presentasjon) ----------
@@ -2886,7 +3265,7 @@ function renderHoydepunkter(){
   const valgteIds = new Set(state.hoydepunkter.map(h=>h.fields.hoydepunkt_id));
   const tilgjengelig = bank.filter(h=>!valgteIds.has(h.id));
   if(!state.forslag.reisemaal_id){
-    bankRad.innerHTML = '<div class="hp-bank-tom">Velg et reisemål over («Velg fra reisemål-oversikt») for å plukke høydepunkter fra banken.</div>';
+    bankRad.innerHTML = '<div class="hp-bank-tom">Velg et reisemål over («Velg reisemål») for å plukke høydepunkter fra banken.</div>';
   } else if(!bank.length){
     bankRad.innerHTML = '<div class="hp-bank-tom">Dette reisemålet har ingen høydepunkter i banken ennå. Opprett ett under, eller legg til i Reisemål-registeret.</div>';
   } else if(!tilgjengelig.length){
@@ -2923,15 +3302,20 @@ function renderHoydepunkter(){
         <button class="item-remove">Fjern</button>
       </div>
       <div class="field-grid">
-        <label>Navn (overstyr)</label><input class="hp-navn-ov" value="${escapeHtml(f.navn_override)}" placeholder="${escapeHtml(bankHp ? bankHp.navn : "")}">
+        <label>Navn (overstyr)</label><input class="hp-navn-ov" maxlength="${TEGN.hpNavn}" value="${escapeHtml(f.navn_override)}" placeholder="${escapeHtml(bankHp ? bankHp.navn : "")}">
         <label>Korttekst (overstyr)</label><textarea class="hp-korttekst-ov" placeholder="${escapeHtml(bankHp ? bankHp.korttekst : "")}">${escapeHtml(f.korttekst_override)}</textarea>
+        <div></div><div class="ordteller hp-korttekst-teller"></div>
         <label>Bilde</label>
         <div class="hp-bilde-status">${(f.valgt_bilde_id || f.bilde_url) ? "🖼 Bilde valgt (endre på Bilder-siden)" : "Ingen bilde valgt ennå - velges på Bilder-siden"}</div>
       </div>
     `;
     wrap.appendChild(card);
-    card.querySelector(".hp-navn-ov").addEventListener("change", e=>{ f.navn_override = e.target.value || null; });
-    card.querySelector(".hp-korttekst-ov").addEventListener("change", e=>{ f.korttekst_override = e.target.value || null; });
+    card.querySelector(".hp-navn-ov").addEventListener("change", e=>{ f.navn_override = e.target.value.slice(0, TEGN.hpNavn) || null; oppdaterPdfVarsler(); });
+    // PDF-struktur: navn maks 20 tegn (én linje i kortet), korttekst maks
+    // 120 tegn (fem linjer) - kortet på forsiden beholder da høyden sin.
+    const hpTa = card.querySelector(".hp-korttekst-ov"), hpTeller = card.querySelector(".hp-korttekst-teller");
+    refreshTegnteller(hpTa, hpTeller, TEGN.hpKorttekst, true);
+    hpTa.addEventListener("input", ()=>{ f.korttekst_override = refreshTegnteller(hpTa, hpTeller, TEGN.hpKorttekst, true, true) || null; });
     card.querySelector(".item-remove").addEventListener("click", ()=>{
       // v21: fjerner et høydepunkt frigjør automatisk et ev. tilknyttet
       // bilde igjen (ingenting refererer lenger valgt_bilde_id) - Bilder-
@@ -2951,6 +3335,7 @@ function renderHoydepunkter(){
       renderHoydepunkter();
     });
   });
+  oppdaterPdfVarsler();
 }
 
 function leggTilHoydepunktFraBank(hoydepunktId){
@@ -2964,7 +3349,7 @@ function leggTilHoydepunktFraBank(hoydepunktId){
 
 async function opprettHoydepunktInline(){
   const rid = state.forslag.reisemaal_id;
-  if(!rid){ alert("Velg et reisemål først («Velg fra reisemål-oversikt» over)."); return; }
+  if(!rid){ alert("Velg et reisemål først («Velg reisemål» over)."); return; }
   const navn = prompt("Navn på nytt høydepunkt:");
   if(!navn || !navn.trim()) return;
   el("saveStatus").textContent = "Oppretter høydepunkt…";
@@ -2989,13 +3374,15 @@ function renderVilkaar(){
   el("vk-betaling").value = f.betalingsbetingelser || "";
   el("vk-avbestilling").value = f.avbestillingsbetingelser || "";
   el("vk-saerlige").value = f.saerlige_vilkaar || "";
+  ["vk-forbehold","vk-betaling","vk-avbestilling","vk-saerlige"].forEach(id=>
+    refreshTegnteller(el(id), el(id + "-teller"), TEGN.vilkaar));
 }
 
 function renderForbehold(){
   el("vv-tekst").value = state.forslag.veien_videre_tekst || "";
   el("fb-tekst").value = state.forslag.forbehold_tekst || "";
-  refreshOrdteller("vv-tekst","vv-tekst-teller",40);
-  refreshOrdteller("fb-tekst","fb-tekst-teller",40);
+  refreshTegnteller(el("vv-tekst"), el("vv-tekst-teller"), TEGN.veienVidere);
+  refreshTegnteller(el("fb-tekst"), el("fb-tekst-teller"), TEGN.forbehold);
 }
 
 /* ---------- Rendering: Bilder ---------- */
@@ -3497,7 +3884,7 @@ async function openBildebankModal(bankInfo, kategori, extra, matchFn, maks, sing
 
   if(!bankInfo.entityIdGetter()){
     bildebankModalBody.innerHTML = `<div class="bildebank-modal-empty">${erReisemaal
-      ? "Koble et reisemål under Presentasjon («Velg fra reisemål-oversikt») for å se bildene i reisemålets bildebank."
+      ? "Koble et reisemål under Presentasjon («Velg reisemål») for å se bildene i reisemålets bildebank."
       : "Velg hotellet fra hotelloversikten («Velg fra hotelloversikt») for å se bildene i hotellets bildebank."}</div>`;
     return;
   }
@@ -3619,8 +4006,11 @@ function hotellBankInfo(hotellopphold){
 // derfor ikke lenger nødvendig. Reisemål-boksen er nå et rent galleri med et
 // FAST tak, tilsvarende PDF-galleriets faste antall plasser (se
 // forslag-print.html).
-const REISEMAAL_GALLERI_MAKS = 4;
-const HOTELL_BILDER_MAKS = 4;
+// PDF-struktur: Om reisen-galleriet (side 2) tar 4 eller 6 bilder, to i
+// bredden. Hotellbildene er to per hotell - fire sprengte halvsiden når to
+// hoteller deler side (målt 285 mm mot 232 mm).
+const REISEMAAL_GALLERI_MAKS = 6;
+const HOTELL_BILDER_MAKS = 2;
 
 function renderBilder(){
   // v22: Hovedbilde/Avslutningsbilde/hvert Høydepunkt tegnes nå som
@@ -3667,8 +4057,18 @@ function renderBilder(){
       buildBildeDropbox(box, b=> b.fields.kategori==="Hotell" && b.hotellopphold_client_key===h.clientKey, "Hotell", { hotellopphold_client_key: h.clientKey },
         hotellBankInfo(h),
         HOTELL_BILDER_MAKS);
+      // Et hotell fra før grensen ble senket kan ha flere bilder enn PDF-en
+      // viser - si fra her, slik at ingen bilder forsvinner i det stille.
+      const antall = state.bilder.filter(b=> b.fields.kategori==="Hotell" && b.hotellopphold_client_key===h.clientKey).length;
+      if(antall > HOTELL_BILDER_MAKS){
+        const varsel = document.createElement("div");
+        varsel.className = "pdf-varsel vis";
+        varsel.textContent = `Hotellet har ${antall} bilder - PDF-en viser maks ${HOTELL_BILDER_MAKS}. Fjern ${antall - HOTELL_BILDER_MAKS} bilde${antall - HOTELL_BILDER_MAKS === 1 ? "" : "r"}.`;
+        sub.appendChild(varsel);
+      }
     });
   }
+  oppdaterPdfVarsler();
 
   // v8: "Andre bilder"-boksen (det tidligere fangnettet for bilder som ikke
   // tydelig hørte hjemme i Destinasjon/Hotell/Avslutning - f.eks. eldre
@@ -3696,6 +4096,7 @@ function renderAll(){
   renderVilkaar();
   renderBilder();
   el("btnPdf").href = `forslag-print.html?id=${encodeURIComponent(forslagId)}`;
+  el("btnPdfTilbud").href = `forslag-print.html?id=${encodeURIComponent(forslagId)}&type=tilbud`;
 }
 
 /* ---------- Lagring ---------- */
@@ -3738,6 +4139,7 @@ function collectForslagFields(){
     auto_fly_linjer: f.auto_fly_linjer || [],
     hotell_linje_overstyrt: !!f.hotell_linje_overstyrt,
     fly_linje_overstyrt: !!f.fly_linje_overstyrt,
+    ingress: f.ingress || null,
     om_reisen: f.om_reisen || null,
     reisemaal_id: f.reisemaal_id || null,
     om_reisemalet: f.om_reisemalet || null,
@@ -3777,6 +4179,7 @@ function collectFieldsFromForm(){
   f.prisgrunnlag_forklaring = el("pr-forklaring").value;
   f.pris_intern_kommentar = el("pr-intern").value;
 
+  f.ingress = el("pres-ingress").value;
   f.om_reisen = el("pres-omreisen").value;
   f.om_reisemalet = el("pres-reisemal").value;
 
@@ -3943,7 +4346,7 @@ function markerSkittenEtterOpplasting(){
 function autolagringDelegert(e){
   if(!autosaveKlar) return;
   const target = e.target;
-  if(target.closest && target.closest("#btnSlett, #btnPdf, .tab-btn")) return;
+  if(target.closest && target.closest("#btnSlett, #btnPdf, #btnPdfTilbud, .tab-btn")) return;
   autosaveDirty = true;
   clearTimeout(autosaveDebounceTimer);
   autosaveDebounceTimer = setTimeout(utlosAutolagring, 2500);
@@ -3975,13 +4378,23 @@ async function slettForslag(){
 // utdatert versjon pga. autolagringens korte debounce-forsinkelse. Selve
 // href-en er fortsatt satt på vanlig måte i renderAll() over, men klikket
 // fanges opp og navigeringen gjøres manuelt etter lagringen er bekreftet.
-el("btnPdf").addEventListener("click", async (e)=>{
-  e.preventDefault();
+// PDF-generering er en del av valideringen: dokumentet kan ikke lages før
+// varslene øverst er ryddet (ingress, tittelbredde, bildeantall,
+// énlinjers-felt). Kravene som gjelder KUN tilbud (pris, tilbudsfrist)
+// kommer med «Generer tilbud» i Del 4.
+async function aapnePdf(knappId){
+  oppdaterPdfVarsler();
+  if(pdfVarslerNaa.length){
+    alert("PDF-en kan ikke genereres ennå:\n\n- " + pdfVarslerNaa.join("\n- "));
+    return;
+  }
   clearTimeout(autosaveDebounceTimer);
   autosaveDirty = false;
   await performSave("manuell");
-  window.open(el("btnPdf").href, "_blank", "noopener");
-});
+  window.open(el(knappId).href, "_blank", "noopener");
+}
+el("btnPdf").addEventListener("click", e=>{ e.preventDefault(); aapnePdf("btnPdf"); });
+el("btnPdfTilbud").addEventListener("click", e=>{ e.preventDefault(); aapnePdf("btnPdfTilbud"); });
 el("btnSlett").addEventListener("click", slettForslag);
 el("oppdaterPrisBtn").addEventListener("click", oppdaterFraKalkyle);
 

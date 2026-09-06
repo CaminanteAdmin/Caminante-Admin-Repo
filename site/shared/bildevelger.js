@@ -474,6 +474,10 @@
        onFjern:      (key)=>void
        onFlytt:      (key, retning)=>void               - valgfri; -1 = venstre, +1 = høyre
        onLastOpp:    async (file)=>void                 - kalles én gang PER fil
+       maksBilder:   number|null                        - valgfritt tak. Er
+                     plassen full, låses begge knappene og en linje sier
+                     hvorfor. Eksisterende bilder over taket røres ikke -
+                     de kan bare ikke suppleres.
        erOpptatt:    ()=>bool
        settOpptatt:  (bool)=>void
        etterEndring: ()=>void
@@ -484,6 +488,8 @@
     sikreStil();
     const bilder = opts.getBilder() || [];
     const opptatt = opts.erOpptatt ? !!opts.erOpptatt() : false;
+    const maks = (opts.maksBilder != null) ? opts.maksBilder : null;
+    const fullt = (maks != null) && bilder.length >= maks;
 
     const box = document.createElement("div");
     box.className = "bv-galleri";
@@ -500,10 +506,10 @@
             </div>`).join("")}</div>`
         : `<div class="bv-galleri-tom">Ingen bilder ennå.</div>`}
       <div class="bv-galleri-handlinger">
-        <button type="button" class="bv-slot-primar"${opptatt ? " disabled" : ""}>Velg fra bildebank</button>
-        <button type="button" class="bv-slot-sekundar"${opptatt ? " disabled" : ""}>Last opp bilde</button>
+        <button type="button" class="bv-slot-primar"${(opptatt || fullt) ? " disabled" : ""}>Velg fra bildebank</button>
+        <button type="button" class="bv-slot-sekundar"${(opptatt || fullt) ? " disabled" : ""}>Last opp bilde</button>
       </div>
-      <div class="bv-slot-status">${opptatt ? "Laster opp…" : ""}</div>
+      <div class="bv-slot-status">${opptatt ? "Laster opp…" : (fullt ? ("Maks " + maks + (maks === 1 ? " bilde" : " bilder") + " her. Fjern ett for å bytte.") : "")}</div>
       <input type="file" accept="image/*" multiple class="bv-slot-file" style="display:none">
     `;
 
@@ -512,6 +518,14 @@
 
     box.querySelector(".bv-slot-primar").addEventListener("click", ()=>{
       aapne(opts.bank(), (bilde)=>{
+        // Taket må håndheves HER også, ikke bare ved tegning: vinduet står
+        // åpent i flervalg, og uten dette kunne man plukke så mange man
+        // ville fra banken selv om plassen var full.
+        if(maks != null && (opts.getBilder() || []).length >= maks){
+          lukkModal();
+          alert("Det er plass til maks " + maks + (maks === 1 ? " bilde" : " bilder") + " her.");
+          return;
+        }
         opts.onVelg(bilde);
         if(opts.etterEndring) opts.etterEndring();
       }, { flervalg: true });
@@ -537,10 +551,20 @@
     box.querySelector(".bv-slot-sekundar").addEventListener("click", ()=> filInput.click());
     filInput.addEventListener("change", async (e)=>{
       const input = e.target;
-      const valgte = [...input.files].filter(f=> f.type && f.type.startsWith("image/"));
+      let valgte = [...input.files].filter(f=> f.type && f.type.startsWith("image/"));
       if(!input.files.length) return;
       if(!valgte.length){ input.value = ""; alert("Kun bildefiler kan lastes opp."); return; }
       if(opts.erOpptatt && opts.erOpptatt()){ input.value = ""; return; }
+      if(maks != null){
+        // Leses PÅ NYTT her - listen kan ha endret seg siden boksen ble tegnet.
+        const naa = (opts.getBilder() || []).length;
+        const rom = maks - naa;
+        if(rom <= 0){ input.value = ""; alert("Det er plass til maks " + maks + (maks === 1 ? " bilde" : " bilder") + " her."); return; }
+        if(valgte.length > rom){
+          alert("Det er plass til " + rom + (rom === 1 ? " bilde" : " bilder") + " til her - de " + rom + " første lastes opp.");
+          valgte = valgte.slice(0, rom);
+        }
+      }
 
       // Lås FØRST (også mens filene leses inn), så tegn.
       if(opts.settOpptatt) opts.settOpptatt(true);

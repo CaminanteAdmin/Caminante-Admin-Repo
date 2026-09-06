@@ -71,8 +71,31 @@
   .pdf-page{ position:relative; }
   @media print{
     .pdf-brekk{ break-after:page; }
-    .pdf-page--siste{ height:297mm; display:flex; flex-direction:column; }
+    /* Innholdssidene har BEVISST ingen fast høyde.
+       Et tidligere forsøk ga dem height:296mm + overflow:hidden for å
+       garantere luft nederst. Det forutsetter at den utskrevne siden er en
+       hel A4 - men utskriftsdialogens margvalg og skriverens egne marger
+       krymper det trykkbare feltet, og da fikk hver side en nesten tom
+       følgeside. Målt med Chrome: 5 sider uten marg, 8 sider med 12 mm marg
+       på samme dokument. Skjermvisningen kan ikke avsløre dette, siden det
+       ikke finnes noe sidefelt der.
+       Nå er de vanlige divver med break-after:page - nøyaktig samme
+       mekanisme som dokumentet har brukt hele tiden. Luften nederst kommer
+       av at sidene fylles etter måling (se SIDE_MAKS/PROGRAM_MAKS), slik
+       at gruppen får plass uansett hvilke marger som er valgt. */
+    .pdf-page--siste{ height:297mm; }
+    /* Standardmargen på body ville ellers gjort dokumentet 16px smalere i
+       utskrift enn i målingen, med mer linjebrytning og høyere blokker. */
+    body{ margin:0; }
   }
+  /* Synlig varsel i forhåndsvisningen dersom en side har fått mer innhold
+     enn det er plass til. Skjules i utskrift. */
+  .pdf-page--overfull{ outline:2px solid #c0392b; outline-offset:-2px; }
+  .overfull-merke{
+    position:absolute; top:6px; right:6px; z-index:10; background:#c0392b; color:#fff;
+    font:600 11px/1.3 system-ui, sans-serif; padding:3px 8px; border-radius:4px;
+  }
+  @media print{ .pdf-page--overfull{ outline:none; } .overfull-merke{ display:none; } }
 
   .brandbar{ padding:17px 64px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; background:var(--night); }
   .brandbar .logo{ height:72px; width:auto; display:block; }
@@ -102,8 +125,12 @@
   section.blokk.side-start{ padding-top:84px; }
   .side-start::before{ display:none; }
 
-  /* Om reisen (side 1) */
+  /* Ingress og høydepunkter (side 1) */
   section.blokk.om-reisen-blokk{ padding-top:22px; padding-bottom:52px; }
+  /* Om reisen (side 2) - tekst øverst, galleri nederst, alltid to i
+     bredden i samme avlange format som hotellbildene. */
+  .om-reisen-galleri{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+  .om-reisen-galleri img{ width:100%; aspect-ratio:16/6; object-fit:cover; border-radius:8px; display:block; background:var(--tint); }
   .om-reisen-blokk p{ margin-bottom:0; }
 
   /* Høydepunkter (side 1) - samme stil som blokk-overskriftene (fx "Om reisen") */
@@ -116,7 +143,6 @@
 
   /* Overnatting / hotellbilder (side 2) */
   section.blokk.overnatting-blokk{ padding-bottom:38px; }
-  section.blokk.om-reisemalet-blokk{ padding-top:34px; }
   .hotell-head{ display:flex; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:5px; }
   .hotell-navn{ font-family:var(--font-serif); font-size:19px; font-weight:600; color:var(--ink); margin:0; }
   .stjerner{ color:var(--gold); font-size:11px; letter-spacing:1px; }
@@ -127,13 +153,41 @@
   .hotell-galleri-stor{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
   .hotell-galleri-stor img{ width:100%; aspect-ratio:16/6; object-fit:cover; border-radius:8px; display:block; background:var(--tint); }
 
-  /* Om reisemålet-galleri (side 2) - identisk bildeformat/oppsett som hotellgalleriet (2x2, samme størrelse på alle 8 bilder) */
-  .om-reisemalet-blokk .reisemaal-navn{ font-family:var(--font-serif); font-size:19px; font-weight:600; color:var(--ink); margin:0 0 8px; }
-  .om-reisemalet-galleri{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
-  .om-reisemalet-galleri img{ width:100%; aspect-ratio:16/6; object-fit:cover; border-radius:8px; display:block; background:var(--tint); }
+
+  /* Program - dag for dag. Kompakt uttrykk i dokumentets eget språk: hver
+     dag er en egen .blokk-seksjon, med samme prikkelinje mellom seg som
+     hotelloppholdene har. Målet er 2-3 innholdsrike dager per side. */
+  .program-dag .dag-merke{
+    display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:4px;
+  }
+  .program-dag .dag-nr{
+    font-size:11px; font-weight:750; letter-spacing:0.06em; text-transform:uppercase;
+    color:var(--accent-dark); white-space:nowrap;
+  }
+  .program-dag .dag-dato{ font-size:11.5px; color:var(--ink-muted); }
+  .program-dag .dag-tittel{
+    font-family:var(--font-serif); font-size:18px; font-weight:600; color:var(--ink);
+    margin:0 0 6px; line-height:1.25;
+  }
+  .program-dag p{ margin-bottom:0; }
+  .program-bilder{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+  /* Ett bilde bruker bildeplass 1 av 2 (samme størrelse som med to bilder),
+     ikke full bredde - full bredde ble 66 mm høyt mot 32 mm, og gjorde
+     dagblokkens høyde uforutsigbar. */
+  .program-bilder img{
+    width:100%; aspect-ratio:16/6; object-fit:cover; border-radius:8px; display:block;
+    background:var(--tint);
+  }
+  /* Dager uten programinnhold - samlet i én rolig blokk, slik at kunden ser
+     at hele reiseperioden er dekket uten at dokumentet fylles med
+     identiske tomme dagsblokker. */
+  .program-dag--apen .dag-tittel{ font-size:15px; color:var(--ink-secondary); font-style:italic; }
 
   /* Flyinformasjon (side 3) */
   section.blokk.flyinfo-blokk{ padding-top:56px; }
+  /* Starter flyblokken en side (egen flyside), skal den ha samme topp-luft
+     som alle andre sidestarter - regelen over ville ellers vunnet. */
+  section.blokk.flyinfo-blokk.side-start{ padding-top:84px; }
   .reise-grid{ display:flex; flex-direction:column; gap:14px; margin-top:14px; }
   .reise-etappe .label{ font-size:11px; font-weight:750; letter-spacing:0.05em; text-transform:uppercase; color:var(--accent); margin-bottom:6px; }
   .reise-etappe .leg-rute{ font-size:13px; font-weight:700; color:var(--ink); line-height:1.3; margin-bottom:3px; }
@@ -163,10 +217,21 @@
   .veien-videre .kontakt-blokk{ margin-top:35px; font-size:13px; color:var(--ink-secondary); line-height:1.6; }
   .veien-videre .kontakt-blokk .navn{ font-weight:700; color:var(--ink); }
 
-  /* Avslutningsbilde (side 3) - fyller automatisk resten av siden ned til
-     bunnbanneret via flex, se .pdf-page--siste over. */
-  .side3-bilde-wrap{ flex:1 1 auto; min-height:90px; display:flex; }
+  /* Avslutningsbildet har FAST høyde, målt mot maks tillatt innhold på
+     siden: Reiseforslag 40 mm (innhold inntil 252 mm), Tilbud 95 mm
+     (inntil 194 mm - uten «Fra forslag til reise»). Bildet ligger mot
+     bunnbanneret; ledig plass ved kortere innhold blir luft over bildet.
+     Ikke dynamisk vekst - da ville sidens uttrykk variert fra sak til sak. */
+  .pdf-page--siste{ display:flex; flex-direction:column; min-height:297mm; }
+  .side3-innhold{ flex:0 0 auto; }
+  .side3-bilde-wrap{ flex:0 0 auto; height:40mm; margin-top:auto; display:flex; }
+  .pdf-page--tilbud .side3-bilde-wrap{ height:95mm; }
   .stemningsbilde{ width:100%; height:100%; object-fit:cover; display:block; background:var(--tint); }
+  /* Vilkår og frister (kun Tilbud) - én formell side, rolig typografi. */
+  .vilkaar-seksjon{ margin-top:24px; }
+  .vilkaar-label{ font-size:11px; font-weight:750; letter-spacing:0.06em; text-transform:uppercase; color:var(--accent-dark); margin-bottom:6px; }
+  .vilkaar-seksjon p{ font-size:13.5px; line-height:1.6; color:var(--ink-secondary); margin:0; }
+  .vilkaar-frist{ font-family:var(--font-serif); font-size:20px; font-weight:600; color:var(--ink); }
 
   .footer{ padding:28px 64px 26px; background:var(--night); display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex:0 0 auto; }
   .footer .venstre{ text-align:left; }
@@ -305,12 +370,13 @@ async function main(){
   if(!id){ el("loadMsg").textContent = "Mangler forslag-id i lenken."; return; }
   el("tilbakeLink").href = `forslag-editor.html?id=${encodeURIComponent(id)}`;
 
-  const [{ data: f, error: e0 }, { data: transportRows }, { data: hotellRows }, { data: bildeRows }, { data: hpRows }] = await Promise.all([
+  const [{ data: f, error: e0 }, { data: transportRows }, { data: hotellRows }, { data: bildeRows }, { data: hpRows }, { data: dagRows }] = await Promise.all([
     window.sb.from("forslag").select("*").eq("id", id).single(),
     window.sb.from("forslag_transport").select("*").eq("forslag_id", id).order("sortering"),
     window.sb.from("forslag_hotellopphold").select("*").eq("forslag_id", id).order("sortering"),
     window.sb.from("forslag_bilder").select("*").eq("forslag_id", id).order("sortering"),
     window.sb.from("forslag_hoydepunkter").select("*").eq("forslag_id", id).order("sortering"),
+    window.sb.from("forslag_dagsprogram").select("*").eq("forslag_id", id).order("dagnummer"),
   ]);
   if(e0 || !f){ el("loadMsg").textContent = "Fant ikke dette forslaget."; return; }
 
@@ -348,7 +414,12 @@ async function main(){
     return { navn, korttekst, bilde_url: h.bilde_url || (bankBilde ? bankBilde.bilde_url : null) };
   }).filter(h=> h.navn);
 
-  document.title = `${f.tittel || "Reiseforslag"} – Caminante`;
+  // Reiseforslag og Tilbud er to dokumenter fra samme sak. «type=tilbud»
+  // gir tilbudsutgaven: uten «Fra forslag til reise», med høyere
+  // avslutningsbilde og en egen side Vilkår og frister til slutt.
+  const erTilbud = params.get("type") === "tilbud";
+  const dokType = erTilbud ? "Tilbud" : "Reiseforslag";
+  document.title = `${f.tittel || dokType} – Caminante`;
 
   // v: reisemålLand skal ikke gjentas i H1 hvis destinasjonsteksten allerede
   // ER landnavnet (f.eks. "Malta, Malta") - sammenlignes uten hensyn til
@@ -373,9 +444,10 @@ async function main(){
   const bilderAvslutning = bilderReisemaal.filter(b=> b.er_avslutningsbilde);
   const bilderDestinasjon = bilderReisemaal
     .filter(b=> !b.er_hovedbilde && !b.er_avslutningsbilde)
-    .filter(b=> !(b.reisemaal_bilde_id && hoydepunktBrukteIder.has(b.reisemaal_bilde_id)))
-    .slice(0,4);
-  const bilderForHotell = (hotellId)=> bilder.filter(b=> b.kategori==="Hotell" && b.hotellopphold_id===hotellId).slice(0,4);
+    .filter(b=> !(b.reisemaal_bilde_id && hoydepunktBrukteIder.has(b.reisemaal_bilde_id)));
+  // Maks to bilder per hotell i PDF-en (editoren varsler når et hotell har
+  // flere fra før grensen ble senket).
+  const bilderForHotell = (hotellId)=> bilder.filter(b=> b.kategori==="Hotell" && b.hotellopphold_id===hotellId).slice(0,2);
 
   // Avslutningsbilde (side 3, flush mot bunnbanner) - eget flagg hvis satt,
   // ellers et grasiøst fall tilbake til første (uflaggede) reisemålsbilde, så
@@ -401,25 +473,54 @@ async function main(){
     CAMINANTE_ADRESSE || null,
   ].filter(Boolean);
 
-  const footerHtml = `
-    <div class="footer">
-      <div class="venstre">
-        ${f.forbehold_tekst ? `<div class="liten"><span class="liten-stjerne">*</span> ${nl2br(f.forbehold_tekst)}</div>` : ""}
-        <div class="selskapsinfo">${esc(selskapsinfoDeler.join(" · "))}</div>
-      </div>
-      <div class="hoyre">
-        ${RGF_LOGO_DATAURI ? `<img class="rgf-logo" src="${RGF_LOGO_DATAURI}" alt="Reisegarantifondet">` : ""}
-        <img class="logo" src="${LOGO_DATAURI}" alt="Caminante">
-      </div>
-    </div>`;
 
-  /* ----- Side 1: hero, nøkkelfakta, Om reisen, Høydepunkter ----- */
+  // Målingen må skje med de ekte fontene. Blir den gjort før Fraunces og
+  // DM Sans er lastet, måles teksten med reservefonter, blokkene blir
+  // høyere enn beregnet, og innholdssidenes overflow:hidden ville klippet
+  // bort tekst i PDF-en uten spor.
+  // document.fonts.ready alene er ikke nok: den venter bare på fonter som
+  // ALLEREDE er etterspurt av layouten, og Fraunces brukes ikke av noe som
+  // står på siden før målingen. Derfor bes det eksplisitt om de vektene og
+  // størrelsene dokumentet faktisk bruker.
+  if(document.fonts){
+    const ventPaa = ["600 34px Fraunces","600 30px Fraunces","600 20px Fraunces","600 19px Fraunces","600 18px Fraunces",
+                     "400 14px 'DM Sans'","400 13.5px 'DM Sans'","700 13px 'DM Sans'","600 13px 'DM Sans'","750 12px 'DM Sans'","750 11px 'DM Sans'"]
+      .map(spec=> document.fonts.load(spec).catch(()=>{}));
+    await Promise.all(ventPaa).catch(()=>{});
+    if(document.fonts.ready) await document.fonts.ready;
+  }
+
+  /* ----- Side 1: hero, nøkkelfakta, ingress, Høydepunkter -----
+     PDF-struktur (05.09.2026): forsiden er uendret visuelt, men «Om
+     reisen»-overskriften er borte og teksten er en kort ingress
+     (forslag.ingress, maks 350 tegn = fire linjer). Målt: 290,7 mm med
+     énlinjers tittel - tittelen er begrenset til 35 tegn og breddemålt i
+     editoren, og skal aldri bryte til to linjer. */
+
+  // Tittelen står ALLTID på én linje. Reisenavnet er begrenset til 35 tegn
+  // i editoren; landet legges til her, og blir «Reisenavn, Land» litt for
+  // bred for feltet (666 px), skaleres fonten ned - aldri under
+  // TITTEL_MIN_PX, aldri brutt over to linjer. Samme regel som editorens
+  // pdfTittelStorrelse(), så varselet der treffer nøyaktig det som skjer her.
+  // Feltet er 666 px; det regnes mot 656 for å ha 10 px slingringsmonn
+  // mellom canvas-måling og faktisk tekstsetting (målt: 664 px beregnet
+  // brøt likevel i Chrome-PDF).
+  const TITTEL_PX = 34, TITTEL_MIN_PX = 28, TITTEL_BREDDE_PX = 656;
+  const tittelTekst = `${f.destinasjon || f.tittel || "Reiseforslag"}${reisemaalLandSkalVises ? `, ${reisemaalLand}` : ""}`;
+  function tittelStorrelse(tekst){
+    const ctx = document.createElement("canvas").getContext("2d");
+    ctx.font = `600 ${TITTEL_PX}px Fraunces, Georgia, serif`;
+    const b = ctx.measureText(tekst).width;
+    if(b <= TITTEL_BREDDE_PX) return TITTEL_PX;
+    return Math.max(TITTEL_MIN_PX, Math.floor(TITTEL_PX * TITTEL_BREDDE_PX / b * 2) / 2);
+  }
+  const tittelPx = tittelStorrelse(tittelTekst);
 
   let side1 = brandbarHtml;
   if(f.hovedbilde_url) side1 += `<img class="hero-img" src="${esc(f.hovedbilde_url)}" alt="">`;
   side1 += `<div class="hero-text">
-    <div class="kicker">Reiseforslag</div>
-    <h1>${esc(f.destinasjon || f.tittel || "Reiseforslag")}${reisemaalLandSkalVises ? `, ${esc(reisemaalLand)}` : ""}</h1>
+    <div class="kicker">${dokType}</div>
+    <h1${tittelPx !== TITTEL_PX ? ` style="font-size:${tittelPx}px"` : ""}>${esc(tittelTekst)}</h1>
     ${f.kunde_navn ? `<div class="utarbeidet">Utarbeidet for ${esc(f.kunde_navn)}${f.kontaktperson ? `, v/ ${esc(f.kontaktperson)}` : ""}</div>` : ""}
   </div>`;
 
@@ -434,8 +535,7 @@ async function main(){
   side1 += `<div class="fakta-strip">` + fakta.map(([k,v])=>`<div class="fakta-item"><div class="k">${esc(k)}</div><div class="v">${v?esc(v):"–"}</div></div>`).join("") + `</div>`;
 
   side1 += `<section class="blokk om-reisen-blokk">
-    <h2>Om reisen</h2>
-    ${f.om_reisen ? `<p>${nl2br(f.om_reisen)}</p>` : ""}
+    ${f.ingress ? `<p>${esc(f.ingress)}</p>` : ""}
     ${hoydepunkter.length ? `
     <div class="sub-label">Høydepunkter</div>
     <div class="hoydepunkt-grid">
@@ -450,13 +550,35 @@ async function main(){
     </div>` : ""}
   </section>`;
 
-  /* ----- Side 2: Overnatting, Reisemålet ----- */
+  /* ----- Side 2: Om reisen -----
+     Egen side: den romslige, kundetilpassede salgsteksten øverst
+     (forslag.om_reisen, maks 1 500 tegn ≈ 250 ord) og galleriet nederst -
+     alltid to i bredden, 4 eller 6 bilder (editoren håndhever partall; her
+     trimmes ingenting - et bilde brukeren har valgt skal aldri stilles vekk
+     i det stille). «Om reisemålet» og «Muligheter og opplevelser» vises
+     ikke lenger. Målt: 250 ord + 6 bilder = 236,5 mm. */
 
-  let side2 = "";
-  hoteller.forEach((h, idx)=>{
+  const bilderOmReisen = bilderDestinasjon;
+  const side2 = (f.om_reisen || bilderOmReisen.length)
+    ? `<section class="blokk om-reisen-side side-start">
+        <h2>Om reisen</h2>
+        ${f.om_reisen ? `<p>${nl2br(f.om_reisen)}</p>` : ""}
+        ${bilderOmReisen.length ? `<div class="om-reisen-galleri">${bilderOmReisen.map(b=>`<img src="${esc(b.bilde_url)}" alt="${esc(b.alt_tekst||"")}">`).join("")}</div>` : ""}
+      </section>`
+    : null;
+
+  /* ----- Hotell og fly -----
+     Hvert hotellopphold er en halvsideblokk (maks 370 tegn, 2 bilder,
+     6 badges - målt 127 mm øverst på siden, 105 mm som nummer to). To
+     hoteller deler side. Flyet hører hjemme her, ikke på avslutningssiden:
+     ved oddetall hoteller prøves hele flyblokken i den ledige halvsiden
+     etter siste hotell (standard 2+2 segmenter = 62 mm får alltid plass,
+     også med internfly: 86 mm), ellers - og alltid ved partall - får flyet
+     sin egen side. Flyblokken deles aldri. */
+
+  const hotellBlokker = hoteller.map((h, idx)=>{
     const first = idx===0, last = idx===hoteller.length-1;
     const klasser = ["blokk"];
-    if(first) klasser.push("side-start");
     if(last) klasser.push("overnatting-blokk");
     const sub = [];
     if(h.sted) sub.push(h.sted);
@@ -466,7 +588,7 @@ async function main(){
     // Forslag-editoren) vises som samme type badge som romtype/måltider.
     const egenskaper = (h.hotellegenskaper||[]).filter(Boolean);
     const bilderHotell = bilderForHotell(h.id);
-    side2 += `<section class="${klasser.join(" ")}">
+    return `<section class="${klasser.join(" ")}">
       ${first ? `<h2>Overnatting</h2>` : ""}
       <div class="hotell-head">
         <div class="hotell-navn">${esc(h.hotellnavn || "Hotell")}</div>
@@ -482,18 +604,6 @@ async function main(){
       ${bilderHotell.length ? `<div class="hotell-galleri-stor">${bilderHotell.map(b=>`<img src="${esc(b.bilde_url)}" alt="${esc(b.alt_tekst||"")}">`).join("")}</div>` : ""}
     </section>`;
   });
-
-  const omReisemaaletKlasser = ["blokk","om-reisemalet-blokk"];
-  if(!hoteller.length) omReisemaaletKlasser.push("side-start");
-  side2 += `<section class="${omReisemaaletKlasser.join(" ")}">
-    <h2>Om reisemålet</h2>
-    ${f.destinasjon ? `<div class="reisemaal-navn">${esc(f.destinasjon)}</div>` : ""}
-    ${f.om_reisemalet ? `<p>${nl2br(f.om_reisemalet)}</p>` : ""}
-    ${f.muligheter_opplevelser ? `<p>${nl2br(f.muligheter_opplevelser)}</p>` : ""}
-    ${bilderDestinasjon.length ? `<div class="om-reisemalet-galleri">${bilderDestinasjon.map(b=>`<img src="${esc(b.bilde_url)}" alt="${esc(b.alt_tekst||"")}">`).join("")}</div>` : ""}
-  </section>`;
-
-  /* ----- Side 3: Flyinformasjon, Turen inkluderer, Priser, Fra forslag til reise, avslutningsbilde ----- */
 
   const utreise = transport.filter(t=>t.kategori==="utreise");
   const retur = transport.filter(t=>t.kategori==="retur");
@@ -519,7 +629,8 @@ async function main(){
     </div>`;
   }
 
-  let side3 = "";
+
+  let flyBlokk = null;
   if(utreise.length || retur.length || intern.length){
     // v: "Utreise-dato"/"Retur-dato" i etappe-etikettene hentes fra
     // reisens fra_dato/til_dato (Grunninfo) - de enkelte flightradene har
@@ -527,7 +638,7 @@ async function main(){
     // samlet dato, som naturlig er reisens fra-/til-dato.
     const utreiseLabel = "Utreise" + (f.fra_dato ? ` – ${formatDatoUtenAar(f.fra_dato)}` : "");
     const returLabel = "Retur" + (f.til_dato ? ` – ${formatDatoUtenAar(f.til_dato)}` : "");
-    side3 += `<section class="blokk side-start flyinfo-blokk">
+    flyBlokk = `<section class="blokk flyinfo-blokk">
       <h2>Flyinformasjon</h2>
       <div class="reise-grid">
         ${etappeHtml(utreiseLabel, utreise)}
@@ -537,43 +648,147 @@ async function main(){
     </section>`;
   }
 
-  // v20: hotell-/fly-linjene ble tidligere utledet LEVENDE her ved hver
-  // PDF-visning (uavhengig av f.inkludert) - det gjorde dem umulige å
-  // overstyre/rette manuelt (Vidar: "man må alltid kunne overstyre
-  // informasjonen som er hentet"). De foreslås nå i stedet automatisk inn i
-  // selve Inkludert-listen av forslag-editor.html (se
-  // syncAutoInkludertLinjer() der), og er dermed fritt redigerbare/slettbare
-  // i Priser-fanen som alle andre linjer. Her rendres derfor bare f.inkludert
-  // direkte igjen, uten noen egen utledning.
-  // v25: den auto-genererte fly-linjen har alltid formen "Flyreise <A> - <B>
-  // t/r, inkl. <bagasjevalg>" (se beregnAutoFlyLinjer() i forslag-editor.html)
-  // - Vidar ønsket et fast linjeskift etter kommaet som følger flyruten, slik
-  // at "inkl. <bagasjevalg>" alltid står på sin egen andre linje, uansett
-  // hvor langt/kort resten av linjen er. Kun denne kjente automatiske
-  // formen brytes slik - en fritt omskrevet/overstyrt linje (som ikke
-  // lenger matcher mønsteret) skrives ut uendret.
+  /* ----- Program: dag for dag (frivillig) -----
+
+     Alle dagene i reisen er representert. Dagnummeret følger den FAKTISKE
+     reisen og renummereres aldri fordi en dag mangler innhold. Dager uten
+     innhold slås sammen: flere sammenhengende blir «Dag 3-6», en enkelt
+     blir «Dag 4». Har reisen datoer, vises datoen ved siden av dagnummeret.
+
+     Antall dager: fra reisens datoer når begge finnes, ellers fra det
+     høyeste dagnummeret som er lagret. Er ingen dag fylt ut, tas hele
+     programmet ut av dokumentet. */
+
+  const dagRader = (dagRows || []).slice().sort((a,b)=>(a.dagnummer||0)-(b.dagnummer||0));
+  const bilderForDag = (dagId)=> bilder
+    .filter(b=> b.kategori === "Program" && b.dagsprogram_id === dagId)
+    .sort((a,b)=>(a.sortering??0)-(b.sortering??0))
+    .slice(0, 2);
+
+  function dagHarInnhold(d){
+    return !!((d.overskrift||"").trim() || (d.tekst||"").trim() || bilderForDag(d.id).length);
+  }
+
+  function dagDato(nr){
+    if(!f.fra_dato) return null;
+    const d = new Date(f.fra_dato.slice(0,10) + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() + nr - 1);
+    return d.toISOString().slice(0,10);
+  }
+
+  // Datoperiode uten årstall, slik at åpne enkeltdager og åpne perioder
+  // skrives likt i samme kolonne («3. mars» og «3.–6. mars»).
+  function datoSpennUtenAar(fraStr, tilStr){
+    if(!fraStr) return null;
+    if(!tilStr || fraStr === tilStr) return formatDatoUtenAar(fraStr);
+    const [, fMnd, fDag] = fraStr.slice(0,10).split("-").map(Number);
+    const [, tMnd, tDag] = tilStr.slice(0,10).split("-").map(Number);
+    if(fMnd === tMnd) return `${fDag}.–${tDag}. ${MAANEDER[fMnd-1]}`;
+    return `${formatDatoUtenAar(fraStr)} – ${formatDatoUtenAar(tilStr)}`;
+  }
+
+  const programBlokker = [];
+  {
+    // Antall dager i REISEN bestemmes først. Editoren bevarer dager som
+    // faller utenfor en forkortet periode - de skal ikke vises her, og de
+    // skal heller ikke alene slå på et program som ellers er tomt.
+    let antallDager = null;
+    if(f.fra_dato && f.til_dato){
+      const diff = Math.round((new Date(f.til_dato.slice(0,10)) - new Date(f.fra_dato.slice(0,10))) / 86400000) + 1;
+      if(diff > 0) antallDager = diff;
+    }
+    if(!antallDager) antallDager = dagRader.length ? Math.max(...dagRader.map(d=>d.dagnummer||0)) : 0;
+    // Et urimelig dagtall skyldes en skrivefeil i datoene. Da faller vi
+    // tilbake på de dagene som faktisk har innhold, i stedet for å skrive
+    // «Dag 1-36525» i dokumentet.
+    if(antallDager > 365){
+      const medTekst = dagRader.filter(dagHarInnhold).map(d=>d.dagnummer||0);
+      antallDager = medTekst.length ? Math.max(...medTekst) : 0;
+    }
+
+    // Kun dager innenfor reisen teller. Er ingen av dem fylt ut, tas hele
+    // programmet ut av dokumentet.
+    const medInnhold = new Map(dagRader
+      .filter(d=> d.dagnummer >= 1 && d.dagnummer <= antallDager && dagHarInnhold(d))
+      .map(d=>[d.dagnummer, d]));
+    if(!medInnhold.size) antallDager = 0;
+
+    let forsteBlokk = true;
+    let n = 1;
+    while(n <= antallDager){
+      const d = medInnhold.get(n);
+      if(d){
+        const bl = bilderForDag(d.id);
+        const dato = dagDato(n);
+        programBlokker.push(`<section class="blokk program-dag">
+          ${forsteBlokk ? `<h2>Program</h2>` : ""}
+          <div class="dag-merke">
+            <span class="dag-nr">Dag ${n}</span>
+            ${dato ? `<span class="dag-dato">${esc(formatDatoUtenAar(dato))}</span>` : ""}
+          </div>
+          ${d.overskrift ? `<div class="dag-tittel">${esc(d.overskrift)}</div>` : ""}
+          ${d.tekst ? `<p>${nl2br(d.tekst)}</p>` : ""}
+          ${bl.length ? `<div class="program-bilder${bl.length === 1 ? " enkelt" : ""}">${
+            bl.map(b=>`<img src="${esc(b.bilde_url)}" alt="${esc(b.alt_tekst||"")}">`).join("")}</div>` : ""}
+        </section>`);
+        forsteBlokk = false;
+        n++;
+      } else {
+        // Alle sammenhengende dager uten innhold samles i én blokk.
+        const fra = n;
+        while(n <= antallDager && !medInnhold.get(n)) n++;
+        const til = n - 1;
+        const merke = fra === til ? `Dag ${fra}` : `Dag ${fra}–${til}`;
+        const datoTekst = datoSpennUtenAar(dagDato(fra), dagDato(til));
+        programBlokker.push(`<section class="blokk program-dag program-dag--apen">
+          ${forsteBlokk ? `<h2>Program</h2>` : ""}
+          <div class="dag-merke">
+            <span class="dag-nr">${merke}</span>
+            ${datoTekst ? `<span class="dag-dato">${esc(datoTekst)}</span>` : ""}
+          </div>
+          <div class="dag-tittel">Foreløpig åpent for planlegging.</div>
+        </section>`);
+        forsteBlokk = false;
+      }
+    }
+  }
+
+
+  /* ----- Avslutningssiden: Turen inkluderer, pris, (Fra forslag til reise), bilde, bunnbanner -----
+     Alltid uten fly. Reiseforslaget har «Fra forslag til reise»; tilbudet
+     har det ikke og får derfor et høyere avslutningsbilde. Bildehøydene er
+     FASTE, målt mot maks tillatt innhold (16 punkter à 45 tegn med den
+     tolinjers flylinjen, Ikke inkludert 110 tegn, pris, 250 tegn veien
+     videre, 250 tegn forbehold): Reiseforslag 252 mm + 40 mm bilde,
+     Tilbud 194 mm + 95 mm bilde. Ledig plass ved kortere innhold blir luft
+     mellom innholdet og bildet - ingenting komprimeres. */
+
   function inkludertLinjeHtml(v){
     const m = /^(Flyreise .+ t\/r,) (.+)$/.exec(v);
     if(m) return `${esc(m[1])}<br>${esc(m[2])}`;
     return esc(v);
   }
+  const avslutningBlokker = [];
   const inkl = f.inkludert || [];
   const ikkeInkl = f.ikke_inkludert || [];
   if(inkl.length || ikkeInkl.length){
-    const klasser = (utreise.length||retur.length||intern.length) ? "blokk" : "blokk side-start";
-    side3 += `<section class="${klasser}">
+    avslutningBlokker.push(`<section class="blokk">
       <h2>Turen inkluderer</h2>
       <ul class="dfd-grid">${inkl.map(v=>`<li>${inkludertLinjeHtml(v)}</li>`).join("")}</ul>
       ${ikkeInkl.length ? `<div class="ikke-inkl-linje"><b>Ikke inkludert:</b> ${esc(ikkeInkl.join(" · "))}</div>` : ""}
-    </section>`;
+    </section>`);
   }
 
+  // Forbeholdet i bunnbanneret (med stjerne ved prisen) hører til
+  // Reiseforslaget. Tilbudets forbehold står på siden Vilkår og frister.
+  const forbeholdIFooter = erTilbud ? null : f.forbehold_tekst;
+
   if(f.pris_per_person){
-    side3 += `<section class="blokk">
-      <h2>Prisestimat</h2>
+    avslutningBlokker.push(`<section class="blokk">
+      <h2>${erTilbud ? "Pris" : "Prisestimat"}</h2>
       <div class="pris-boks">
         <div class="venstre">
-          <div class="pris-tall">${f.er_fra_pris ? "Fra " : ""}kr ${formatKr(f.pris_per_person)},-${f.forbehold_tekst ? `<span class="pris-stjerne">*</span>` : ""}</div>
+          <div class="pris-tall">${f.er_fra_pris ? "Fra " : ""}kr ${formatKr(f.pris_per_person)},-${forbeholdIFooter ? `<span class="pris-stjerne">*</span>` : ""}</div>
           <div class="label">Per person i delt dobbeltrom</div>
         </div>
         <div class="pris-detalj">
@@ -584,39 +799,256 @@ async function main(){
           ].filter(Boolean).join("<br>")}
         </div>
       </div>
-    </section>`;
+    </section>`);
   }
 
-  side3 += `<section class="blokk veien-videre">
-    <h2>Fra forslag til reise</h2>
-    ${f.veien_videre_tekst ? `<p>${nl2br(f.veien_videre_tekst)}</p>` : ""}
-    <div class="kontakt-blokk">
-      ${ansvarligNavn ? `<div class="navn">${esc(ansvarligNavn)}</div>` : ""}
-      <div>41 57 24 72 · vidar@okreiser.no · Caminante Travel AS</div>
-    </div>
-  </section>`;
-
-  /* ---------- Sett sammen sidene ---------- */
-
-  const html = `
-    <div class="pdf-page pdf-brekk">${side1}</div>
-    <div class="pdf-page pdf-brekk">${side2}</div>
-    <div class="pdf-page pdf-page--siste">
-      <div class="side3-innhold">${side3}</div>
-      <div class="side3-bilde-wrap">
-        ${avslutningsbildeUrl ? `<img class="stemningsbilde" src="${esc(avslutningsbildeUrl)}" alt="">` : ""}
+  if(!erTilbud){
+    avslutningBlokker.push(`<section class="blokk veien-videre">
+      <h2>Fra forslag til reise</h2>
+      ${f.veien_videre_tekst ? `<p>${nl2br(f.veien_videre_tekst)}</p>` : ""}
+      <div class="kontakt-blokk">
+        ${ansvarligNavn ? `<div class="navn">${esc(ansvarligNavn)}</div>` : ""}
+        <div>41 57 24 72 · vidar@okreiser.no · Caminante Travel AS</div>
       </div>
-      ${footerHtml}
-    </div>`;
+    </section>`);
+  }
 
-  el("paper").innerHTML = html;
+  function footerHtml(forbehold){
+    return `<div class="footer">
+      <div class="venstre">
+        ${forbehold ? `<div class="liten"><span class="liten-stjerne">*</span> ${nl2br(forbehold)}</div>` : ""}
+        <div class="selskapsinfo">${esc(selskapsinfoDeler.join(" · "))}</div>
+      </div>
+      <div class="hoyre">
+        ${RGF_LOGO_DATAURI ? `<img class="rgf-logo" src="${RGF_LOGO_DATAURI}" alt="Reisegarantifondet">` : ""}
+        <img class="logo" src="${LOGO_DATAURI}" alt="Caminante">
+      </div>
+    </div>`;
+  }
+
+  /* ----- Vilkår og frister (kun Tilbud) -----
+     Én formell A4 etter avslutningssiden: Tilbudsfrist, Betalingsbetingelser,
+     Avbestillingsbetingelser, Forbehold, Særlige vilkår. Maks 500 tegn per
+     felt - målt 242 mm med alle fem fylt og bunnbanner. Feltene som er
+     tomme utelates. */
+
+  let vilkaarSide = null;
+  if(erTilbud){
+    const felt = [
+      ["Betalingsbetingelser", f.betalingsbetingelser],
+      ["Avbestillingsbetingelser", f.avbestillingsbetingelser],
+      ["Forbehold", f.tilbud_forbehold_tekst],
+      ["Særlige vilkår", f.saerlige_vilkaar],
+    ].filter(([, v])=> v && v.trim());
+    if(f.tilbudsfrist || felt.length){
+      vilkaarSide = `<section class="blokk vilkaar-side side-start">
+        <h2>Vilkår og frister</h2>
+        ${f.tilbudsfrist ? `<div class="vilkaar-seksjon"><div class="vilkaar-label">Tilbudsfrist</div><div class="vilkaar-frist">Tilbudet gjelder til ${esc(formatDato(f.tilbudsfrist))}</div></div>` : ""}
+        ${felt.map(([navn, v])=>`<div class="vilkaar-seksjon"><div class="vilkaar-label">${esc(navn)}</div><p>${nl2br(v)}</p></div>`).join("")}
+      </section>`;
+    }
+  }
+
+  /* ---------- Sett sammen sidene ----------
+
+     Hver side er en div med break-after:page, og hver side fylles på
+     grunnlag av MÅLING med den ekte stilen - aldri ved at nettleseren deler
+     en side på et vilkårlig sted. Sidene har ingen @page-marg (forsiden
+     skal gå helt ut i kanten); luften kommer fra blokkenes egen padding,
+     som bare finnes på den FØRSTE blokken på en side. */
+
+  const MM = 96 / 25.4;
+  // Sidebudsjetter, målt mot A4 = 297 mm. Hotell-/flysider fylles til
+  // 285 mm (12 mm reell bunnluft). Programsider til 280 mm: tre fulle
+  // dager (370 tegn, 60 tegns overskrift, 2 bilder) måler 277 mm med
+  // «Program»-overskriften - det gir 20 mm luft nederst, mot 22 mm øverst.
+  // Brytes en tekst til fem linjer (lange ord), passer ikke tre dager, og
+  // fordelingen faller tilbake til to per side - aldri overflyt.
+  const SIDE_MAKS = 285 * MM;
+  const PROGRAM_MAKS = 280 * MM;
+  const A4 = 297 * MM;
+
+  // Måler blokkene med ekte bredde og stil. Alle bildehøyder i dokumentet er
+  // CSS-bestemte (fast høyde eller aspect-ratio), så målingen er riktig uten
+  // å vente på at bildene lastes.
+  function maalBlokker(blokker){
+    const maaler = document.createElement("div");
+    maaler.className = "paper";
+    maaler.style.cssText = "position:absolute; left:-10000px; top:0; width:210mm; max-width:none; box-shadow:none; visibility:hidden;";
+    const side = document.createElement("div");
+    side.className = "pdf-page";
+    maaler.appendChild(side);
+    document.body.appendChild(maaler);
+    const hoyder = blokker.map(html=>{
+      side.innerHTML = html;
+      return side.getBoundingClientRect().height;
+    });
+    maaler.remove();
+    return hoyder;
+  }
+
+  // Den første blokken på en side får .side-start: mer luft ned fra toppen,
+  // og ingen prikkelinje (siden begynner jo akkurat der).
+  function medSideStart(html){
+    return html.replace(/^<section class="/, '<section class="side-start ');
+  }
+  function sideHtml(blokker){
+    return blokker.map((b, n)=> n === 0 ? medSideStart(b) : b).join("");
+  }
+
+  // Hotellene parvis; flyet i den ledige halvsiden etter et enslig siste
+  // hotell hvis HELE blokken får plass, ellers på egen side.
+  function hotellOgFlySider(){
+    const sider = [];
+    if(hotellBlokker.length){
+      const hoyder = maalBlokker(hotellBlokker);
+      const hoyderStart = maalBlokker(hotellBlokker.map(medSideStart));
+      let i = 0;
+      while(i < hotellBlokker.length){
+        const par = [hotellBlokker[i]];
+        if(i + 1 < hotellBlokker.length && hoyderStart[i] + hoyder[i+1] <= SIDE_MAKS) par.push(hotellBlokker[i+1]);
+        sider.push(par);
+        i += par.length;
+      }
+      if(flyBlokk && sider[sider.length-1].length === 1){
+        const sisteIdx = hotellBlokker.length - 1;
+        const flyHoyde = maalBlokker([flyBlokk])[0];
+        if(hoyderStart[sisteIdx] + flyHoyde <= SIDE_MAKS){
+          sider[sider.length-1].push(flyBlokk);
+          return sider.map(sideHtml);
+        }
+      }
+    }
+    const html = sider.map(sideHtml);
+    if(flyBlokk) html.push(sideHtml([flyBlokk]));
+    return html;
+  }
+
+  // Programmet fordeles etter MÅLT høyde, ikke bare antall: blokkene
+  // (fylte dager og grupperte åpne dager, alle med sin faktiske høyde)
+  // deles sekvensielt i så få sider som mulig med maks tre per side, hver
+  // side innenfor budsjettet. Blant de gyldige fordelingene velges den
+  // jevneste - først færrest sider med bare én blokk (2-3 per side er
+  // hovedregelen), deretter minst forskjell mellom høyeste og laveste
+  // side. 3+2+2 er derfor ikke gitt: gir 2+3+2 jevnere sider, velges den.
+  function programSider(blokker){
+    if(!blokker.length) return [];
+    const hoyder = maalBlokker(blokker);
+    const hoyderStart = maalBlokker(blokker.map(medSideStart));
+    const N = blokker.length;
+    const sideHoyde = ind=> ind.reduce((sum, bi, n)=> sum + (n === 0 ? hoyderStart[bi] : hoyder[bi]), 0);
+
+    for(let P = Math.ceil(N / 3); P <= N; P++){
+      let beste = null;
+      // Alle måter å dele N blokker i P sider à 1-3 blokker, i rekkefølge.
+      (function del(fra, sider){
+        const igjen = N - fra, sidIgjen = P - sider.length;
+        if(sidIgjen === 0){
+          if(igjen) return;
+          const h = sider.map(sideHoyde);
+          if(h.some(x=> x > PROGRAM_MAKS)) return;
+          const enkle = sider.filter(s=> s.length === 1).length;
+          const spenn = Math.max(...h) - Math.min(...h);
+          if(!beste || enkle < beste.enkle || (enkle === beste.enkle && spenn < beste.spenn)) beste = { sider, enkle, spenn };
+          return;
+        }
+        for(let n = 1; n <= 3; n++){
+          const rest = igjen - n;
+          if(rest < sidIgjen - 1 || rest > 3 * (sidIgjen - 1)) continue;
+          del(fra + n, sider.concat([Array.from({length: n}, (_, k)=> fra + k)]));
+        }
+      })(0, []);
+      if(beste) return beste.sider.map(ind=> sideHtml(ind.map(bi=> blokker[bi])));
+    }
+    return blokker.map(b=> sideHtml([b]));
+  }
+
+  const innholdHotellFly = hotellOgFlySider();
+  const innholdProgram = programSider(programBlokker);
+
+  const sisteInnhold = sideHtml(avslutningBlokker);
+  const avslutningFooter = footerHtml(forbeholdIFooter);
+  const sisteKlasse = erTilbud ? "pdf-page--siste pdf-page--tilbud" : "pdf-page--siste";
+
+  const sider = [
+    `<div class="pdf-page pdf-brekk">${side1}</div>`,
+    ...(side2 ? [`<div class="pdf-page pdf-page--innhold pdf-brekk">${side2}</div>`] : []),
+    ...innholdHotellFly.map(h=> `<div class="pdf-page pdf-page--innhold pdf-brekk">${h}</div>`),
+    ...innholdProgram.map(h=> `<div class="pdf-page pdf-page--innhold pdf-brekk">${h}</div>`),
+    `<div class="pdf-page ${sisteKlasse}${vilkaarSide ? " pdf-brekk" : ""}">
+       <div class="side3-innhold">${sisteInnhold}</div>
+       <div class="side3-bilde-wrap">
+         ${avslutningsbildeUrl ? `<img class="stemningsbilde" src="${esc(avslutningsbildeUrl)}" alt="">` : ""}
+       </div>
+       ${avslutningFooter}
+     </div>`,
+    ...(vilkaarSide ? [`<div class="pdf-page pdf-page--siste pdf-page--vilkaar">
+       <div class="side3-innhold">${vilkaarSide}</div>
+       ${footerHtml(null)}
+     </div>`] : []),
+  ];
+
+  el("paper").innerHTML = sider.join("");
   el("paper").style.display = "block";
   el("loadMsg").style.display = "none";
+
+  // Sikkerhetsnett: en side som likevel har fått for mye innhold markeres
+  // synlig i forhåndsvisningen (ikke i utskriften), slik at det oppdages
+  // her og ikke først i den ferdige PDF-en. Kontrollen måler gjennom
+  // maalBlokker (210 mm), ikke den gjengitte forhåndsvisningen (760 px).
+  function merkOverfull(side, tekst, brukt){
+    side.classList.add("pdf-page--overfull");
+    const m = document.createElement("div");
+    m.className = "overfull-merke";
+    m.textContent = tekst;
+    side.appendChild(m);
+    console.warn(tekst + ":", Math.round(brukt), "px mot", Math.round(A4));
+  }
+
+  const alleSider = document.querySelectorAll("#paper > .pdf-page");
+  // Forsiden: innenfor grensene måler den 290,7 mm. Alt over 292 mm betyr
+  // at noe har brutt til en ekstra linje (tittel, ingress, et
+  // høydepunktnavn) og fanges her.
+  {
+    const brukt = maalBlokker([side1])[0];
+    if(brukt > 292 * MM) merkOverfull(alleSider[0], "Forsiden er for høy - kort ned tittel, ingress eller høydepunktnavn", brukt);
+    // Tittelhøyden måles i 210 mm-måleren, ikke i skjermforhåndsvisningen
+    // (760 px bred) - der kan tittelen brytes uten at den gjør det i PDF-en.
+    const maaler = document.createElement("div");
+    maaler.className = "paper";
+    maaler.style.cssText = "position:absolute; left:-10000px; top:0; width:210mm; max-width:none; visibility:hidden;";
+    maaler.innerHTML = `<div class="pdf-page">${side1}</div>`;
+    document.body.appendChild(maaler);
+    const h1 = maaler.querySelector("h1");
+    const h1Hoyde = h1 ? h1.getBoundingClientRect().height : 0;
+    maaler.remove();
+    if(h1Hoyde > tittelPx * 1.15 * 1.5) merkOverfull(alleSider[0], "Tittelen får ikke plass på én linje - kort ned reisenavnet", brukt);
+  }
+  document.querySelectorAll(".pdf-page--innhold").forEach(side=>{
+    const brukt = maalBlokker([side.innerHTML])[0];
+    if(brukt > (297 - 6) * MM) merkOverfull(side, "For mye innhold på denne siden", brukt);
+  });
+  // Avslutnings- og vilkårssidene har fast høyde (297 mm): innhold + fast
+  // bilde + bunnbanner må få plass innenfor.
+  document.querySelectorAll(".pdf-page--siste").forEach(side=>{
+    const innhold = side.querySelector(".side3-innhold").innerHTML;
+    const bildeWrap = side.querySelector(".side3-bilde-wrap");
+    const bildeHoyde = bildeWrap ? bildeWrap.getBoundingClientRect().height : 0;
+    const brukt = maalBlokker([innhold + side.querySelector(".footer").outerHTML])[0] + bildeHoyde;
+    if(brukt > A4 - 2 * MM) merkOverfull(side, "For mye innhold på denne siden", brukt);
+  });
+  if(bilderOmReisen.length % 2 === 1 && side2){
+    merkOverfull(alleSider[1], `Om reisen-galleriet har ${bilderOmReisen.length} bilder - skal være 2, 4 eller 6`, 0);
+  }
 }
 
 el("btnPrint").addEventListener("click", ()=> window.print());
 
-main();
+main().catch(err=>{
+  console.error(err);
+  const m = el("loadMsg");
+  if(m) m.textContent = "Kunne ikke bygge dokumentet: " + (err && err.message ? err.message : err);
+});
 </script>
 </body>
 </html>
