@@ -2917,6 +2917,8 @@ el("addIkkeInkludertBtn").addEventListener("click", ()=>{
    Ordgrenser ga ikke forutsigbar høyde i PDF-en (30 lange ord ble fem
    linjer, 60 vanlige ord fire), så alle PDF-tekster begrenses i TEGN. Et
    linjeskift teller som 100 tegn - det koster en hel linje uansett.
+   Unntak: «Om reisen» teller linjeskift som 1 tegn (06.09.2026), fordi
+   feltet nå har faktisk høydemåling mot side 2 (omReisenHoydePx).
    Grensene er målt mot den faktiske PDF-layouten (sluttkontroll
    05.09.2026): ingress 4 linjer, Om reisen ≈ 250 ord, hotell ≈ 60 ord,
    programdag ≈ 60 ord, vilkårsfelt ≈ 80 ord, forbehold/veien videre ≈ 40. */
@@ -2930,15 +2932,20 @@ const TEGN = {
 const LINJESKIFT_VEKT = 100;
 const PDF_TITTEL_BREDDE_PX = 656;   // H1-feltet er 666 px (210 mm - 2 x 64 px); 10 px slingringsmonn, samme som forslag-print.html
 
-function vektetLengde(str){
+// linjeskiftVekt: hva et linjeskift teller som. Standard er
+// LINJESKIFT_VEKT (100). «Om reisen» bruker 1 (06.09.2026): siden har nå
+// faktisk høydemåling mot plassen på side 2 (se omReisenHoydePx), så
+// avsnitt skal ikke straffes i telleren. Øvrige felt er uendret.
+function vektetLengde(str, linjeskiftVekt){
   const s = str || "";
+  const vekt = linjeskiftVekt == null ? LINJESKIFT_VEKT : linjeskiftVekt;
   const linjeskift = (s.match(/\n/g) || []).length;
-  return s.length + linjeskift * (LINJESKIFT_VEKT - 1);
+  return s.length + linjeskift * (vekt - 1);
 }
 // Kapper teksten bakfra til den vektede lengden er innenfor grensen.
-function kappTilVektet(str, maks){
+function kappTilVektet(str, maks, linjeskiftVekt){
   let s = str || "";
-  while(s.length && vektetLengde(s) > maks) s = s.slice(0, -1);
+  while(s.length && vektetLengde(s, linjeskiftVekt) > maks) s = s.slice(0, -1);
   return s;
 }
 // Teller + hard sperre. Tar elementer (ikke id-er) slik at den også kan
@@ -2948,12 +2955,12 @@ function kappTilVektet(str, maks){
 // lagret over grensen (fra før grensene kom) røres ikke ved innlasting -
 // den vises med rød teller og «for langt», og PDF-forhåndsvisningen
 // markerer siden. Innhold skal aldri fjernes i det stille.
-function refreshTegnteller(ta, teller, maks, ingenLinjeskift, kapp){
+function refreshTegnteller(ta, teller, maks, ingenLinjeskift, kapp, linjeskiftVekt){
   if(kapp){
     if(ingenLinjeskift && /\n/.test(ta.value)) ta.value = ta.value.replace(/\s*\n\s*/g, " ");
-    if(vektetLengde(ta.value) > maks) ta.value = kappTilVektet(ta.value, maks);
+    if(vektetLengde(ta.value, linjeskiftVekt) > maks) ta.value = kappTilVektet(ta.value, maks, linjeskiftVekt);
   }
-  const brukt = vektetLengde(ta.value);
+  const brukt = vektetLengde(ta.value, linjeskiftVekt);
   // UX-runde 06.09.2026: kun tegn vises - ordtelling er fjernet, én
   // måleenhet i editoren. Valideringen (vektet lengde, hard sperre) er uendret.
   if(teller){
@@ -2962,13 +2969,13 @@ function refreshTegnteller(ta, teller, maks, ingenLinjeskift, kapp){
   }
   return ta.value;
 }
-function kobleTegnteller(taId, tellerId, maks, ingenLinjeskift){
-  el(taId).addEventListener("input", ()=> refreshTegnteller(el(taId), el(tellerId), maks, ingenLinjeskift, true));
+function kobleTegnteller(taId, tellerId, maks, ingenLinjeskift, linjeskiftVekt){
+  el(taId).addEventListener("input", ()=> refreshTegnteller(el(taId), el(tellerId), maks, ingenLinjeskift, true, linjeskiftVekt));
 }
 kobleTegnteller("pres-ingress","pres-ingress-teller",TEGN.ingress,true);
 el("pres-ingress").addEventListener("input", oppdaterPdfVarsler);
 el("pres-omreisen").addEventListener("input", oppdaterPdfVarsler);
-kobleTegnteller("pres-omreisen","pres-omreisen-teller",TEGN.omReisen);
+kobleTegnteller("pres-omreisen","pres-omreisen-teller",TEGN.omReisen,false,1);   // linjeskift = 1 tegn, se vektetLengde()
 kobleTegnteller("vv-tekst","vv-tekst-teller",TEGN.veienVidere);
 kobleTegnteller("fb-tekst","fb-tekst-teller",TEGN.forbehold);
 kobleTegnteller("vk-forbehold","vk-forbehold-teller",TEGN.vilkaar);
@@ -3150,7 +3157,7 @@ function renderPresentasjon(){
   el("pres-reisemal").value = f.om_reisemalet || "";
   renderReisemaalStatus();
   refreshTegnteller(el("pres-ingress"), el("pres-ingress-teller"), TEGN.ingress, true);
-  refreshTegnteller(el("pres-omreisen"), el("pres-omreisen-teller"), TEGN.omReisen);
+  refreshTegnteller(el("pres-omreisen"), el("pres-omreisen-teller"), TEGN.omReisen, false, false, 1);
   renderHoydepunkter();
   sjekkPdfTittel();
 }
