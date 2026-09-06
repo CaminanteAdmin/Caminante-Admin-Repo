@@ -2443,7 +2443,9 @@ function nyProgramDag(nr){
 const programDagOpptatt = new Set();   // clientKey for dager med opplasting på gang
 // Maks antall bilder per programdag. Samme tall i editoren og i dokumentet:
 // bildene som ligger på dagen ER bildene som brukes i PDF-en.
-const PROGRAM_BILDER_MAKS = 2;
+// 06.09.2026: 0/2/4 bilder per dag (to i bredden, fire blir 2x2 i PDF-en).
+// 1 og 3 er ugyldig - varsles i oppdaterPdfVarsler(), aldri kappet.
+const PROGRAM_BILDER_MAKS = 4;
 
 function renderProgram(){
   const holder = el("programHolder");
@@ -3133,10 +3135,24 @@ function oppdaterPdfVarsler(){
         : `Om reisen er for lang for side 2 - kort ned teksten med ca. ${linjerForMye} linje${linjerForMye===1?"":"r"}.`);
     }
   }
+  // 0/2/4-regelen for hotell- og programbilder (06.09.2026), både for
+  // Reiseforslag og Tilbud. Eksisterende data med 1 eller 3 bilder endres
+  // aldri i det stille - det stoppes her med tydelig beskjed.
   state.hotellopphold.forEach((h, idx)=>{
     const n = state.bilder.filter(b=> b.fields.kategori==="Hotell" && b.hotellopphold_client_key===h.clientKey).length;
-    if(n > HOTELL_BILDER_MAKS) varsler.push(`${h.fields.hotellnavn || "Hotell " + (idx+1)} har ${n} bilder - PDF-en viser maks ${HOTELL_BILDER_MAKS}. Fjern ${n - HOTELL_BILDER_MAKS}.`);
+    const navn = h.fields.hotellnavn || "Hotell " + (idx+1);
+    if(n > HOTELL_BILDER_MAKS) varsler.push(`${navn} har ${n} bilder - PDF-en tar 0, 2 eller 4 per hotell. Fjern ${n - HOTELL_BILDER_MAKS}.`);
+    else if(n % 2 === 1) varsler.push(`${navn} har ${n} bilde${n===1?"":"r"} - PDF-en tar 0, 2 eller 4 per hotell. Legg til eller fjern ett bilde (Bilder-fanen).`);
   });
+  state.dagsprogram.forEach(d=>{
+    const n = dagBilder(d).length;
+    if(n > PROGRAM_BILDER_MAKS) varsler.push(`Dag ${d.fields.dagnummer} har ${n} bilder - PDF-en tar 0, 2 eller 4 per dag. Fjern ${n - PROGRAM_BILDER_MAKS}.`);
+    else if(n % 2 === 1) varsler.push(`Dag ${d.fields.dagnummer} har ${n} bilde${n===1?"":"r"} - PDF-en tar 0, 2 eller 4 per dag. Legg til eller fjern ett bilde (Program-fanen).`);
+  });
+  // Generell bilderegel: ingen fotografier gjentas i PDF-en. Avslutnings-
+  // bildet hentes derfor ikke lenger automatisk fra galleriet - det må
+  // velges eksplisitt (Bilder-fanen), ellers står siste side uten bilde.
+  if(!state.bilder.some(b=> b.fields.er_avslutningsbilde)) varsler.push("Avslutningsbilde mangler - velg ett under Bilder. Bilder gjentas aldri i PDF-en, så det hentes ikke automatisk fra galleriet.");
   const boks = el("pdfVarsel");
   boks.innerHTML = (varsler.length ? `<div style="font-weight:600; margin-bottom:2px;">Må rettes før PDF kan genereres:</div>` : "")
     + varsler.map(v=>`<div>${escapeHtml(v)}</div>`).join("");
@@ -4072,7 +4088,9 @@ function hotellBankInfo(hotellopphold){
 // bredden. Hotellbildene er to per hotell - fire sprengte halvsiden når to
 // hoteller deler side (målt 285 mm mot 232 mm).
 const REISEMAAL_GALLERI_MAKS = 6;
-const HOTELL_BILDER_MAKS = 2;
+// 06.09.2026: 0/2/4 bilder per hotell (fire blir 2x2, hotellet får da
+// normalt egen side). 1 og 3 er ugyldig - varsles, aldri kappet.
+const HOTELL_BILDER_MAKS = 4;
 
 function renderBilder(){
   // v22: Hovedbilde/Avslutningsbilde/hvert Høydepunkt tegnes nå som
@@ -4122,10 +4140,12 @@ function renderBilder(){
       // Et hotell fra før grensen ble senket kan ha flere bilder enn PDF-en
       // viser - si fra her, slik at ingen bilder forsvinner i det stille.
       const antall = state.bilder.filter(b=> b.fields.kategori==="Hotell" && b.hotellopphold_client_key===h.clientKey).length;
-      if(antall > HOTELL_BILDER_MAKS){
+      if(antall > HOTELL_BILDER_MAKS || antall % 2 === 1){
         const varsel = document.createElement("div");
         varsel.className = "pdf-varsel vis";
-        varsel.textContent = `Hotellet har ${antall} bilder - PDF-en viser maks ${HOTELL_BILDER_MAKS}. Fjern ${antall - HOTELL_BILDER_MAKS} bilde${antall - HOTELL_BILDER_MAKS === 1 ? "" : "r"}.`;
+        varsel.textContent = antall > HOTELL_BILDER_MAKS
+          ? `Hotellet har ${antall} bilder - PDF-en tar 0, 2 eller 4. Fjern ${antall - HOTELL_BILDER_MAKS} bilde${antall - HOTELL_BILDER_MAKS === 1 ? "" : "r"}.`
+          : `Hotellet har ${antall} bilde${antall === 1 ? "" : "r"} - PDF-en tar 0, 2 eller 4. Legg til eller fjern ett bilde.`;
         sub.appendChild(varsel);
       }
     });

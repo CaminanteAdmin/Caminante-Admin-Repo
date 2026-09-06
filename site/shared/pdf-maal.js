@@ -16,7 +16,7 @@ const PDF_MAAL = {
     MIN_AVSTAND_MM: 10,            // minste luft mellom siste tekstlinje og galleriet
     BUNN_MM: 12,                   // fast luft mellom galleriet og bunnstripen
     GALLERI_GAP_PX: 10,            // luft mellom bildene i galleriet
-    GALLERI_FORHOLD: 16 / 6,       // bildenes bredde/høyde (aspect-ratio)
+    GALLERI_FORHOLD: 16 / 9,       // bildenes bredde/høyde (aspect-ratio) - 16:9 fra 06.09.2026
     SIKKERHET_MM: 3,               // slingringsmonn i editorens forhåndsmåling
   },
 };
