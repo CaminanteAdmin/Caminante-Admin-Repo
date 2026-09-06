@@ -1109,8 +1109,11 @@ async function main(){
         sider.push(par);
         i += par.length;
       }
-      if(flyBlokk && sider[sider.length-1].length === 1){
-        const sisteIdx = hotellBlokker.length - 1;
+      // Flyet i den ledige plassen etter et enslig siste KOMPAKT hotell.
+      // Et hotell med 4 bilder har hele siden for seg selv - heller ikke
+      // flyet legges under det; flyet går videre til neste side.
+      const sisteIdx = hotellBlokker.length - 1;
+      if(flyBlokk && sider[sider.length-1].length === 1 && !hotellStor[sisteIdx]){
         const flyHoyde = maalBlokker([flyBlokk])[0];
         if(hoyderStart[sisteIdx] + flyHoyde <= SIDE_MAKS){
           sider[sider.length-1].push(flyBlokk);
