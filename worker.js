@@ -140,6 +140,148 @@ async function handleDelete(request, env) {
 
 const PDF_VENT_MS = 45000;
 
+// ---------- PDF-bildevarianter (Cloudflare Images + R2) ----------
+// PDF-en ble 50 MB fordi Chromium legger beskårne bilder inn som tapsfrie
+// bitmapper i full kildeoppløsning. Løsning: faste varianter i nøyaktig
+// samme sideforhold som visningsflaten (ingen beskjæring → JPEG-en legges
+// inn uendret) og i 2,5-3 x CSS-størrelse (240-290 dpi på A4). Baseline
+// JPEG q85, fit: cover. Originalene i R2 røres aldri; variantene lagres
+// under varianter/<variant>/<originalnøkkel>.jpg og lages ved første behov.
+const PDF_VARIANTER = {
+  "hero":                 [1600, 817],
+  "closing-reiseforslag": [1600, 680],
+  "closing-tilbud":       [1600, 862],
+  "om-reisen":            [990, 557],
+  "hoydepunkt":           [390, 342],
+  "hotell":               [990, 371],
+  "program-1":            [1600, 396],
+  "program-2":            [990, 396],
+  "program-3":            [650, 396],
+  "program-4":            [480, 396],
+};
+const PDF_BILDE_KVALITET = 85;
+// Kun bildebankens egne rasterfiler kan hentes gjennom bilderuten - aldri
+// vilkårlige objekter i bucketen (varianter/-mappen ligger utenfor
+// GYLDIGE_MAPPER og kan derfor heller ikke lastes opp/slettes via API-et).
+const BILDE_NOKKEL_RE = /^(destinations|hoteller)\/[a-z0-9-]{1,80}\/[a-f0-9-]{36}\.(jpe?g|png|webp|gif)$/;
+
+function variantNokkel(variant, key) {
+  return `varianter/${variant}/${key.replace(/\.[a-z]+$/, ".jpg")}`;
+}
+
+// Sørger for at én variant finnes i R2. Lages den nå, skrives HELE filen i
+// én atomisk put - to samtidige genereringer skriver samme innhold og kan
+// ikke ødelegge hverandre. Returnerer R2-objektet.
+async function sikreVariant(env, variant, key) {
+  const dims = PDF_VARIANTER[variant];
+  if (!dims) throw new Error(`Ukjent bildevariant «${variant}».`);
+  if (!BILDE_NOKKEL_RE.test(key)) throw new Error("Ugyldig bildenøkkel.");
+  const vKey = variantNokkel(variant, key);
+  const finnes = await env.BILDEBANK.get(vKey);
+  if (finnes) return finnes;
+
+  const orig = await env.BILDEBANK.get(key);
+  if (!orig) throw new Error(`Fant ikke originalbildet ${key} i bildebanken.`);
+  if (!env.IMAGES) throw new Error("Bildetransformasjon (Images-binding) er ikke konfigurert på serveren.");
+  let bytes;
+  try {
+    const resultat = await env.IMAGES.input(orig.body)
+      .transform({ width: dims[0], height: dims[1], fit: "cover" })
+      .output({ format: "image/jpeg", quality: PDF_BILDE_KVALITET });
+    bytes = await new Response(resultat.image()).arrayBuffer();
+  } catch (err) {
+    throw new Error(`Kunne ikke lage PDF-variant «${variant}» av ${key}: ${err && err.message ? err.message : err}`);
+  }
+  if (!bytes || bytes.byteLength < 100) throw new Error(`PDF-variant «${variant}» av ${key} ble tom.`);
+  await env.BILDEBANK.put(vKey, bytes, { httpMetadata: { contentType: "image/jpeg" } });
+  return env.BILDEBANK.get(vKey);
+}
+
+// GET /bilde/<variant>/<nøkkel> - offentlig (originalene er alt offentlige
+// på r2.dev). Brukes både av forhåndsvisningen og av Browser Run.
+async function handleBilde(request, env) {
+  const url = new URL(request.url);
+  const m = /^\/bilde\/([a-z0-9-]+)\/(.+)$/.exec(url.pathname);
+  if (!m) return jsonSvar({ error: "Ukjent bilde." }, 404);
+  const variant = m[1];
+  let key;
+  try { key = decodeURIComponent(m[2]); } catch (e) { return jsonSvar({ error: "Ugyldig bildenøkkel." }, 400); }
+  if (!PDF_VARIANTER[variant] || !BILDE_NOKKEL_RE.test(key)) return jsonSvar({ error: "Ukjent bilde." }, 404);
+  let obj;
+  try {
+    obj = await sikreVariant(env, variant, key);
+  } catch (err) {
+    console.error("Bildevariant feilet", variant, key, err);
+    return jsonSvar({ error: err.message }, /Fant ikke/.test(err.message) ? 404 : 502);
+  }
+  return new Response(obj.body, {
+    headers: {
+      "Content-Type": "image/jpeg",
+      "Content-Length": String(obj.size),
+      // Nøkkelen er originalens uuid og originalene endres aldri.
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "ETag": obj.httpEtag,
+    },
+  });
+}
+
+// Nøkkel i bildebanken fra en offentlig r2.dev-adresse, ellers null (bilder
+// som ikke ligger i banken, f.eks. eksterne adresser, får ingen variant).
+function r2NokkelFraUrl(url, env) {
+  if (!url) return null;
+  const base = (env.R2_PUBLIC_BASE || "").replace(/\/$/, "") + "/";
+  if (!url.startsWith(base)) return null;
+  const key = url.slice(base.length);
+  return BILDE_NOKKEL_RE.test(key) ? key : null;
+}
+
+// Alle (variant, nøkkel)-par PDF-en kommer til å be om - samme rolleregler
+// som forslag-print.html: hero, avslutningsbilde, Om reisen-galleri,
+// høydepunkter, hotellbilder og programbilder (variant etter antall på
+// dagen). Lages FØR Browser Run startes, slik at headless-siden bare
+// henter ferdige filer, og en feil i én variant gir en tydelig melding i
+// stedet for et manglende bilde i PDF-en.
+function pdfBildeVarianter(data, erTilbud, env) {
+  const par = new Map();
+  const legg = (variant, url) => { const k = r2NokkelFraUrl(url, env); if (k) par.set(`${variant}|${k}`, { variant, key: k }); };
+  const f = data.f;
+  legg("hero", f.hovedbilde_url);
+  const bilder = data.bildeRows || [];
+  bilder.forEach((b) => {
+    if (b.kategori === "Destinasjon") {
+      if (b.er_avslutningsbilde) legg(erTilbud ? "closing-tilbud" : "closing-reiseforslag", b.bilde_url);
+      else if (!b.er_hovedbilde) legg("om-reisen", b.bilde_url);
+    } else if (b.kategori === "Hotell") {
+      legg("hotell", b.bilde_url);
+    }
+  });
+  const perDag = new Map();
+  bilder.filter((b) => b.kategori === "Program").forEach((b) => {
+    perDag.set(b.dagsprogram_id, (perDag.get(b.dagsprogram_id) || []).concat([b]));
+  });
+  perDag.forEach((liste) => {
+    const n = Math.min(4, Math.max(1, liste.length));
+    liste.forEach((b) => legg(`program-${n}`, b.bilde_url));
+  });
+  (data.hpRows || []).forEach((h) => {
+    const bank = h.valgt_bilde_id ? (data.hoydepunktBildeBank || []).find((x) => x.id === h.valgt_bilde_id) : null;
+    legg("hoydepunkt", h.bilde_url || (bank && bank.bilde_url));
+  });
+  return [...par.values()];
+}
+
+async function sikreAlleVarianter(env, liste) {
+  // Maks fire samtidige transformasjoner.
+  const ko = liste.slice();
+  const arbeidere = Array.from({ length: Math.min(4, ko.length) }, async () => {
+    while (ko.length) {
+      const { variant, key } = ko.shift();
+      await sikreVariant(env, variant, key);
+    }
+  });
+  await Promise.all(arbeidere);
+}
+
 async function sbHent(env, token, sti) {
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${sti}`, {
     headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` },
@@ -256,7 +398,18 @@ async function handlePdf(request, env) {
     return jsonSvar({ error: err.message }, 500);
   }
   if (!html.includes("<!-- pdf-data -->")) return jsonSvar({ error: "PDF-malen mangler datamarkøren." }, 500);
-  const json = JSON.stringify({ ...data, erTilbud })
+
+  // Bildevariantene må finnes før headless-siden ber om dem.
+  try {
+    await sikreAlleVarianter(env, pdfBildeVarianter(data, erTilbud, env));
+  } catch (err) {
+    console.error("PDF-bildevariant feilet", err);
+    return jsonSvar({ error: "PDF-en kunne ikke lages: " + err.message }, 502);
+  }
+  // Absolutt adresse til bilderuten - headless-siden har ingen egen adresse
+  // (html-modus), så relative adresser virker ikke der.
+  const bildeBase = url.origin;
+  const json = JSON.stringify({ ...data, erTilbud, bildeBase, r2Base: env.R2_PUBLIC_BASE || "" })
     .replace(/<\//g, "<\\/").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
   html = html.replace("<!-- pdf-data -->", `<script>window.PDF_DATA = ${json};</script>`);
 
@@ -313,6 +466,11 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin");
+
+    if (url.pathname.startsWith("/bilde/")) {
+      if (request.method !== "GET") return jsonSvar({ error: "Ukjent endepunkt." }, 404);
+      return handleBilde(request, env);
+    }
 
     if (url.pathname === "/api/pdf") {
       if (request.method === "OPTIONS") return cors(new Response(null, { status: 204 }), origin);
