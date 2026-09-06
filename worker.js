@@ -148,13 +148,16 @@ const PDF_VENT_MS = 45000;
 // JPEG q85, fit: cover. Originalene i R2 røres aldri; variantene lagres
 // under varianter/<variant>/<originalnøkkel>.jpg og lages ved første behov.
 const PDF_VARIANTER = {
-  "hero":                 [1600, 817],
-  "closing-reiseforslag": [1600, 680],
-  "closing-tilbud":       [1600, 862],
+  // Hero og avslutningsbilde går over hele sidebredden (794 px), ikke
+  // innholdsbredden (666 px) - forholdet må følge den faktiske flaten,
+  // ellers beskjærer Chromium og lagrer tapsfritt.
+  "hero":                 [1600, 685],   // 794 x 340
+  "closing-reiseforslag": [1600, 571],   // 794 x 283 (75 mm)
+  "closing-tilbud":       [1600, 723],   // 794 x 359 (95 mm)
   "om-reisen":            [990, 557],
   "hoydepunkt":           [390, 342],
   "hotell":               [990, 371],
-  "program-1":            [1600, 396],
+  "program-1":            [1600, 317],   // 666 x 132
   "program-2":            [990, 396],
   "program-3":            [650, 396],
   "program-4":            [480, 396],
@@ -165,8 +168,11 @@ const PDF_BILDE_KVALITET = 85;
 // GYLDIGE_MAPPER og kan derfor heller ikke lastes opp/slettes via API-et).
 const BILDE_NOKKEL_RE = /^(destinations|hoteller)\/[a-z0-9-]{1,80}\/[a-f0-9-]{36}\.(jpe?g|png|webp|gif)$/;
 
+// Målene er med i nøkkelen, så en justering av en variant gir nye filer
+// automatisk - gamle varianter blir liggende urefererte (harmløse).
 function variantNokkel(variant, key) {
-  return `varianter/${variant}/${key.replace(/\.[a-z]+$/, ".jpg")}`;
+  const [w, h] = PDF_VARIANTER[variant];
+  return `varianter/${variant}-${w}x${h}/${key.replace(/\.[a-z]+$/, ".jpg")}`;
 }
 
 // Sørger for at én variant finnes i R2. Lages den nå, skrives HELE filen i
