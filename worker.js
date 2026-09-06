@@ -122,6 +122,15 @@ async function handleDelete(request, env) {
     return jsonSvar({ error: "Ugyldig nøkkel." }, 400);
   }
   await env.BILDEBANK.delete(key);
+  // QA-funn 06.09.2026: PDF-variantene av bildet skal ikke bli liggende
+  // (bucketen er offentlig). Både dagens nøkler (med mål) og de første
+  // variantene uten mål fjernes.
+  const variantNokler = [];
+  for (const variant of Object.keys(PDF_VARIANTER)) {
+    variantNokler.push(variantNokkel(variant, key));
+    variantNokler.push(`varianter/${variant}/${key.replace(/\.[a-z]+$/, ".jpg")}`);
+  }
+  await env.BILDEBANK.delete(variantNokler);
   return jsonSvar({ ok: true });
 }
 
@@ -170,8 +179,13 @@ const BILDE_NOKKEL_RE = /^(destinations|hoteller)\/[a-z0-9-]{1,80}\/[a-f0-9-]{36
 
 // Målene er med i nøkkelen, så en justering av en variant gir nye filer
 // automatisk - gamle varianter blir liggende urefererte (harmløse).
+// Eksplisitt whitelist-oppslag - «constructor» o.l. skal aldri treffe
+// Object.prototype.
+function variantMaal(variant) {
+  return Object.prototype.hasOwnProperty.call(PDF_VARIANTER, variant) ? PDF_VARIANTER[variant] : null;
+}
 function variantNokkel(variant, key) {
-  const [w, h] = PDF_VARIANTER[variant];
+  const [w, h] = variantMaal(variant);
   return `varianter/${variant}-${w}x${h}/${key.replace(/\.[a-z]+$/, ".jpg")}`;
 }
 
@@ -179,7 +193,7 @@ function variantNokkel(variant, key) {
 // én atomisk put - to samtidige genereringer skriver samme innhold og kan
 // ikke ødelegge hverandre. Returnerer R2-objektet.
 async function sikreVariant(env, variant, key) {
-  const dims = PDF_VARIANTER[variant];
+  const dims = variantMaal(variant);
   if (!dims) throw new Error(`Ukjent bildevariant «${variant}».`);
   if (!BILDE_NOKKEL_RE.test(key)) throw new Error("Ugyldig bildenøkkel.");
   const vKey = variantNokkel(variant, key);
@@ -212,7 +226,7 @@ async function handleBilde(request, env) {
   const variant = m[1];
   let key;
   try { key = decodeURIComponent(m[2]); } catch (e) { return jsonSvar({ error: "Ugyldig bildenøkkel." }, 400); }
-  if (!PDF_VARIANTER[variant] || !BILDE_NOKKEL_RE.test(key)) return jsonSvar({ error: "Ukjent bilde." }, 404);
+  if (!variantMaal(variant) || !BILDE_NOKKEL_RE.test(key)) return jsonSvar({ error: "Ukjent bilde." }, 404);
   let obj;
   try {
     obj = await sikreVariant(env, variant, key);
@@ -378,6 +392,17 @@ function pdfFilnavn(data, erTilbud) {
   return `${navn}.pdf`;
 }
 
+// Feil fra Browser Run (begge kallene) som forståelig norsk melding.
+function browserRunFeil(svar, tekst) {
+  const detalj = (tekst || "").slice(0, 500);
+  console.error("Browser Run feilet", svar.status, detalj);
+  if (svar.status === 429) return jsonSvar({ error: "Mange PDF-er lages samtidig. Prøv igjen om noen sekunder." }, 429);
+  const melding = /timeout|timed out/i.test(detalj)
+    ? "Dokumentet ble ikke ferdig bygget innen tidsfristen. Prøv igjen, og si fra hvis det gjentar seg."
+    : `PDF-genereringen feilet hos Browser Run (${svar.status}).`;
+  return jsonSvar({ error: melding }, 502);
+}
+
 async function handlePdf(request, env) {
   const bruker = await krevInnlogget(request, env);
   if (!bruker) return jsonSvar({ error: "Ikke innlogget." }, 401);
@@ -419,19 +444,54 @@ async function handlePdf(request, env) {
     .replace(/<\//g, "<\\/").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
   html = html.replace("<!-- pdf-data -->", `<script>window.PDF_DATA = ${json};</script>`);
 
+  // Felles sideoppsett for begge Browser Run-kallene: samme medium som
+  // dokumentet er målt og designet mot (@media print, @page A4 uten marg).
+  const sideOppsett = {
+    html,
+    emulateMediaType: "print",
+    viewport: { width: 1000, height: 1400 },
+    gotoOptions: { waitUntil: "load", timeout: 30000 },
+    rejectRequestPattern: ["supabase\\.co", "cdn\\.jsdelivr\\.net"],
+  };
+
+  // Sikkerhetsnett (QA 06.09.2026): malen setter #pdf-status når
+  // dokumentet er bygget og paginert - «ok», eller «feil» med teksten fra
+  // overfull-kontrollene. Leses med quickAction «scrape» FØR PDF-en tas,
+  // slik at en overfull side gir en presis feil og aldri en ødelagt PDF.
+  let sjekk;
+  try {
+    sjekk = await env.BROWSER.quickAction("scrape", {
+      ...sideOppsett,
+      waitForSelector: { selector: "#pdf-status", timeout: PDF_VENT_MS },
+      elements: [{ selector: "#pdf-status" }],
+    });
+  } catch (err) {
+    console.error("Browser Run-sidekontroll feilet", err);
+    return jsonSvar({ error: "PDF-tjenesten svarte ikke: " + (err && err.message ? err.message : err) }, 502);
+  }
+  if (!sjekk.ok) return browserRunFeil(sjekk, await sjekk.text());
+  let status = null, statusTekst = "";
+  try {
+    const j = await sjekk.json();
+    const treff = j && j.result && j.result[0] && j.result[0].results && j.result[0].results[0];
+    if (treff) {
+      const attr = (treff.attributes || []).find((a) => a.name === "data-status");
+      status = attr ? attr.value : null;
+      statusTekst = (treff.text || "").trim();
+    }
+  } catch (err) { status = null; }
+  if (status !== "ok") {
+    if (status === "feil") return jsonSvar({ error: "PDF-en ble ikke laget - en side har for mye innhold: " + statusTekst + ". Rett dette i editoren og prøv igjen." }, 422);
+    return jsonSvar({ error: "Sidekontrollen ga ikke svar - dokumentet ble ikke ferdig bygget." }, 502);
+  }
+
   let svar;
   try {
     svar = await env.BROWSER.quickAction("pdf", {
-      html,
-      // Samme medium som dokumentet er målt og designet mot (@media print,
-      // @page A4 uten marg) - også under selve målingen i siden.
-      emulateMediaType: "print",
-      viewport: { width: 1000, height: 1400 },
-      gotoOptions: { waitUntil: "load", timeout: 30000 },
+      ...sideOppsett,
       // Siden setter #pdf-klar først når dokumentet er bygget og alle
       // bilder er lastet og dekodet (fontene ventes på før målingen).
       waitForSelector: { selector: "#pdf-klar", timeout: PDF_VENT_MS },
-      rejectRequestPattern: ["supabase\\.co", "cdn\\.jsdelivr\\.net"],
       pdfOptions: {
         format: "a4",
         printBackground: true,
@@ -445,15 +505,7 @@ async function handlePdf(request, env) {
     return jsonSvar({ error: "PDF-tjenesten svarte ikke: " + (err && err.message ? err.message : err) }, 502);
   }
 
-  if (!svar.ok) {
-    const detalj = (await svar.text()).slice(0, 500);
-    console.error("Browser Run feilet", svar.status, detalj);
-    if (svar.status === 429) return jsonSvar({ error: "Mange PDF-er lages samtidig. Prøv igjen om noen sekunder." }, 429);
-    const melding = /timeout|timed out/i.test(detalj)
-      ? "Dokumentet ble ikke ferdig bygget innen tidsfristen. Prøv igjen, og si fra hvis det gjentar seg."
-      : `PDF-genereringen feilet hos Browser Run (${svar.status}).`;
-    return jsonSvar({ error: melding }, 502);
-  }
+  if (!svar.ok) return browserRunFeil(svar, await svar.text());
 
   const filnavn = pdfFilnavn(data, erTilbud);
   const ascii = filnavn.replace(/[^\x20-\x7e]/g, "_").replace(/"/g, "");

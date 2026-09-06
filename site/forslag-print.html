@@ -63,15 +63,6 @@
   }
   .toolbar button:hover{ background:var(--night); border-color:var(--night); }
   .toolbar .hint{ font-size:11.5px; color:var(--ink-muted); }
-  .toolbar button:disabled{ opacity:0.8; cursor:progress; }
-  /* Spinner foran «Genererer PDF…», samme som i editoren. */
-  .toolbar button.pdf-opptatt::before{
-    content:""; display:inline-block; width:11px; height:11px; margin-right:7px;
-    vertical-align:-1px; border-radius:50%;
-    border:2px solid currentColor; border-right-color:transparent;
-    animation:pdf-spinn 0.8s linear infinite;
-  }
-  @keyframes pdf-spinn{ to{ transform:rotate(360deg); } }
   .load-msg{ padding:80px 24px; text-align:center; color:var(--ink-muted); font-size:13px; }
 
   /* ---------- Selve dokumentet (godkjent design v6g) ---------- */
@@ -264,7 +255,7 @@
      billett-effekter. All ikonografi i samme dempede Caminante-farge.
      Kompakt når flyet deler side med siste hotell (.reisekort), større og
      luftigere på egen side (.fly-egen-side). */
-  .reise-grid{ display:flex; flex-direction:column; gap:18px; margin-top:18px; }
+  .reise-grid{ display:flex; flex-direction:column; gap:24px; margin-top:18px; }
   .reisekort{
     border:1px solid var(--hairline); border-radius:10px; background:rgba(243,232,216,0.4);
     padding:20px 26px 22px;
@@ -305,7 +296,7 @@
   .reise-intern{ margin-top:18px; }
   /* Egen side: samme kort, mer luft og større dimensjoner. */
   .fly-egen-side{ padding-top:120px; }
-  .fly-egen-side .reise-grid{ gap:30px; margin-top:32px; }
+  .fly-egen-side .reise-grid{ gap:36px; margin-top:32px; }
   .fly-egen-side .reisekort{ padding:32px 40px 34px; border-radius:12px; }
   .fly-egen-side .reisekort-topp{ margin-bottom:34px; }
   .fly-egen-side .fly-ikon-sirkel{ width:32px; height:32px; }
@@ -325,7 +316,7 @@
      pagineringen kun når den romslige varianten ikke får plass under siste
      hotell, men den kompakte gjør det (typisk hotell med 4 bilder). */
   .fly-kompakt{ padding-top:36px; }
-  .fly-kompakt .reise-grid{ gap:10px; margin-top:12px; }
+  .fly-kompakt .reise-grid{ gap:14px; margin-top:12px; }
   .fly-kompakt .reisekort{ padding:12px 22px 12px; }
   .fly-kompakt .reisekort-topp{ margin-bottom:10px; gap:8px; }
   .fly-kompakt .fly-ikon-sirkel{ width:22px; height:22px; }
@@ -381,6 +372,9 @@
   .vilkaar-label{ font-size:11px; font-weight:750; letter-spacing:0.06em; text-transform:uppercase; color:var(--accent-dark); margin-bottom:6px; }
   .vilkaar-seksjon p{ font-size:13.5px; line-height:1.6; color:var(--ink-secondary); margin:0; }
   .vilkaar-frist{ font-family:var(--font-serif); font-size:20px; font-weight:600; color:var(--ink); }
+  /* Vilkårssiden har ingen bildeboks som skyver bunnbanneret ned - banneren
+     får derfor selv margin-top:auto (QA-funn 06.09.2026). */
+  .pdf-page--vilkaar .footer{ margin-top:auto; }
 
   .footer{ padding:28px 64px 26px; background:var(--night); display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex:0 0 auto; }
   .footer .venstre{ text-align:left; }
@@ -408,8 +402,7 @@
 <div class="toolbar no-print">
   <a id="tilbakeLink" href="forslag.html">← Tilbake</a>
   <div class="right">
-    <span class="hint">Forhåndsvisning. PDF-en lages på serveren av samme mal.</span>
-    <button id="btnPdf">Last ned PDF</button>
+    <span class="hint">Forhåndsvisning. PDF-en lages fra Gruppetilbud-editorens knapper «Reiseforslag / PDF» og «Tilbud / PDF», etter validering.</span>
   </div>
 </div>
 
@@ -423,7 +416,6 @@
 <script src="shared/supabase-client.js"></script>
 <script src="shared/auth.js"></script>
 <!-- pdf-datakilde:slutt -->
-<script src="shared/pdf-nedlasting.js"></script>
 <script src="shared/pdf-maal.js"></script>
 <script>
 /* ============================================================
@@ -1273,6 +1265,10 @@ async function main(){
   // måling mot sidebudsjettet, se under. Hoteller med 0 eller 2 bilder
   // er kompakte og kan dele side med hverandre.
   const hotellStor = hoteller.map(h=> bilderForHotell(h.id).length >= 4);
+  // Returnerer { sider, flyEgen }: flyEgen = hele flybolken (utreise,
+  // internfly, retur - aldri splittet) begynner en ny side. Da kan
+  // programmet starte rett under (se under), og bolken får den romslige
+  // egen-side-varianten bare når ingen programdag følger på siden.
   function hotellOgFlySider(){
     const sider = [];
     if(hotellBlokker.length){
@@ -1287,33 +1283,28 @@ async function main(){
         i += par.length;
       }
       // Flyet i den ledige plassen etter et enslig siste hotell - også et
-      // hotell med 4 bilder - når HELE flyblokken (begge de låste
-      // flykortene) får plass innenfor sidebudsjettet etter faktisk måling
-      // (06.09.2026: hardregelen «4 bilder = aldri fly under» er opphevet).
-      // Får det ikke plass, står hotellet alene og flyet går til neste
-      // side. Ingenting krympes, skjules eller kuttes.
+      // hotell med 4 bilder - når HELE flyblokken får plass innenfor
+      // sidebudsjettet etter faktisk måling. Først den romslige varianten,
+      // så den KOMPAKTE (samme kort, mindre luft). Får heller ikke den
+      // plass, står hotellet alene med ubrukt plass under, og hele
+      // flybolken går til neste side. Ingenting krympes, skjules eller kuttes.
       const sisteIdx = hotellBlokker.length - 1;
       if(flyBlokk && sider[sider.length-1].length === 1){
-        // Først den romslige varianten; får den ikke plass, prøves den
-        // KOMPAKTE (samme kort, mindre luft) - begge målt mot budsjettet
-        // med hotellet over. Ellers egen side.
         const flyKompakt = flyBlokk.replace('class="blokk flyinfo-blokk"', 'class="blokk flyinfo-blokk fly-kompakt"');
         const [flyHoyde, flyKompaktHoyde] = maalBlokker([flyBlokk, flyKompakt]);
         if(hoyderStart[sisteIdx] + flyHoyde <= SIDE_MAKS){
           sider[sider.length-1].push(flyBlokk);
-          return sider.map(sideHtml);
+          return { sider: sider.map(sideHtml), flyEgen: false };
         }
         if(hoyderStart[sisteIdx] + flyKompaktHoyde <= SIDE_MAKS){
           sider[sider.length-1].push(flyKompakt);
-          return sider.map(sideHtml);
+          return { sider: sider.map(sideHtml), flyEgen: false };
         }
       }
     }
     const html = sider.map(sideHtml);
-    // Egen side: den romsligere varianten (.fly-egen-side) - uten
-    // fotografi, og uten å gjenbruke bilder fra andre steder i dokumentet.
-    if(flyBlokk) html.push(sideHtml([flyBlokk.replace('class="blokk flyinfo-blokk"', 'class="blokk flyinfo-blokk fly-egen-side"')]));
-    return html;
+    if(flyBlokk) html.push(sideHtml([flyBlokk]));
+    return { sider: html, flyEgen: !!flyBlokk };
   }
 
   // Programmet fordeles etter MÅLT høyde, ikke bare antall: blokkene (én
@@ -1358,8 +1349,27 @@ async function main(){
     return blokker.map(b=> sideHtml([b]));
   }
 
-  const innholdHotellFly = hotellOgFlySider();
-  const innholdProgram = programSider(programBlokker);
+  const hf = hotellOgFlySider();
+  const innholdHotellFly = hf.sider;
+  // Flybolk på ny side (06.09.2026): programmet begynner rett under når
+  // minst én hel programdag får plass - så mange som får plass, i
+  // kronologisk rekkefølge, aldri splittet. Resten fordeles som vanlig.
+  // Følger ingen dag, får flybolken den romslige egen-side-varianten.
+  let programRest = programBlokker;
+  if(hf.flyEgen){
+    const flyStart = medSideStart(flyBlokk);
+    const flyHoyde = maalBlokker([flyStart])[0];
+    const hoyder = maalBlokker(programBlokker);
+    let sum = flyHoyde, n = 0;
+    while(n < programBlokker.length && n < PROGRAM_MAKS_PER_SIDE && sum + hoyder[n] <= PROGRAM_MAKS){ sum += hoyder[n]; n++; }
+    if(n > 0){
+      innholdHotellFly[innholdHotellFly.length-1] = flyStart + programBlokker.slice(0, n).join("");
+      programRest = programBlokker.slice(n);
+    } else {
+      innholdHotellFly[innholdHotellFly.length-1] = medSideStart(flyBlokk.replace('class="blokk flyinfo-blokk"', 'class="blokk flyinfo-blokk fly-egen-side"'));
+    }
+  }
+  const innholdProgram = programSider(programRest);
 
   const sisteInnhold = sideHtml(avslutningBlokker);
   const avslutningFooter = footerHtml(forbeholdIFooter);
@@ -1448,7 +1458,19 @@ async function main(){
     merkOverfull(alleSider[1], `Om reisen-galleriet har ${bilderOmReisen.length} bilder - skal være 2, 4 eller 6`, 0);
   }
 
-  if(window.PDF_DATA) await meldPdfKlar();
+  // PDF-modus: siste sikkerhetsnett. Workeren leser #pdf-status først
+  // (quickAction «scrape») og lager PDF-en bare når status er «ok» - en
+  // overfull side gir en presis feil i stedet for en ødelagt PDF.
+  if(window.PDF_DATA){
+    const feil = [...document.querySelectorAll(".overfull-merke")].map(e=> e.textContent);
+    const st = document.createElement("div");
+    st.id = "pdf-status";
+    st.dataset.status = feil.length ? "feil" : "ok";
+    st.textContent = feil.join(" | ");
+    st.style.cssText = "position:absolute; width:0; height:0; overflow:hidden;";
+    document.body.appendChild(st);
+    if(!feil.length) await meldPdfKlar();
+  }
 }
 
 // PDF-modus: Browser Run venter på #pdf-klar (waitForSelector i worker.js)
@@ -1477,12 +1499,6 @@ async function meldPdfKlar(){
   document.body.appendChild(m);
 }
 
-// Forhåndsvisningens «Last ned PDF» bruker samme servergenererte PDF som
-// editoren (shared/pdf-nedlasting.js) - aldri window.print().
-el("btnPdf").addEventListener("click", ()=>{
-  const p = new URLSearchParams(location.search);
-  lastNedForslagPdf(p.get("id"), p.get("type") === "tilbud", el("btnPdf"));
-});
 
 main().catch(err=>{
   console.error(err);

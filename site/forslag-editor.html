@@ -2961,11 +2961,30 @@ function kappTilVektet(str, maks, linjeskiftVekt){
 // lagret over grensen (fra før grensene kom) røres ikke ved innlasting -
 // den vises med rød teller og «for langt», og PDF-forhåndsvisningen
 // markerer siden. Innhold skal aldri fjernes i det stille.
+// 06.09.2026 (QA-funn): eksisterende tekst som allerede ligger OVER
+// grensen (fra før grensen kom) blir aldri kappet automatisk. Den beholdes
+// urørt, telleren blir rød, oppdaterPdfVarsler() blokkerer PDF-en, og
+// feltet kan ikke vokse videre - brukeren korter selv ned. Sperren kapper
+// bare det som skrives inn i et felt som var innenfor grensen. Forrige
+// verdi huskes på elementet (satt ved innlasting/tegning).
 function refreshTegnteller(ta, teller, maks, ingenLinjeskift, kapp, linjeskiftVekt){
   if(kapp){
-    if(ingenLinjeskift && /\n/.test(ta.value)) ta.value = ta.value.replace(/\s*\n\s*/g, " ");
-    if(vektetLengde(ta.value, linjeskiftVekt) > maks) ta.value = kappTilVektet(ta.value, maks, linjeskiftVekt);
+    const forrige = ta.dataset.tegnForrige;
+    const forrigeKjent = forrige !== undefined;
+    const forrigeInnenfor = forrigeKjent && vektetLengde(forrige, linjeskiftVekt) <= maks && !(ingenLinjeskift && /\n/.test(forrige));
+    if(forrigeInnenfor){
+      if(ingenLinjeskift && /\n/.test(ta.value)) ta.value = ta.value.replace(/\s*\n\s*/g, " ");
+      if(vektetLengde(ta.value, linjeskiftVekt) > maks) ta.value = kappTilVektet(ta.value, maks, linjeskiftVekt);
+    } else if(forrigeKjent && vektetLengde(ta.value, linjeskiftVekt) > vektetLengde(forrige, linjeskiftVekt)){
+      // Over grensen fra før: får ikke vokse. Inntastingen avvises,
+      // ingenting av det eksisterende slettes.
+      const pos = ta.selectionStart;
+      ta.value = forrige;
+      try{ ta.setSelectionRange(Math.max(0, pos - 1), Math.max(0, pos - 1)); }catch(e){}
+    }
+    // Ukjent utgangspunkt (aldri tegnet med teller): teksten røres ikke.
   }
+  ta.dataset.tegnForrige = ta.value;
   const brukt = vektetLengde(ta.value, linjeskiftVekt);
   // UX-runde 06.09.2026: kun tegn vises - ordtelling er fjernet, én
   // måleenhet i editoren. Valideringen (vektet lengde, hard sperre) er uendret.
@@ -3094,8 +3113,43 @@ function omReisenHoydePx(tekst){
   return omReisenMaaler.getBoundingClientRect().height;
 }
 
+// Tekst som ligger over en tegngrense (eksisterende innhold kappes aldri
+// automatisk, se refreshTegnteller) - blokkerer PDF-en til den er kortet.
+function tegnOverGrenseVarsler(){
+  const f = state.forslag, v = [];
+  const sjekk = (navn, tekst, maks, vekt)=>{
+    const n = vektetLengde(tekst || "", vekt);
+    if(n > maks) v.push(`${navn} er ${n} tegn - maks ${maks}. Kort ned teksten.`);
+  };
+  sjekk("Ingress (forside)", f.ingress, TEGN.ingress);
+  sjekk("Om reisen", f.om_reisen, TEGN.omReisen, 1);
+  sjekk("Fra forslag til reise", f.veien_videre_tekst, TEGN.veienVidere);
+  sjekk("Forbehold", f.forbehold_tekst, TEGN.forbehold);
+  sjekk("Vilkår: Forbehold", f.tilbud_forbehold_tekst, TEGN.vilkaar);
+  sjekk("Vilkår: Betalingsbetingelser", f.betalingsbetingelser, TEGN.vilkaar);
+  sjekk("Vilkår: Avbestillingsbetingelser", f.avbestillingsbetingelser, TEGN.vilkaar);
+  sjekk("Vilkår: Særlige vilkår", f.saerlige_vilkaar, TEGN.vilkaar);
+  state.hotellopphold.forEach((h, i)=> sjekk(`Beskrivelsen av ${h.fields.hotellnavn || "Hotell " + (i+1)}`, h.fields.beskrivelse, TEGN.hotell));
+  state.dagsprogram.forEach(d=>{
+    sjekk(`Teksten på dag ${d.fields.dagnummer}`, d.fields.tekst, TEGN.program);
+    sjekk(`Overskriften på dag ${d.fields.dagnummer}`, d.fields.overskrift, TEGN.programTittel);
+  });
+  state.hoydepunkter.forEach(h=>{
+    sjekk("Et høydepunktnavn (overstyrt)", h.fields.navn_override, TEGN.hpNavn);
+    sjekk("En høydepunkttekst (overstyrt)", h.fields.korttekst_override, TEGN.hpKorttekst);
+  });
+  state.transport.forEach(t=> sjekk("En flystrekning", t.fields.beskrivelse, TEGN.flyRute));
+  return v;
+}
+
 function oppdaterPdfVarsler(){
   const varsler = [];
+  // Hovedbildet er obligatorisk (QA 06.09.2026): uten det er forsiden
+  // tre fjerdedeler tom. Gjelder både Reiseforslag og Tilbud.
+  if(!state.forslag.hovedbilde_url && !state.bilder.some(b=> b.fields.kategori==="Destinasjon" && b.fields.er_hovedbilde)){
+    varsler.push("Hovedbilde mangler - velg ett under Bilder. Forsiden kan ikke lages uten.");
+  }
+  tegnOverGrenseVarsler().forEach(v=> varsler.push(v));
   // Ingressen er obligatorisk i begge dokumenter - uten den står forsiden
   // med et tomt felt. De ni eksisterende sakene får den fylt manuelt;
   // om_reisen kopieres bevisst ikke, da ville samme tekst stått to steder.
@@ -4378,9 +4432,13 @@ async function utforLagring(trigger){
 
     const tid = new Date().toLocaleString("nb-NO");
     el("saveStatus").textContent = "Lagret " + tid;
+    return true;
   } catch(err){
     console.error(err);
     el("saveStatus").textContent = "Kunne ikke lagre: " + err.message;
+    // Feilen fanges her (kjeden i performSave skal aldri brytes), men
+    // kalleren får vite at lagringen mislyktes - PDF-generering avbrytes.
+    return false;
   }
 }
 
@@ -4487,7 +4545,15 @@ async function aapnePdf(knappId){
   try{
     clearTimeout(autosaveDebounceTimer);
     autosaveDirty = false;
-    await performSave("manuell");
+    // Lagringen MÅ lykkes før PDF-en lages - ellers ville PDF-en blitt
+    // bygget av databasens gamle tilstand uten brukerens siste endringer.
+    const lagret = await performSave("manuell");
+    if(!lagret){
+      autosaveDirty = true;
+      alert("PDF-en ble ikke laget: endringene kunne ikke lagres.\n\n" + el("saveStatus").textContent
+        + "\n\nRett feilen (nett, innlogging) og prøv igjen. En PDF lages aldri av gamle data.");
+      return;
+    }
     // Servergenerert PDF (worker.js /api/pdf + Browser Run). Filen lastes
     // ned som en vanlig PDF; feil vises som norsk melding der inne.
     await lastNedForslagPdf(forslagId, knappId === "btnPdfTilbud", knapp);
