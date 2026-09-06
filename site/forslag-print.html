@@ -420,7 +420,12 @@ const UKEDAGER = ["søndag","mandag","tirsdag","onsdag","torsdag","fredag","lør
 // FLYPLASSER). Naiv subtraksjon av lokale klokkeslett er feil på tvers av
 // soner og brukes aldri. Slås på med VIS_FLYTID når Vidar har godkjent
 // grunnlaget - er sonen ukjent for et av stedene, vises ingen flytid.
-const VIS_FLYTID = false;
+// Godkjent 06.09.2026. Sikkerhetsregel: flytid vises KUN når begge
+// stedene er entydig gjenkjent (eksakt oppslag eller eksplisitt kode i
+// parentes) og har kjent sone. Prefiks-treff («London Ontario» → London)
+// regnes som tvetydig og gir ingen flytid. Aldri naiv subtraksjon som
+// reserve. Manglende flytid gir verken feil eller varsel.
+const VIS_FLYTID = true;
 const TIDSSONER = {
   // Norge/Norden
   OSL:"Europe/Oslo",TRF:"Europe/Oslo",TOS:"Europe/Oslo",BGO:"Europe/Oslo",TRD:"Europe/Oslo",SVG:"Europe/Oslo",BOO:"Europe/Oslo",EVE:"Europe/Oslo",BDU:"Europe/Oslo",ALF:"Europe/Oslo",KKN:"Europe/Oslo",HFT:"Europe/Oslo",LKL:"Europe/Oslo",ANX:"Europe/Oslo",SVJ:"Europe/Oslo",LKN:"Europe/Oslo",SKN:"Europe/Oslo",KRS:"Europe/Oslo",AES:"Europe/Oslo",MOL:"Europe/Oslo",KSU:"Europe/Oslo",HAU:"Europe/Oslo",FRO:"Europe/Oslo",HOV:"Europe/Oslo",SOG:"Europe/Oslo",BNN:"Europe/Oslo",SSJ:"Europe/Oslo",MQN:"Europe/Oslo",MJF:"Europe/Oslo",RRS:"Europe/Oslo",LYR:"Arctic/Longyearbyen",
@@ -478,7 +483,7 @@ const IKON_KLOKKE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 // senere skal inn som diskret metadata.
 const FLYPLASSER = {
   "oslo":"OSL","oslo gardermoen":"OSL","gardermoen":"OSL","oslo lufthavn":"OSL","torp":"TRF","sandefjord":"TRF","sandefjord torp":"TRF",
-  "tromsø":"TOS","tromso":"TOS","bergen":"BGO","trondheim":"TRD","stavanger":"SVG","bodø":"BOO","bodo":"BOO","evenes":"EVE","harstad":"EVE","harstad/narvik":"EVE","narvik":"EVE",
+  "tromsø":"TOS","tromso":"TOS","tromsø langnes":"TOS","bergen flesland":"BGO","trondheim værnes":"TRD","stavanger sola":"SVG","københavn kastrup":"CPH","kastrup":"CPH","malta international":"MLA","bergen":"BGO","trondheim":"TRD","stavanger":"SVG","bodø":"BOO","bodo":"BOO","evenes":"EVE","harstad":"EVE","harstad/narvik":"EVE","narvik":"EVE",
   "bardufoss":"BDU","alta":"ALF","kirkenes":"KKN","hammerfest":"HFT","lakselv":"LKL","andenes":"ANX","svolvær":"SVJ","leknes":"LKN","stokmarknes":"SKN",
   "kristiansand":"KRS","ålesund":"AES","alesund":"AES","molde":"MOL","kristiansund":"KSU","haugesund":"HAU","florø":"FRO","ørsta":"HOV","volda":"HOV","sogndal":"SOG","brønnøysund":"BNN","sandnessjøen":"SSJ","mo i rana":"MQN","mosjøen":"MJF","røros":"RRS","longyearbyen":"LYR","svalbard":"LYR",
   "københavn":"CPH","kobenhavn":"CPH","copenhagen":"CPH","billund":"BLL","aalborg":"AAL","stockholm":"ARN","arlanda":"ARN","stockholm arlanda":"ARN","göteborg":"GOT","gøteborg":"GOT","goteborg":"GOT","malmö":"MMX","malmo":"MMX","helsinki":"HEL","helsingfors":"HEL","reykjavik":"KEF","keflavik":"KEF",
@@ -850,15 +855,18 @@ async function main(){
     if(!deler.length) return ["", ""];
     return [deler[0], deler.length > 1 ? deler[deler.length-1] : ""];
   }
+  // entydig: true bare ved eksplisitt kode eller eksakt navnetreff - det er
+  // kravet for å bruke stedets tidssone i flytidsberegningen.
   function flyplass(navn){
     const m = /\(([A-Za-z]{3})\)/.exec(navn || "");
     const rent = (navn || "").replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
-    if(m) return { kode: m[1].toUpperCase(), sted: rent };
+    if(m) return { kode: m[1].toUpperCase(), sted: rent, entydig: true };
     const n = rent.toLowerCase().replace(/\s+(lufthavn|flyplass|airport)$/,"").trim();
-    if(FLYPLASSER[n]) return { kode: FLYPLASSER[n], sted: rent };
-    // «Oslo Gardermoen», «Tromsø Langnes»: stedsnavnet først, så et tillegg.
+    if(FLYPLASSER[n]) return { kode: FLYPLASSER[n], sted: rent, entydig: true };
+    // «Oslo Gardermoen», «Tromsø Langnes»: stedsnavnet først, så et tillegg -
+    // godt nok til visning, men tvetydig for tidssone («London Ontario»).
     const nokkel = Object.keys(FLYPLASSER).find(k=> n.startsWith(k + " ") || n.startsWith(k + "-"));
-    return { kode: nokkel ? FLYPLASSER[nokkel] : null, sted: rent };
+    return { kode: nokkel ? FLYPLASSER[nokkel] : null, sted: rent, entydig: false };
   }
   const tidHHMM = iso => (iso && iso.includes("T")) ? iso.split("T")[1].slice(0,5) : null;
 
@@ -881,11 +889,14 @@ async function main(){
     });
     return punkter;
   }
-  // Flytid for ett segment - kun når begge stedene har kjent tidssone.
+  // Flytid for ett segment - kun når begge stedene er entydig gjenkjent
+  // og har kjent tidssone. Ellers null: ingen flytid, ingen feil.
   function flytid(t){
     if(!VIS_FLYTID) return null;
     const [fra, til] = delStrekning(t.beskrivelse);
-    const sFra = TIDSSONER[flyplass(fra).kode], sTil = TIDSSONER[flyplass(til).kode];
+    const pFra = flyplass(fra), pTil = flyplass(til);
+    if(!pFra.entydig || !pTil.entydig) return null;
+    const sFra = TIDSSONER[pFra.kode], sTil = TIDSSONER[pTil.kode];
     if(!sFra || !sTil) return null;
     const a = lokalTilUtcMs(t.avreise_tidspunkt, sFra), b = lokalTilUtcMs(t.ankomst_tidspunkt, sTil);
     if(a == null || b == null) return null;
