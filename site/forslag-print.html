@@ -311,6 +311,26 @@
   .fly-egen-side .fly-selskap{ font-size:12.5px; margin-top:4px; }
   .fly-egen-side .fly-nr{ font-size:11px; }
   .fly-egen-side .reise-intern{ margin-top:30px; }
+  /* KOMPAKT variant (06.09.2026): samme kort, samme informasjon, samme
+     designspråk - bare mindre luft og moderat mindre typografi. Velges av
+     pagineringen kun når den romslige varianten ikke får plass under siste
+     hotell, men den kompakte gjør det (typisk hotell med 4 bilder). */
+  .fly-kompakt{ padding-top:36px; }
+  .fly-kompakt .reise-grid{ gap:10px; margin-top:12px; }
+  .fly-kompakt .reisekort{ padding:12px 22px 12px; }
+  .fly-kompakt .reisekort-topp{ margin-bottom:10px; gap:8px; }
+  .fly-kompakt .fly-ikon-sirkel{ width:22px; height:22px; }
+  .fly-kompakt .fly-ikon-sirkel svg{ width:11px; height:11px; }
+  .fly-kompakt .reisekort .label{ font-size:10px; }
+  .fly-kompakt .fly-sted{ font-size:20px; }
+  .fly-kompakt .fly-tid{ font-size:12.5px; margin-top:3px; }
+  .fly-kompakt .fly-transfer{ margin-top:4px; padding:2px 8px; font-size:9px; }
+  .fly-kompakt .fly-seg{ padding:10px 14px 0; }
+  .fly-kompakt .fly-seg-info{ margin-top:7px; }
+  .fly-kompakt .fly-varighet{ font-size:10.5px; }
+  .fly-kompakt .fly-selskap{ font-size:10.5px; margin-top:1px; }
+  .fly-kompakt .fly-nr{ font-size:9.5px; margin-top:0; }
+  .fly-kompakt .reise-intern{ margin-top:10px; }
 
   /* Dette får dere / Ikke inkludert (side 3) */
   .dfd-grid{ display:grid; grid-template-columns:1fr 1fr; gap:5px 24px; margin:0; padding:0; list-style:none; }
@@ -1253,9 +1273,17 @@ async function main(){
       // side. Ingenting krympes, skjules eller kuttes.
       const sisteIdx = hotellBlokker.length - 1;
       if(flyBlokk && sider[sider.length-1].length === 1){
-        const flyHoyde = maalBlokker([flyBlokk])[0];
+        // Først den romslige varianten; får den ikke plass, prøves den
+        // KOMPAKTE (samme kort, mindre luft) - begge målt mot budsjettet
+        // med hotellet over. Ellers egen side.
+        const flyKompakt = flyBlokk.replace('class="blokk flyinfo-blokk"', 'class="blokk flyinfo-blokk fly-kompakt"');
+        const [flyHoyde, flyKompaktHoyde] = maalBlokker([flyBlokk, flyKompakt]);
         if(hoyderStart[sisteIdx] + flyHoyde <= SIDE_MAKS){
           sider[sider.length-1].push(flyBlokk);
+          return sider.map(sideHtml);
+        }
+        if(hoyderStart[sisteIdx] + flyKompaktHoyde <= SIDE_MAKS){
+          sider[sider.length-1].push(flyKompakt);
           return sider.map(sideHtml);
         }
       }
