@@ -2589,7 +2589,10 @@ function renderProgramDagGalleri(d){
       },
       erOpptatt: ()=> programDagOpptatt.has(d.clientKey),
       settOpptatt: (v)=>{ if(v) programDagOpptatt.add(d.clientKey); else programDagOpptatt.delete(d.clientKey); },
-      etterEndring: ()=> renderProgramDagGalleri(d),
+      // Etter legg til/fjern/flytt: tegn plassen på nytt OG kjør PDF-
+      // valideringen (0/2/4-regelen) med en gang - toppvarselet skal
+      // forsvinne/komme uten reload eller fanebytte.
+      etterEndring: ()=>{ renderProgramDagGalleri(d); oppdaterPdfVarsler(); },
     }));
   } catch(err){
     console.error("Kunne ikke tegne bildene for dagen:", err);
