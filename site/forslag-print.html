@@ -985,9 +985,11 @@ async function main(){
   /* ----- Program: dag for dag (frivillig) -----
 
      Alle dagene i reisen er representert. Dagnummeret følger den FAKTISKE
-     reisen og renummereres aldri fordi en dag mangler innhold. Dager uten
-     innhold slås sammen: flere sammenhengende blir «Dag 3-6», en enkelt
-     blir «Dag 4». Har reisen datoer, vises datoen ved siden av dagnummeret.
+     reisen og renummereres aldri fordi en dag mangler innhold. Én
+     kalenderdag = én programblokk: dager uten innhold vises hver for seg
+     som «Dag 4 · 23. mai / Foreløpig åpent for planlegging.» (grupperingen
+     «Dag 3-6» er fjernet 06.09.2026). Har reisen datoer, vises datoen ved
+     siden av dagnummeret.
 
      Antall dager: fra reisens datoer når begge finnes, ellers fra det
      høyeste dagnummeret som er lagret. Er ingen dag fylt ut, tas hele
@@ -1009,17 +1011,6 @@ async function main(){
     const d = new Date(f.fra_dato.slice(0,10) + "T00:00:00Z");
     d.setUTCDate(d.getUTCDate() + nr - 1);
     return d.toISOString().slice(0,10);
-  }
-
-  // Datoperiode uten årstall, slik at åpne enkeltdager og åpne perioder
-  // skrives likt i samme kolonne («3. mars» og «3.–6. mars»).
-  function datoSpennUtenAar(fraStr, tilStr){
-    if(!fraStr) return null;
-    if(!tilStr || fraStr === tilStr) return formatDatoUtenAar(fraStr);
-    const [, fMnd, fDag] = fraStr.slice(0,10).split("-").map(Number);
-    const [, tMnd, tDag] = tilStr.slice(0,10).split("-").map(Number);
-    if(fMnd === tMnd) return `${fDag}.–${tDag}. ${MAANEDER[fMnd-1]}`;
-    return `${formatDatoUtenAar(fraStr)} – ${formatDatoUtenAar(tilStr)}`;
   }
 
   const programBlokker = [];
@@ -1069,21 +1060,19 @@ async function main(){
         forsteBlokk = false;
         n++;
       } else {
-        // Alle sammenhengende dager uten innhold samles i én blokk.
-        const fra = n;
-        while(n <= antallDager && !medInnhold.get(n)) n++;
-        const til = n - 1;
-        const merke = fra === til ? `Dag ${fra}` : `Dag ${fra}–${til}`;
-        const datoTekst = datoSpennUtenAar(dagDato(fra), dagDato(til));
+        // Én kalenderdag = én synlig programblokk (06.09.2026): åpne dager
+        // grupperes ikke lenger, hver får sin egen blokk med dag og dato.
+        const dato = dagDato(n);
         programBlokker.push(`<section class="blokk program-dag program-dag--apen">
           ${forsteBlokk ? `<h2>Program</h2>` : ""}
           <div class="dag-merke">
-            <span class="dag-nr">${merke}</span>
-            ${datoTekst ? `<span class="dag-dato">${esc(datoTekst)}</span>` : ""}
+            <span class="dag-nr">Dag ${n}</span>
+            ${dato ? `<span class="dag-dato">${esc(formatDatoUtenAar(dato))}</span>` : ""}
           </div>
           <div class="dag-tittel">Foreløpig åpent for planlegging.</div>
         </section>`);
         forsteBlokk = false;
+        n++;
       }
     }
   }
