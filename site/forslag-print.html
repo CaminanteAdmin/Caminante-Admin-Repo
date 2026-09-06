@@ -1227,10 +1227,10 @@ async function main(){
 
   // Hotellene parvis; flyet i den ledige halvsiden etter et enslig siste
   // hotell hvis HELE blokken får plass, ellers på egen side.
-  // Hard regel (06.09.2026): et hotell med 4 bilder er et bevisst valg om
-  // en stor, visuell presentasjon og får ALLTID egen side - selv om målt
-  // høyde teknisk hadde gitt plass til et kompakt hotell under. Hoteller
-  // med 0 eller 2 bilder er kompakte og kan dele side med hverandre.
+  // Et hotell med 4 bilder deler aldri side med et ANNET hotell (bevisst
+  // stor presentasjon). Om flyet kan stå under det, avgjøres av faktisk
+  // måling mot sidebudsjettet, se under. Hoteller med 0 eller 2 bilder
+  // er kompakte og kan dele side med hverandre.
   const hotellStor = hoteller.map(h=> bilderForHotell(h.id).length >= 4);
   function hotellOgFlySider(){
     const sider = [];
@@ -1245,11 +1245,14 @@ async function main(){
         sider.push(par);
         i += par.length;
       }
-      // Flyet i den ledige plassen etter et enslig siste KOMPAKT hotell.
-      // Et hotell med 4 bilder har hele siden for seg selv - heller ikke
-      // flyet legges under det; flyet går videre til neste side.
+      // Flyet i den ledige plassen etter et enslig siste hotell - også et
+      // hotell med 4 bilder - når HELE flyblokken (begge de låste
+      // flykortene) får plass innenfor sidebudsjettet etter faktisk måling
+      // (06.09.2026: hardregelen «4 bilder = aldri fly under» er opphevet).
+      // Får det ikke plass, står hotellet alene og flyet går til neste
+      // side. Ingenting krympes, skjules eller kuttes.
       const sisteIdx = hotellBlokker.length - 1;
-      if(flyBlokk && sider[sider.length-1].length === 1 && !hotellStor[sisteIdx]){
+      if(flyBlokk && sider[sider.length-1].length === 1){
         const flyHoyde = maalBlokker([flyBlokk])[0];
         if(hoyderStart[sisteIdx] + flyHoyde <= SIDE_MAKS){
           sider[sider.length-1].push(flyBlokk);
