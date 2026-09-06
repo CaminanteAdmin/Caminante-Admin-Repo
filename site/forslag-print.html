@@ -220,6 +220,12 @@
     margin:0 0 6px; line-height:1.25;
   }
   .program-dag p{ margin-bottom:0; }
+  /* Luft MELLOM programdagene (06.09.2026): 22/20 px i stedet for
+     seksjonsstandardens 26/24 px - fortsatt tydelig luft og prikkelinje,
+     men gir tre fulle dager en reell margin til sidebudsjettet. Første
+     blokk på en side beholder side-start sin topp-luft. */
+  section.blokk.program-dag:not(.side-start){ padding-top:22px; }
+  section.blokk.program-dag{ padding-bottom:20px; }
   /* Programbilder (06.09.2026, ny retning): ÉN horisontal bilderad per dag
      med 0-4 bilder. Alle bildene har nøyaktig samme høyde (PROGRAM_RAD_PX),
      samme crop (object-fit: cover), liten konsekvent gap, og fyller hele
@@ -1292,10 +1298,11 @@ async function main(){
   // per kalenderdag, alle med sin faktiske høyde) deles sekvensielt i så
   // få sider som mulig med maks PROGRAM_MAKS_PER_SIDE per side, hver side
   // innenfor budsjettet. Prioritet (06.09.2026): 1) færrest sider,
-  // 2) ingen overflyt, 3) maks fire per side, 4) jevnest mulig - først
-  // færrest sider med bare én blokk, deretter minst forskjell mellom
-  // høyeste og laveste side. Ingen blokk splittes, ingenting komprimeres.
-  const PROGRAM_MAKS_PER_SIDE = 4;
+  // 2) ingen overflyt, 3) kronologisk rekkefølge (blokkene deles alltid i
+  // rekkefølge), 4) maks fem per side, 5) jevnest mulig - først færrest
+  // sider med bare én blokk, deretter minst forskjell mellom høyeste og
+  // laveste side. Ingen blokk splittes, ingenting komprimeres.
+  const PROGRAM_MAKS_PER_SIDE = 5;
   function programSider(blokker){
     if(!blokker.length) return [];
     const hoyder = maalBlokker(blokker);
