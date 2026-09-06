@@ -1288,23 +1288,25 @@ async function main(){
     return html;
   }
 
-  // Programmet fordeles etter MÅLT høyde, ikke bare antall: blokkene
-  // (fylte dager og grupperte åpne dager, alle med sin faktiske høyde)
-  // deles sekvensielt i så få sider som mulig med maks tre per side, hver
-  // side innenfor budsjettet. Blant de gyldige fordelingene velges den
-  // jevneste - først færrest sider med bare én blokk (2-3 per side er
-  // hovedregelen), deretter minst forskjell mellom høyeste og laveste
-  // side. 3+2+2 er derfor ikke gitt: gir 2+3+2 jevnere sider, velges den.
+  // Programmet fordeles etter MÅLT høyde, ikke bare antall: blokkene (én
+  // per kalenderdag, alle med sin faktiske høyde) deles sekvensielt i så
+  // få sider som mulig med maks PROGRAM_MAKS_PER_SIDE per side, hver side
+  // innenfor budsjettet. Prioritet (06.09.2026): 1) færrest sider,
+  // 2) ingen overflyt, 3) maks fire per side, 4) jevnest mulig - først
+  // færrest sider med bare én blokk, deretter minst forskjell mellom
+  // høyeste og laveste side. Ingen blokk splittes, ingenting komprimeres.
+  const PROGRAM_MAKS_PER_SIDE = 4;
   function programSider(blokker){
     if(!blokker.length) return [];
     const hoyder = maalBlokker(blokker);
     const hoyderStart = maalBlokker(blokker.map(medSideStart));
     const N = blokker.length;
+    const K = PROGRAM_MAKS_PER_SIDE;
     const sideHoyde = ind=> ind.reduce((sum, bi, n)=> sum + (n === 0 ? hoyderStart[bi] : hoyder[bi]), 0);
 
-    for(let P = Math.ceil(N / 3); P <= N; P++){
+    for(let P = Math.ceil(N / K); P <= N; P++){
       let beste = null;
-      // Alle måter å dele N blokker i P sider à 1-3 blokker, i rekkefølge.
+      // Alle måter å dele N blokker i P sider à 1-K blokker, i rekkefølge.
       (function del(fra, sider){
         const igjen = N - fra, sidIgjen = P - sider.length;
         if(sidIgjen === 0){
@@ -1316,9 +1318,9 @@ async function main(){
           if(!beste || enkle < beste.enkle || (enkle === beste.enkle && spenn < beste.spenn)) beste = { sider, enkle, spenn };
           return;
         }
-        for(let n = 1; n <= 3; n++){
+        for(let n = 1; n <= K; n++){
           const rest = igjen - n;
-          if(rest < sidIgjen - 1 || rest > 3 * (sidIgjen - 1)) continue;
+          if(rest < sidIgjen - 1 || rest > K * (sidIgjen - 1)) continue;
           del(fra + n, sider.concat([Array.from({length: n}, (_, k)=> fra + k)]));
         }
       })(0, []);
