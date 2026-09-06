@@ -571,6 +571,8 @@
   .ordteller-rad{ display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-top:4px; }
   .ordteller-rad .ordteller{ margin-top:0; flex:none; }
   .ordteller-hint{ font-size:11px; color:var(--ink-muted); }
+  .om-reisen-maaler p{ margin:0 0 6px; }
+  .om-reisen-maaler p:last-child{ margin:0; }
   /* Om reisen er hovedteksten på PDF-side 2 - skriveflaten skal gjenspeile
      at dette er en vesentlig tekst, ikke et lite felt. */
   .pres-textarea.pres-omreisen{ min-height:420px; }
@@ -1308,6 +1310,7 @@
 <script src="shared/nav.js"></script>
 <script src="shared/bildevelger.js"></script>
 <script src="shared/pdf-nedlasting.js"></script>
+<script src="shared/pdf-maal.js"></script>
 <script>
 /* ============================================================
    Forslag-editor - v1
@@ -2964,6 +2967,7 @@ function kobleTegnteller(taId, tellerId, maks, ingenLinjeskift){
 }
 kobleTegnteller("pres-ingress","pres-ingress-teller",TEGN.ingress,true);
 el("pres-ingress").addEventListener("input", oppdaterPdfVarsler);
+el("pres-omreisen").addEventListener("input", oppdaterPdfVarsler);
 kobleTegnteller("pres-omreisen","pres-omreisen-teller",TEGN.omReisen);
 kobleTegnteller("vv-tekst","vv-tekst-teller",TEGN.veienVidere);
 kobleTegnteller("fb-tekst","fb-tekst-teller",TEGN.forbehold);
@@ -3059,6 +3063,24 @@ el("g-destinasjon").addEventListener("input", sjekkPdfTittel);
 
 /* Samler det som må rettes før dokumentet kan genereres, øverst i editoren.
    Alt regnes fra state (ikke DOM), samme kilde som lagringen. */
+// Om reisen (PDF side 2): faktisk MÅLT teksthøyde med PDF-ens typografi
+// (DM Sans 14 px / 1,6, 666 px bred, brukerens egne avsnitt), sammenlignet
+// med plassen som er igjen når galleriet, minsteavstanden og bunnstripen er
+// trukket fra (shared/pdf-maal.js). Tegngrensen (TEGN.omReisen) er bare en
+// grov sperre - det er dette målet som avgjør om siden faktisk går opp.
+let omReisenMaaler = null;
+function omReisenHoydePx(tekst){
+  if(!omReisenMaaler){
+    omReisenMaaler = document.createElement("div");
+    omReisenMaaler.className = "om-reisen-maaler";
+    omReisenMaaler.style.cssText = `position:absolute; left:-10000px; top:0; visibility:hidden; width:${PDF_MAAL.INNHOLD_BREDDE_PX}px;`
+      + " font:400 14px 'DM Sans', sans-serif; line-height:1.6; white-space:pre-wrap; overflow-wrap:break-word;";
+    document.body.appendChild(omReisenMaaler);
+  }
+  omReisenMaaler.innerHTML = omReisenAvsnittHtml(tekst, escapeHtml);
+  return omReisenMaaler.getBoundingClientRect().height;
+}
+
 function oppdaterPdfVarsler(){
   const varsler = [];
   // Ingressen er obligatorisk i begge dokumenter - uten den står forsiden
@@ -3090,6 +3112,20 @@ function oppdaterPdfVarsler(){
   });
   const galleri = state.bilder.filter(b=> b.fields.kategori==="Destinasjon" && !b.fields.er_hovedbilde && !b.fields.er_avslutningsbilde).length;
   if(galleri % 2 === 1) varsler.push(`Om reisen-galleriet har ${galleri} bilde${galleri===1?"":"r"} - legg til eller fjern ett (0, 2, 4 eller 6).`);
+  // Tekst/bilde-kollisjon på side 2: målt teksthøyde mot plassen galleriet
+  // lar stå igjen. Bildene fjernes aldri automatisk - brukeren velger selv
+  // om teksten skal kortes eller antall bilder reduseres.
+  const omReisenTekst = el("pres-omreisen").value || "";
+  if(omReisenTekst.trim()){
+    const hoyde = omReisenHoydePx(omReisenTekst);
+    const budsjett = omReisenTekstBudsjettPx(galleri);
+    if(hoyde > budsjett){
+      const linjerForMye = Math.ceil((hoyde - budsjett) / (14 * 1.6));
+      varsler.push(galleri
+        ? `Om reisen er for lang for side 2 sammen med ${galleri} bilder - kort ned teksten med ca. ${linjerForMye} linje${linjerForMye===1?"":"r"}, eller fjern bilder fra galleriet.`
+        : `Om reisen er for lang for side 2 - kort ned teksten med ca. ${linjerForMye} linje${linjerForMye===1?"":"r"}.`);
+    }
+  }
   state.hotellopphold.forEach((h, idx)=>{
     const n = state.bilder.filter(b=> b.fields.kategori==="Hotell" && b.hotellopphold_client_key===h.clientKey).length;
     if(n > HOTELL_BILDER_MAKS) varsler.push(`${h.fields.hotellnavn || "Hotell " + (idx+1)} har ${n} bilder - PDF-en viser maks ${HOTELL_BILDER_MAKS}. Fjern ${n - HOTELL_BILDER_MAKS}.`);

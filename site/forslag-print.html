@@ -93,10 +93,26 @@
        av at sidene fylles etter måling (se SIDE_MAKS/PROGRAM_MAKS), slik
        at gruppen får plass uansett hvilke marger som er valgt. */
     .pdf-page--siste{ height:297mm; }
+    /* 06.09.2026: PDF-en lages nå i Browser Run med A4 uten marg (aldri
+       via utskriftsdialogen), så innholdssidene kan trygt ha fast høyde -
+       det trengs for at bunnstripen skal ligge helt nederst på hver side. */
+    .pdf-page--innhold{ height:297mm; }
     /* Standardmargen på body ville ellers gjort dokumentet 16px smalere i
        utskrift enn i målingen, med mer linjebrytning og høyere blokker. */
     body{ margin:0; }
   }
+  /* Innholdssidene (Om reisen, overnatting/fly, program) - flex-kolonne
+     med innholdet øverst og en tynn, svart Caminante-stripe helt nederst
+     (.mellomfooter). Forsiden og avslutningssidene har sin egen brandbar/
+     footer og får ikke stripen. Sidebudsjettene (SIDE_MAKS/PROGRAM_MAKS)
+     trekker fra stripens høyde, se PDF_MAAL.MELLOMFOOTER_MM. */
+  .pdf-page--innhold{ display:flex; flex-direction:column; min-height:297mm; }
+  .side-innhold{ flex:1 1 auto; display:flex; flex-direction:column; min-height:0; }
+  .mellomfooter{
+    flex:0 0 auto; height:14mm; background:var(--night);
+    display:flex; align-items:center; justify-content:flex-end; padding:0 64px;
+  }
+  .mellomfooter .logo{ height:24px; width:auto; display:block; }
   /* Synlig varsel i forhåndsvisningen dersom en side har fått mer innhold
      enn det er plass til. Skjules i utskrift. */
   .pdf-page--overfull{ outline:2px solid #c0392b; outline-offset:-2px; }
@@ -136,17 +152,24 @@
 
   /* Ingress og høydepunkter (side 1) */
   section.blokk.om-reisen-blokk{ padding-top:22px; padding-bottom:52px; }
-  /* Om reisen (side 2) - tekst øverst, galleri nederst, alltid to i
-     bredden i samme avlange format som hotellbildene. */
-  .om-reisen-galleri{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
-  .om-reisen-galleri img{ width:100%; aspect-ratio:16/6; object-fit:cover; border-radius:8px; display:block; background:var(--tint); }
+  /* Om reisen (side 2) - tekst øverst, galleri BUNNFORANKRET mot
+     bunnstripen med fast luft (BUNN_MM), alltid to i bredden: 3x2, 2x2
+     eller 1x2 rader, alle med samme nedre posisjon. Mellom siste
+     tekstlinje og første bilderad er det minst MIN_AVSTAND_MM (galleriets
+     padding-top); resten av ledig plass legger seg mellom tekst og bilder
+     (margin-top:auto). Tallene bor i shared/pdf-maal.js, som editoren også
+     måler mot. */
+  section.blokk.om-reisen-side{ flex:1 1 auto; display:flex; flex-direction:column; padding-bottom:12mm; }
+  .om-reisen-tekst{ flex:0 0 auto; }
+  .om-reisen-galleri{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:auto; padding-top:10mm; }
+  .om-reisen-galleri img{ width:100%; aspect-ratio:16/6; object-fit:cover; border-radius:0; display:block; background:var(--tint); }
   .om-reisen-blokk p{ margin-bottom:0; }
 
   /* Høydepunkter (side 1) - samme stil som blokk-overskriftene (fx "Om reisen") */
   .sub-label{ font-size:12.5px; font-weight:750; letter-spacing:0.06em; text-transform:uppercase; color:var(--accent-dark); margin:24px 0 15px; }
   .hoydepunkt-grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px 20px; }
   .hoydepunkt-card{ display:flex; gap:14px; align-items:flex-start; }
-  .hoydepunkt-card img, .hoydepunkt-card .img-tom{ width:130px; height:114px; object-fit:cover; border-radius:6px; flex:none; display:block; background:var(--tint); }
+  .hoydepunkt-card img, .hoydepunkt-card .img-tom{ width:130px; height:114px; object-fit:cover; border-radius:0; flex:none; display:block; background:var(--tint); }
   .hoydepunkt-body h3{ font-size:11.5px; font-weight:750; letter-spacing:0.03em; text-transform:uppercase; color:var(--ink); margin:0 0 3px; }
   .hoydepunkt-body p{ font-size:12px; line-height:1.45; color:var(--ink-secondary); margin:0; }
 
@@ -160,7 +183,7 @@
   .badge{ display:inline-block; font-size:11.5px; font-weight:600; color:var(--accent-dark); background:var(--tint); border:1px solid var(--hairline); border-radius:20px; padding:4px 11px; }
 
   .hotell-galleri-stor{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
-  .hotell-galleri-stor img{ width:100%; aspect-ratio:16/6; object-fit:cover; border-radius:8px; display:block; background:var(--tint); }
+  .hotell-galleri-stor img{ width:100%; aspect-ratio:16/6; object-fit:cover; border-radius:0; display:block; background:var(--tint); }
 
 
   /* Program - dag for dag. Kompakt uttrykk i dokumentets eget språk: hver
@@ -184,9 +207,15 @@
      ikke full bredde - full bredde ble 66 mm høyt mot 32 mm, og gjorde
      dagblokkens høyde uforutsigbar. */
   .program-bilder img{
-    width:100%; aspect-ratio:16/6; object-fit:cover; border-radius:8px; display:block;
+    width:100%; aspect-ratio:16/6; object-fit:cover; border-radius:0; display:block;
     background:var(--tint);
   }
+  /* PDF-designregel (06.09.2026): ALLE fotografier i dokumentet har rette
+     hjørner - forsidebilde, høydepunkter, Om reisen-galleri, hotell- og
+     programbilder, avslutningsbilde. Gjelder kun PDF-malen; Admin og
+     nettsiden beholder avrundede hjørner. Logoene er ikke fotografier. */
+  .hero-img, .hoydepunkt-card img, .hoydepunkt-card .img-tom, .om-reisen-galleri img,
+  .hotell-galleri-stor img, .program-bilder img, .stemningsbilde{ border-radius:0; }
   /* Dager uten programinnhold - samlet i én rolig blokk, slik at kunden ser
      at hele reiseperioden er dekket uten at dokumentet fylles med
      identiske tomme dagsblokker. */
@@ -284,6 +313,7 @@
 <script src="shared/auth.js"></script>
 <!-- pdf-datakilde:slutt -->
 <script src="shared/pdf-nedlasting.js"></script>
+<script src="shared/pdf-maal.js"></script>
 <script>
 /* ============================================================
    Forslag - print-vennlig visning (v6g, 2026-08-22)
@@ -590,11 +620,14 @@ async function main(){
      i det stille). «Om reisemålet» og «Muligheter og opplevelser» vises
      ikke lenger. Målt: 250 ord + 6 bilder = 236,5 mm. */
 
+  // Teksten er fritekst med brukerens egne avsnitt (blank linje = nytt
+  // avsnitt) - se omReisenAvsnittHtml() i shared/pdf-maal.js. Galleriet
+  // bunnforankres i CSS (.om-reisen-side/.om-reisen-galleri).
   const bilderOmReisen = bilderDestinasjon;
   const side2 = (f.om_reisen || bilderOmReisen.length)
     ? `<section class="blokk om-reisen-side side-start">
         <h2>Om reisen</h2>
-        ${f.om_reisen ? `<p>${nl2br(f.om_reisen)}</p>` : ""}
+        <div class="om-reisen-tekst">${omReisenAvsnittHtml(f.om_reisen, esc)}</div>
         ${bilderOmReisen.length ? `<div class="om-reisen-galleri">${bilderOmReisen.map(b=>`<img src="${esc(b.bilde_url)}" alt="${esc(b.alt_tekst||"")}">`).join("")}</div>` : ""}
       </section>`
     : null;
@@ -845,6 +878,12 @@ async function main(){
     </section>`);
   }
 
+  // Tynn svart Caminante-stripe nederst på innholdssidene - kun logoen,
+  // ingen adresse/org.nr./kontaktinfo (det hører til avslutningsfooteren).
+  function mellomfooterHtml(){
+    return `<div class="mellomfooter"><img class="logo" src="${LOGO_DATAURI}" alt="Caminante"></div>`;
+  }
+
   function footerHtml(forbehold){
     return `<div class="footer">
       <div class="venstre">
@@ -896,8 +935,14 @@ async function main(){
   // «Program»-overskriften - det gir 20 mm luft nederst, mot 22 mm øverst.
   // Brytes en tekst til fem linjer (lange ord), passer ikke tre dager, og
   // fordelingen faller tilbake til to per side - aldri overflyt.
-  const SIDE_MAKS = 285 * MM;
-  const PROGRAM_MAKS = 280 * MM;
+  // 06.09.2026: innholdssidene har fått en 14 mm bunnstripe
+  // (PDF_MAAL.MELLOMFOOTER_MM) - budsjettene regnes mot det gjenværende
+  // innholdsområdet (283 mm), med samme bunnluft som før. Konsekvens: tre
+  // fulle programdager (277 mm) får ikke lenger plass på én side og
+  // fordeles to per side.
+  const INNHOLD_MM = PDF_MAAL.SIDE_MM - PDF_MAAL.MELLOMFOOTER_MM;
+  const SIDE_MAKS = (INNHOLD_MM - 12) * MM;
+  const PROGRAM_MAKS = (INNHOLD_MM - 17) * MM;
   const A4 = 297 * MM;
 
   // Måler blokkene med ekte bredde og stil. Alle bildehøyder i dokumentet er
@@ -1002,11 +1047,15 @@ async function main(){
   const avslutningFooter = footerHtml(forbeholdIFooter);
   const sisteKlasse = erTilbud ? "pdf-page--siste pdf-page--tilbud" : "pdf-page--siste";
 
+  // Innholdsside = innholdet + bunnstripen (se .pdf-page--innhold i CSS).
+  function innholdSide(html){
+    return `<div class="pdf-page pdf-page--innhold pdf-brekk"><div class="side-innhold">${html}</div>${mellomfooterHtml()}</div>`;
+  }
   const sider = [
     `<div class="pdf-page pdf-brekk">${side1}</div>`,
-    ...(side2 ? [`<div class="pdf-page pdf-page--innhold pdf-brekk">${side2}</div>`] : []),
-    ...innholdHotellFly.map(h=> `<div class="pdf-page pdf-page--innhold pdf-brekk">${h}</div>`),
-    ...innholdProgram.map(h=> `<div class="pdf-page pdf-page--innhold pdf-brekk">${h}</div>`),
+    ...(side2 ? [innholdSide(side2)] : []),
+    ...innholdHotellFly.map(innholdSide),
+    ...innholdProgram.map(innholdSide),
     `<div class="pdf-page ${sisteKlasse}${vilkaarSide ? " pdf-brekk" : ""}">
        <div class="side3-innhold">${sisteInnhold}</div>
        <div class="side3-bilde-wrap">
@@ -1056,9 +1105,17 @@ async function main(){
     maaler.remove();
     if(h1Hoyde > tittelPx * 1.15 * 1.5) merkOverfull(alleSider[0], "Tittelen får ikke plass på én linje - kort ned reisenavnet", brukt);
   }
+  // Innholdssidene måles uten bunnstripen, mot innholdsområdet (283 mm).
+  // Om reisen-siden måles i sin naturlige høyde: tekst + minsteavstand +
+  // galleri + bunnluft - passer den ikke, kolliderer tekst og bilder.
   document.querySelectorAll(".pdf-page--innhold").forEach(side=>{
-    const brukt = maalBlokker([side.innerHTML])[0];
-    if(brukt > (297 - 6) * MM) merkOverfull(side, "For mye innhold på denne siden", brukt);
+    const innhold = side.querySelector(".side-innhold");
+    const brukt = maalBlokker([innhold.innerHTML])[0];
+    if(innhold.querySelector(".om-reisen-side")){
+      if(brukt > INNHOLD_MM * MM) merkOverfull(side, "Om reisen: teksten og galleriet får ikke plass på siden - kort ned teksten eller ta bort bilder", brukt);
+    } else if(brukt > (INNHOLD_MM - 6) * MM){
+      merkOverfull(side, "For mye innhold på denne siden", brukt);
+    }
   });
   // Avslutnings- og vilkårssidene har fast høyde (297 mm): innhold + fast
   // bilde + bunnbanner må få plass innenfor.
