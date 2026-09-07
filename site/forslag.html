@@ -235,17 +235,32 @@ function statusChip(s){
   const c = STATUS_COLORS[s] || {bg:"#898781", fg:"#ffffff"};
   return `<span class="chip" style="background:${c.bg};color:${c.fg}">${escapeHtml(s)}</span>`;
 }
-function fmtDate(d){
-  if(!d) return "";
-  const dt = new Date(d + "T00:00:00");
-  if(isNaN(dt)) return "";
-  return dt.toLocaleDateString("nb-NO", { year:"numeric", month:"short", day:"numeric" });
+// Kompakt reiseperiode i oversikten (07.09.2026) - kortere kolonne, mindre
+// horisontal scrolling. Månedsnavnet vises én gang når begge datoene er i
+// samme måned; årstall bare når årene er forskjellige:
+//   15.-20. mar · 28. mar-3. apr · 28. des 2026-3. jan 2027 · 15. mar
+// Kun visning her - lagring og andre sider er uendret.
+const MND_KORT = ["jan","feb","mar","apr","mai","jun","jul","aug","sep","okt","nov","des"];
+function datoDeler(d){
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || "");
+  return m ? { aar: +m[1], mnd: +m[2], dag: +m[3] } : null;
 }
 function fmtPeriode(f){
-  if(f.fra_dato && f.til_dato) return `${fmtDate(f.fra_dato)} – ${fmtDate(f.til_dato)}`;
-  if(f.fra_dato) return fmtDate(f.fra_dato);
+  const a = datoDeler(f.fra_dato), b = datoDeler(f.til_dato);
+  if(a && b){
+    if(a.aar === b.aar && a.mnd === b.mnd && a.dag === b.dag) return `${a.dag}. ${MND_KORT[a.mnd-1]}`;
+    if(a.aar === b.aar && a.mnd === b.mnd) return `${a.dag}.-${b.dag}. ${MND_KORT[a.mnd-1]}`;
+    if(a.aar === b.aar) return `${a.dag}. ${MND_KORT[a.mnd-1]}-${b.dag}. ${MND_KORT[b.mnd-1]}`;
+    return `${a.dag}. ${MND_KORT[a.mnd-1]} ${a.aar}-${b.dag}. ${MND_KORT[b.mnd-1]} ${b.aar}`;
+  }
+  if(a) return `${a.dag}. ${MND_KORT[a.mnd-1]}`;
   if(f.periode_tekst) return f.periode_tekst;
   return "";
+}
+// Kun fornavn i Ansvarlig-kolonnen («Jan-Tore Olsen» → «Jan-Tore»).
+// Sorteringen bruker fortsatt hele navnet (ansvarlig_navn).
+function fornavn(navn){
+  return (navn || "").trim().split(/\s+/)[0] || "";
 }
 function fmtSistEndret(d){
   if(!d) return "";
@@ -338,7 +353,7 @@ function renderList(){
       <td>${escapeHtml(f.kundetype)}</td>
       <td>${escapeHtml(fmtPeriode(f))}</td>
       <td>${f.antall_reisende ?? ""}</td>
-      <td>${escapeHtml(f.ansvarlig_navn)}</td>
+      <td title="${escapeHtml(f.ansvarlig_navn)}">${escapeHtml(fornavn(f.ansvarlig_navn))}</td>
       <td>${statusChip(f.status)}</td>
       <td>${escapeHtml(fmtSistEndret(f.sist_endret))}</td>
       <td class="row-actions">
