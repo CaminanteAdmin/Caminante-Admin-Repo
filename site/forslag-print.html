@@ -293,7 +293,6 @@
   .fly-varighet svg{ width:11px; height:11px; color:var(--accent); }
   .fly-selskap{ font-size:11px; font-weight:600; color:var(--ink-secondary); margin-top:3px; white-space:nowrap; }
   .fly-nr{ font-size:10px; letter-spacing:0.06em; color:var(--ink-muted); margin-top:1px; white-space:nowrap; }
-  .reise-intern{ margin-top:18px; }
   /* Egen side: samme kort, mer luft og større dimensjoner. */
   .fly-egen-side{ padding-top:120px; }
   .fly-egen-side .reise-grid{ gap:36px; margin-top:32px; }
@@ -310,7 +309,6 @@
   .fly-egen-side .fly-varighet{ font-size:12.5px; }
   .fly-egen-side .fly-selskap{ font-size:12.5px; margin-top:4px; }
   .fly-egen-side .fly-nr{ font-size:11px; }
-  .fly-egen-side .reise-intern{ margin-top:30px; }
   /* KOMPAKT variant (06.09.2026): samme kort, samme informasjon, samme
      designspråk - bare mindre luft og moderat mindre typografi. Velges av
      pagineringen kun når den romslige varianten ikke får plass under siste
@@ -330,7 +328,6 @@
   .fly-kompakt .fly-varighet{ font-size:10.5px; }
   .fly-kompakt .fly-selskap{ font-size:10.5px; margin-top:1px; }
   .fly-kompakt .fly-nr{ font-size:9.5px; margin-top:0; }
-  .fly-kompakt .reise-intern{ margin-top:10px; }
 
   /* Dette får dere / Ikke inkludert (side 3) */
   .dfd-grid{ display:grid; grid-template-columns:1fr 1fr; gap:5px 24px; margin:0; padding:0; list-style:none; }
@@ -992,13 +989,18 @@ async function main(){
     const datoMedUkedag = iso => { const d = new Date(iso.slice(0,10) + "T00:00:00Z"); return `${UKEDAGER[d.getUTCDay()]} ${formatDato(iso)}`; };
     const utreiseLabel = "Utreise" + (f.fra_dato ? ` · ${datoMedUkedag(f.fra_dato)}` : "");
     const returLabel = "Retur" + (f.til_dato ? ` · ${datoMedUkedag(f.til_dato)}` : "");
+    // Rekkefølge (07.09.2026): utreise, internflyvning(er) kronologisk,
+    // retur. Hver internflyvning er et eget kort uten tittel - bare dato.
+    const internSortert = intern.slice().sort((a, b)=>
+      (a.avreise_tidspunkt || "").localeCompare(b.avreise_tidspunkt || "") || (a.sortering ?? 0) - (b.sortering ?? 0));
+    const internKort = internSortert.map(t=> etappeHtml(t.avreise_tidspunkt ? datoMedUkedag(t.avreise_tidspunkt) : "", [t])).join("");
     flyBlokk = `<section class="blokk flyinfo-blokk">
       <h2>Flyinformasjon</h2>
       <div class="reise-grid">
         ${etappeHtml(utreiseLabel, utreise)}
+        ${internKort}
         ${etappeHtml(returLabel, retur)}
       </div>
-      ${intern.length ? `<div class="reise-intern">${etappeHtml("Intern flight", intern)}</div>` : ""}
     </section>`;
   }
 
