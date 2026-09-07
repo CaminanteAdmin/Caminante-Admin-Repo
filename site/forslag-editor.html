@@ -2703,7 +2703,13 @@ function beregnAutoFlyLinjer(){
   // riktig ut.
   const bagasje = bein.map(b=>b.bagasje_info || BAGASJE_STANDARD).find(b=> b && b !== "Uten bagasje");
   if(bagasje){
-    linje += `, inkl. ${bagasje.charAt(0).toLowerCase()}${bagasje.slice(1)}`;
+    // 07.09.2026: innsjekket bagasje får standardvekten med i teksten.
+    // Avviker vekten, redigerer brukeren linjen manuelt under Turen
+    // inkluderer (den regnes da ikke lenger som automatisk linje).
+    const bagasjeTekst = bagasje === "Innsjekket bagasje"
+      ? "innsjekket bagasje à 23 kg per pers."
+      : `${bagasje.charAt(0).toLowerCase()}${bagasje.slice(1)}`;
+    linje += `, inkl. ${bagasjeTekst}`;
   }
   return [linje];
 }
@@ -2809,6 +2815,13 @@ function erAutoHotellLinje(v){
   return /^\d+ (natt|netter) på .+ i delt .+\.$/.test(v || "") || (state.forslag.auto_hotell_linjer || []).includes(v);
 }
 function erAutoLinje(v){ return erAutoFlyLinje(v) || erAutoHotellLinje(v); }
+// Der PDF-en brekker flylinjen fast (samme regel som inkludertLinjeHtml i
+// forslag-print.html): etter «t/r,», med «inkl. …» på linje to.
+// Hotellinjen brytes naturlig. null = ingen fast brekk.
+function autoLinjeDeler(v){
+  const m = /^(Flyreise .+ t\/r,) (.+)$/.exec(v || "");
+  return m ? [m[1], m[2]] : null;
+}
 function listeGrenser(arrKey){
   return arrKey === "inkludert"
     ? { punkt: TEGN.inkludertPunkt, vekt: TEGN.inkludertVekt, samlet: null }
@@ -3166,8 +3179,14 @@ function oppdaterPdfVarsler(){
   (state.forslag.inkludert || []).forEach(v=>{
     if(!v) return;
     if(erAutoLinje(v)){
-      // To linjer er regnet inn; tre ville sprengt avslutningssiden.
-      if(inkludertLinjer(v) > 2) varsler.push(`Den automatiske linjen «${v}» blir mer enn to linjer i PDF-en - forkort hotellnavnet i Hotell-fanen.`);
+      // Flylinjen brekkes fast etter «t/r,» (autoLinjeDeler) når begge
+      // delene får plass på én linje hver, ellers der den må for å gå opp
+      // i to linjer; hotellinjen brytes naturlig. Varsel bare når linjen
+      // ikke går opp i to på noen måte.
+      const deler = autoLinjeDeler(v);
+      const fastBrekkGaar = !!deler && deler.every(d=> inkludertLinjer(d) <= 1);
+      const forLang = !fastBrekkGaar && inkludertLinjer(v) > 2;
+      if(forLang) varsler.push(`Den automatiske linjen «${v}» blir mer enn to linjer i PDF-en - forkort hotellnavnet i Hotell-fanen.`);
     } else if(inkludertLinjer(v) > 1){
       varsler.push(`Punktet «${v}» under Turen inkluderer er for langt for én linje - kort ned.`);
     }

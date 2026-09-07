@@ -333,6 +333,10 @@
   .dfd-grid{ display:grid; grid-template-columns:1fr 1fr; gap:5px 24px; margin:0; padding:0; list-style:none; }
   .dfd-grid li{ font-size:14px; color:var(--ink); padding:3px 0 3px 22px; position:relative; line-height:1.4; }
   .dfd-grid li:before{ content:"✓"; position:absolute; left:0; color:#2a8f52; font-weight:700; }
+  /* De automatiske fly- og hotellinjene holder alltid av to linjer
+     (07.09.2026), så «Turen inkluderer» får samme høyde uansett hvor kort
+     hotellnavnet er - editoren budsjetterer dem som to linjer allerede. */
+  .dfd-grid li.to-linjer{ min-height:2.8em; }
   .ikke-inkl-linje{ font-size:11.5px; color:var(--ink-muted); margin-top:14px; }
   .ikke-inkl-linje b{ color:var(--ink-secondary); font-weight:650; }
 
@@ -1109,10 +1113,33 @@ async function main(){
      Tilbud 194 mm + 95 mm bilde. Ledig plass ved kortere innhold blir luft
      mellom innholdet og bildet - ingenting komprimeres. */
 
+  // Fast brekk i flylinjen (07.09.2026): etter «t/r,» så linje to blir
+  // «inkl. innsjekket bagasje à 23 kg per pers.». Får ikke begge delene
+  // plass på én linje hver, brekkes linjen i stedet der den må for å gå
+  // opp i to. Hotellinjen brytes naturlig - samme regler som editoren
+  // (autoLinjeDeler/oppdaterPdfVarsler). Begge holder av to linjer
+  // (.to-linjer).
+  let liMaaler = null;
+  function liLinjer(tekst){
+    if(!liMaaler){
+      liMaaler = document.createElement("div");
+      // Samme bredde som en kolonne i .dfd-grid: (666 - 24) / 2 - 22 px hake.
+      liMaaler.style.cssText = "position:absolute; left:-10000px; top:0; width:299px; font:400 14px 'DM Sans', system-ui, sans-serif; line-height:1.4; visibility:hidden; white-space:normal; overflow-wrap:break-word;";
+      document.body.appendChild(liMaaler);
+    }
+    liMaaler.textContent = tekst;
+    return Math.round(liMaaler.getBoundingClientRect().height / (14 * 1.4));
+  }
   function inkludertLinjeHtml(v){
     const m = /^(Flyreise .+ t\/r,) (.+)$/.exec(v);
-    if(m) return `${esc(m[1])}<br>${esc(m[2])}`;
+    if(m && liLinjer(m[1]) <= 1 && liLinjer(m[2]) <= 1) return `${esc(m[1])}<br>${esc(m[2])}`;
     return esc(v);
+  }
+  // Samme gjenkjenning av automatiske linjer som editoren (erAutoLinje):
+  // flylinjen og hotellinjen(e) - de holder alltid av to linjer.
+  function erAutoInkludertLinje(v){
+    return /^Flyreise .+ t\/r, .+$/.test(v || "") || /^\d+ (natt|netter) på .+ i delt .+\.$/.test(v || "")
+      || (f.auto_fly_linjer || []).includes(v) || (f.auto_hotell_linjer || []).includes(v);
   }
   const avslutningBlokker = [];
   const inkl = f.inkludert || [];
@@ -1120,7 +1147,7 @@ async function main(){
   if(inkl.length || ikkeInkl.length){
     avslutningBlokker.push(`<section class="blokk">
       <h2>Turen inkluderer</h2>
-      <ul class="dfd-grid">${inkl.map(v=>`<li>${inkludertLinjeHtml(v)}</li>`).join("")}</ul>
+      <ul class="dfd-grid">${inkl.map(v=>`<li${erAutoInkludertLinje(v) ? ' class="to-linjer"' : ""}>${inkludertLinjeHtml(v)}</li>`).join("")}</ul>
       ${ikkeInkl.length ? `<div class="ikke-inkl-linje"><b>Ikke inkludert:</b> ${esc(ikkeInkl.join(" · "))}</div>` : ""}
     </section>`);
   }
