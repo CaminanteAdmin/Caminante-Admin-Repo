@@ -1353,23 +1353,39 @@ async function main(){
 
   const hf = hotellOgFlySider();
   const innholdHotellFly = hf.sider;
-  // Flybolk på ny side (06.09.2026): programmet begynner rett under når
-  // minst én hel programdag får plass - så mange som får plass, i
-  // kronologisk rekkefølge, aldri splittet. Resten fordeles som vanlig.
-  // Følger ingen dag, får flybolken den romslige egen-side-varianten.
+  // Flybolk på ny side (06./07.09.2026). Hele bolken - utreise, intern-
+  // flyvninger, retur - holdes alltid samlet, og varianten velges etter
+  // FAKTISK målt høyde:
+  //   1) Får minst én hel programdag plass under den romslige varianten,
+  //      brukes romslig + så mange dager som får plass (kronologisk,
+  //      aldri splittet). Ellers prøves det samme med den kompakte.
+  //   2) Får ingen dag plass, står flybolken alene på siden: egen-side-
+  //      varianten hvis hele bolken får plass i sidebudsjettet, ellers
+  //      romslig, ellers kompakt. Får heller ikke kompakt plass, flagges
+  //      siden som overfull (sikkerhetsnettet stopper PDF-en) - ingen hack.
   let programRest = programBlokker;
   if(hf.flyEgen){
-    const flyStart = medSideStart(flyBlokk);
-    const flyHoyde = maalBlokker([flyStart])[0];
+    const flyKompakt = flyBlokk.replace('class="blokk flyinfo-blokk"', 'class="blokk flyinfo-blokk fly-kompakt"');
+    const flyEgenSide = flyBlokk.replace('class="blokk flyinfo-blokk"', 'class="blokk flyinfo-blokk fly-egen-side"');
+    const [hRomslig, hKompakt, hEgen] = maalBlokker([medSideStart(flyBlokk), medSideStart(flyKompakt), medSideStart(flyEgenSide)]);
     const hoyder = maalBlokker(programBlokker);
-    let sum = flyHoyde, n = 0;
-    while(n < programBlokker.length && n < PROGRAM_MAKS_PER_SIDE && sum + hoyder[n] <= PROGRAM_MAKS){ sum += hoyder[n]; n++; }
-    if(n > 0){
-      innholdHotellFly[innholdHotellFly.length-1] = flyStart + programBlokker.slice(0, n).join("");
-      programRest = programBlokker.slice(n);
-    } else {
-      innholdHotellFly[innholdHotellFly.length-1] = medSideStart(flyBlokk.replace('class="blokk flyinfo-blokk"', 'class="blokk flyinfo-blokk fly-egen-side"'));
+    const dagerUnder = (flyHoyde)=>{
+      let sum = flyHoyde, n = 0;
+      while(n < programBlokker.length && n < PROGRAM_MAKS_PER_SIDE && sum + hoyder[n] <= PROGRAM_MAKS){ sum += hoyder[n]; n++; }
+      return n;
+    };
+    let valgt = null, n = 0;
+    if(programBlokker.length){
+      n = dagerUnder(hRomslig);
+      if(n > 0) valgt = flyBlokk;
+      else { n = dagerUnder(hKompakt); if(n > 0) valgt = flyKompakt; }
     }
+    if(!valgt){
+      n = 0;
+      valgt = hEgen <= SIDE_MAKS ? flyEgenSide : hRomslig <= SIDE_MAKS ? flyBlokk : flyKompakt;
+    }
+    innholdHotellFly[innholdHotellFly.length-1] = medSideStart(valgt) + programBlokker.slice(0, n).join("");
+    programRest = programBlokker.slice(n);
   }
   const innholdProgram = programSider(programRest);
 
