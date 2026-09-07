@@ -2971,9 +2971,12 @@ function refreshTegnteller(ta, teller, maks, ingenLinjeskift, kapp, linjeskiftVe
   if(kapp){
     const forrige = ta.dataset.tegnForrige;
     const forrigeKjent = forrige !== undefined;
-    const forrigeInnenfor = forrigeKjent && vektetLengde(forrige, linjeskiftVekt) <= maks && !(ingenLinjeskift && /\n/.test(forrige));
+    // Énlinjersfelt: linjeskift blir alltid mellomrom (også gamle, lagrede
+    // linjeskift fra før regelen) - det sletter ingen tekst og skal ikke
+    // låse feltet.
+    if(ingenLinjeskift && /\n/.test(ta.value)) ta.value = ta.value.replace(/\s*\n\s*/g, " ");
+    const forrigeInnenfor = forrigeKjent && vektetLengde(forrige, linjeskiftVekt) <= maks;
     if(forrigeInnenfor){
-      if(ingenLinjeskift && /\n/.test(ta.value)) ta.value = ta.value.replace(/\s*\n\s*/g, " ");
       if(vektetLengde(ta.value, linjeskiftVekt) > maks) ta.value = kappTilVektet(ta.value, maks, linjeskiftVekt);
     } else if(forrigeKjent && vektetLengde(ta.value, linjeskiftVekt) > vektetLengde(forrige, linjeskiftVekt)){
       // Over grensen fra før: får ikke vokse. Inntastingen avvises,
@@ -3143,6 +3146,11 @@ function tegnOverGrenseVarsler(){
 }
 
 function oppdaterPdfVarsler(){
+  // Valider det som faktisk står i skjemaet, ikke gammel state - state
+  // synkes ellers først ved lagring (2,5 s etter siste tastetrykk). Kun
+  // etter at siden er ferdig lastet (autosaveKlar): under innlastingen er
+  // state fasiten og skjemaet ennå ikke fylt.
+  if(autosaveKlar) collectFieldsFromForm();
   const varsler = [];
   // Hovedbildet er obligatorisk (QA 06.09.2026): uten det er forsiden
   // tre fjerdedeler tom. Gjelder både Reiseforslag og Tilbud.
