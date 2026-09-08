@@ -80,3 +80,9 @@ comment on column forslag.saerlige_vilkaar is
 -- DUPLISERING (site/forslag.html): tilbudsfristen arves IKKE av en kopi -
 -- en kopi laget senere ville ellers fått en gammel dato som ser bevisst satt
 -- ut. Tekstfeltene i Vilkår og frister arves som resten av innholdet.
+--
+-- STANDARD TILBUDSFRIST (08.09.2026): nye gruppetilbud (Nytt og Dupliser i
+-- site/forslag.html) opprettes med tilbudsfrist = 7 kalenderdager fra
+-- opprettelsesdatoen, satt i klienten fra brukerens lokale dato uten
+-- klokkeslett. Ingen column default i databasen (current_date ville fulgt
+-- serverens UTC-døgn). Eksisterende rader og lagrede frister ble ikke endret.

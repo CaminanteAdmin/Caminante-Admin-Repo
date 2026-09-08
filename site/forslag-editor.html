@@ -65,7 +65,11 @@
     gap:8px;
     align-items:center;
   }
+  /* 08.09.2026: status-nedtrekket er tatt ut av visningen (kun UI).
+     Elementet beholdes skjult fordi lagringen fortsatt leser verdien, så
+     statusdata ligger urørt. */
   select#f-status{
+    display:none;
     padding:6px 8px;
     border:1px solid var(--hairline);
     border-radius:8px;
@@ -1210,7 +1214,7 @@
   <div class="tab-panel" data-tab="vilkaar">
     <div class="card" style="margin-bottom:20px;">
       <div class="card-title">Tilbudsfrist</div>
-      <div class="field-hint" style="margin-bottom:12px;">Fristen kunden har på tilbudet. Fylles ut når saken går mot et tilbud - ingenting her er påkrevd under vanlig arbeid.</div>
+      <div class="field-hint" style="margin-bottom:12px;">Fristen kunden har på tilbudet. Forhåndsutfylt med 7 dager fra opprettelsen, fritt redigerbar - ingenting her er påkrevd under vanlig arbeid.</div>
       <div class="field-grid" style="grid-template-columns:160px 1fr; max-width:520px;">
         <label for="vk-frist">Tilbudsfrist</label>
         <input type="date" id="vk-frist">
@@ -1230,23 +1234,38 @@
       <div class="ordteller" id="vk-forbehold-teller" style="width:604px; max-width:100%;"></div>
     </div>
 
+    <!-- Rekkefølge (08.09.2026): Tilbudsfrist, Forbehold, Betalings-
+         betingelser, Navneliste og navneendringer, Avbestillingsbetingelser,
+         Øvrige betingelser - samme rekkefølge som i Tilbud-PDF-en.
+         Standardtekstene ligger som column default i databasen
+         (sql/gruppetilbud_vilkaar_standardtekster.sql) og er fritt
+         redigerbare per sak. Linjeskift teller som ett tegn i disse feltene
+         (avbestillingsbetingelsene er satt opp med én periode per linje). -->
     <div class="card" style="margin-bottom:20px;">
       <div class="card-title">Betalingsbetingelser</div>
       <div class="field-hint" style="margin-bottom:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
-      <textarea id="vk-betaling" class="forbehold-textarea" style="min-height:110px;" placeholder="F.eks. depositum, forfall og sluttbetaling."></textarea>
+      <textarea id="vk-betaling" class="forbehold-textarea" style="min-height:110px;" placeholder="F.eks. forfall og sluttbetaling."></textarea>
       <div class="ordteller" id="vk-betaling-teller" style="width:604px; max-width:100%;"></div>
     </div>
 
     <div class="card" style="margin-bottom:20px;">
+      <div class="card-title">Navneliste og navneendringer</div>
+      <div class="field-hint" style="margin-bottom:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
+      <textarea id="vk-navneliste" class="forbehold-textarea" style="min-height:110px;" placeholder="Frist for navneliste og vilkår for navneendringer."></textarea>
+      <div class="ordteller" id="vk-navneliste-teller" style="width:604px; max-width:100%;"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
       <div class="card-title">Avbestillingsbetingelser</div>
-      <textarea id="vk-avbestilling" class="forbehold-textarea" style="min-height:110px;" placeholder="F.eks. frister og gebyrer ved avbestilling."></textarea>
+      <div class="field-hint" style="margin-bottom:10px;">Standardteksten er forhåndsutfylt og kan tilpasses. Én periode per linje.</div>
+      <textarea id="vk-avbestilling" class="forbehold-textarea" style="min-height:130px;" placeholder="F.eks. frister og gebyrer ved avbestilling."></textarea>
       <div class="ordteller" id="vk-avbestilling-teller" style="width:604px; max-width:100%;"></div>
     </div>
 
     <div class="card">
-      <div class="card-title">Særlige vilkår</div>
-      <div class="field-hint" style="margin-bottom:10px;">Bare det som gjelder akkurat denne saken. Generelle forbehold hører hjemme i Forbehold-feltet over.</div>
-      <textarea id="vk-saerlige" class="forbehold-textarea" style="min-height:90px;" placeholder="Valgfritt."></textarea>
+      <div class="card-title">Øvrige betingelser</div>
+      <div class="field-hint" style="margin-bottom:10px;">Standardteksten er forhåndsutfylt og kan tilpasses. Generelle forbehold hører hjemme i Forbehold-feltet over.</div>
+      <textarea id="vk-saerlige" class="forbehold-textarea" style="min-height:110px;" placeholder="Øvrige betingelser for tilbudet."></textarea>
       <div class="ordteller" id="vk-saerlige-teller" style="width:604px; max-width:100%;"></div>
     </div>
   </div>
@@ -3019,10 +3038,11 @@ el("pres-omreisen").addEventListener("input", oppdaterPdfVarsler);
 kobleTegnteller("pres-omreisen","pres-omreisen-teller",TEGN.omReisen,false,1);   // linjeskift = 1 tegn, se vektetLengde()
 kobleTegnteller("vv-tekst","vv-tekst-teller",TEGN.veienVidere);
 kobleTegnteller("fb-tekst","fb-tekst-teller",TEGN.forbehold);
-kobleTegnteller("vk-forbehold","vk-forbehold-teller",TEGN.vilkaar);
-kobleTegnteller("vk-betaling","vk-betaling-teller",TEGN.vilkaar);
-kobleTegnteller("vk-avbestilling","vk-avbestilling-teller",TEGN.vilkaar);
-kobleTegnteller("vk-saerlige","vk-saerlige-teller",TEGN.vilkaar);
+kobleTegnteller("vk-forbehold","vk-forbehold-teller",TEGN.vilkaar,false,1);      // linjeskift = 1 tegn
+kobleTegnteller("vk-betaling","vk-betaling-teller",TEGN.vilkaar,false,1);
+kobleTegnteller("vk-navneliste","vk-navneliste-teller",TEGN.vilkaar,false,1);
+kobleTegnteller("vk-avbestilling","vk-avbestilling-teller",TEGN.vilkaar,false,1);
+kobleTegnteller("vk-saerlige","vk-saerlige-teller",TEGN.vilkaar,false,1);
 
 /* PDF-tittelen er «Reisemål» + «, Land» (landet fra Reisemål-registeret,
    utelatt når reisemålet ER landet - samme regel som forslag-print.html).
@@ -3141,10 +3161,11 @@ function tegnOverGrenseVarsler(){
   sjekk("Om reisen", f.om_reisen, TEGN.omReisen, 1);
   sjekk("Fra forslag til reise", f.veien_videre_tekst, TEGN.veienVidere);
   sjekk("Forbehold", f.forbehold_tekst, TEGN.forbehold);
-  sjekk("Vilkår: Forbehold", f.tilbud_forbehold_tekst, TEGN.vilkaar);
-  sjekk("Vilkår: Betalingsbetingelser", f.betalingsbetingelser, TEGN.vilkaar);
-  sjekk("Vilkår: Avbestillingsbetingelser", f.avbestillingsbetingelser, TEGN.vilkaar);
-  sjekk("Vilkår: Særlige vilkår", f.saerlige_vilkaar, TEGN.vilkaar);
+  sjekk("Vilkår: Forbehold", f.tilbud_forbehold_tekst, TEGN.vilkaar, 1);
+  sjekk("Vilkår: Betalingsbetingelser", f.betalingsbetingelser, TEGN.vilkaar, 1);
+  sjekk("Vilkår: Navneliste og navneendringer", f.navneliste_tekst, TEGN.vilkaar, 1);
+  sjekk("Vilkår: Avbestillingsbetingelser", f.avbestillingsbetingelser, TEGN.vilkaar, 1);
+  sjekk("Vilkår: Øvrige betingelser", f.saerlige_vilkaar, TEGN.vilkaar, 1);
   state.hotellopphold.forEach((h, i)=> sjekk(`Beskrivelsen av ${h.fields.hotellnavn || "Hotell " + (i+1)}`, h.fields.beskrivelse, TEGN.hotell));
   state.dagsprogram.forEach(d=>{
     sjekk(`Teksten på dag ${d.fields.dagnummer}`, d.fields.tekst, TEGN.program);
@@ -3536,10 +3557,13 @@ function renderVilkaar(){
   el("vk-frist").value = f.tilbudsfrist || "";
   el("vk-forbehold").value = f.tilbud_forbehold_tekst || "";
   el("vk-betaling").value = f.betalingsbetingelser || "";
+  el("vk-navneliste").value = f.navneliste_tekst || "";
   el("vk-avbestilling").value = f.avbestillingsbetingelser || "";
   el("vk-saerlige").value = f.saerlige_vilkaar || "";
-  ["vk-forbehold","vk-betaling","vk-avbestilling","vk-saerlige"].forEach(id=>
-    refreshTegnteller(el(id), el(id + "-teller"), TEGN.vilkaar));
+  // Linjeskift teller som ett tegn i vilkårsfeltene (08.09.2026) - de
+  // skal kunne settes opp med én periode per linje.
+  ["vk-forbehold","vk-betaling","vk-navneliste","vk-avbestilling","vk-saerlige"].forEach(id=>
+    refreshTegnteller(el(id), el(id + "-teller"), TEGN.vilkaar, false, false, 1));
 }
 
 function renderForbehold(){
@@ -4316,6 +4340,7 @@ function collectForslagFields(){
     tilbudsfrist: f.tilbudsfrist || null,
     tilbud_forbehold_tekst: f.tilbud_forbehold_tekst || null,
     betalingsbetingelser: f.betalingsbetingelser || null,
+    navneliste_tekst: f.navneliste_tekst || null,
     avbestillingsbetingelser: f.avbestillingsbetingelser || null,
     saerlige_vilkaar: f.saerlige_vilkaar || null,
     hovedbilde_url: f.hovedbilde_url || null,
@@ -4354,6 +4379,7 @@ function collectFieldsFromForm(){
   f.tilbudsfrist = el("vk-frist").value || null;
   f.tilbud_forbehold_tekst = el("vk-forbehold").value;
   f.betalingsbetingelser = el("vk-betaling").value;
+  f.navneliste_tekst = el("vk-navneliste").value;
   f.avbestillingsbetingelser = el("vk-avbestilling").value;
   f.saerlige_vilkaar = el("vk-saerlige").value;
 
