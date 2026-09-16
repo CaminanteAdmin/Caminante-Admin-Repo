@@ -2507,7 +2507,10 @@ function updateForslagButtonState(){
   const btn = el('btnOpprettForslag');
   if(!btn) return;
   if(linkedForslagId){
-    btn.textContent = 'Gå til gruppetilbud';
+    // Pkt 10 (16.09.2026): samme knapp, plass og stil som «← Gå til
+    // priskalkyle» øverst til høyre i Gruppetilbud-editoren - pilen peker
+    // dit man går.
+    btn.textContent = 'Gå til gruppetilbud →';
     btn.title = 'Åpner gruppetilbudet som allerede er opprettet fra denne kalkylen';
   } else {
     btn.textContent = 'Opprett gruppetilbud fra kalkyle';

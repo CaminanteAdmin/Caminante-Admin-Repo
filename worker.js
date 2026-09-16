@@ -165,7 +165,7 @@ const PDF_VARIANTER = {
   "closing-tilbud":       [1600, 723],   // 794 x 359 (95 mm)
   "om-reisen":            [990, 557],
   "hoydepunkt":           [390, 342],
-  "hotell":               [990, 371],
+  "hotell":               [990, 330],   // 3:1 (pkt 16, 16.09.2026 - var 16:6)
   "program-1":            [1600, 317],   // 666 x 132
   "program-2":            [990, 396],
   "program-3":            [650, 396],
@@ -176,6 +176,14 @@ const PDF_BILDE_KVALITET = 85;
 // vilkårlige objekter i bucketen (varianter/-mappen ligger utenfor
 // GYLDIGE_MAPPER og kan derfor heller ikke lastes opp/slettes via API-et).
 const BILDE_NOKKEL_RE = /^(destinations|hoteller)\/[a-z0-9-]{1,80}\/[a-f0-9-]{36}\.(jpe?g|png|webp|gif)$/;
+// Pkt 19 (16.09.2026): bilder som er lastet opp direkte på et gruppetilbud
+// ligger i Supabase Storage (bucket forslag-bilder, offentlig lesbar), ikke
+// i R2. Browser Run blokkerer supabase.co, så de kom aldri inn i PDF-en.
+// Nøkkelen «supabase/forslag-bilder/<forslag-id>/<uuid>.<ext>» går gjennom
+// samme bilderute og får samme varianter som bankbildene - originalen
+// hentes fra den offentlige Storage-adressen og varianten lagres i R2.
+const SUPABASE_NOKKEL_RE = /^supabase\/forslag-bilder\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpe?g|png|webp|gif|avif)$/i;
+function gyldigBildeNokkel(key) { return BILDE_NOKKEL_RE.test(key) || SUPABASE_NOKKEL_RE.test(key); }
 
 // Målene er med i nøkkelen, så en justering av en variant gir nye filer
 // automatisk - gamle varianter blir liggende urefererte (harmløse).
@@ -195,17 +203,27 @@ function variantNokkel(variant, key) {
 async function sikreVariant(env, variant, key) {
   const dims = variantMaal(variant);
   if (!dims) throw new Error(`Ukjent bildevariant «${variant}».`);
-  if (!BILDE_NOKKEL_RE.test(key)) throw new Error("Ugyldig bildenøkkel.");
+  if (!gyldigBildeNokkel(key)) throw new Error("Ugyldig bildenøkkel.");
   const vKey = variantNokkel(variant, key);
   const finnes = await env.BILDEBANK.get(vKey);
   if (finnes) return finnes;
 
-  const orig = await env.BILDEBANK.get(key);
-  if (!orig) throw new Error(`Fant ikke originalbildet ${key} i bildebanken.`);
+  // Originalen: R2 for bankbildene, Supabase Storage (offentlig adresse)
+  // for bilder lastet opp på gruppetilbudet.
+  let origBody;
+  if (SUPABASE_NOKKEL_RE.test(key)) {
+    const res = await fetch(`${env.SUPABASE_URL}/storage/v1/object/public/${key.slice("supabase/".length)}`);
+    if (!res.ok) throw new Error(`Fant ikke originalbildet ${key} (Storage svarte ${res.status}).`);
+    origBody = res.body;
+  } else {
+    const orig = await env.BILDEBANK.get(key);
+    if (!orig) throw new Error(`Fant ikke originalbildet ${key} i bildebanken.`);
+    origBody = orig.body;
+  }
   if (!env.IMAGES) throw new Error("Bildetransformasjon (Images-binding) er ikke konfigurert på serveren.");
   let bytes;
   try {
-    const resultat = await env.IMAGES.input(orig.body)
+    const resultat = await env.IMAGES.input(origBody)
       .transform({ width: dims[0], height: dims[1], fit: "cover" })
       .output({ format: "image/jpeg", quality: PDF_BILDE_KVALITET });
     bytes = await new Response(resultat.image()).arrayBuffer();
@@ -226,7 +244,7 @@ async function handleBilde(request, env) {
   const variant = m[1];
   let key;
   try { key = decodeURIComponent(m[2]); } catch (e) { return jsonSvar({ error: "Ugyldig bildenøkkel." }, 400); }
-  if (!variantMaal(variant) || !BILDE_NOKKEL_RE.test(key)) return jsonSvar({ error: "Ukjent bilde." }, 404);
+  if (!variantMaal(variant) || !gyldigBildeNokkel(key)) return jsonSvar({ error: "Ukjent bilde." }, 404);
   let obj;
   try {
     obj = await sikreVariant(env, variant, key);
@@ -245,14 +263,23 @@ async function handleBilde(request, env) {
   });
 }
 
-// Nøkkel i bildebanken fra en offentlig r2.dev-adresse, ellers null (bilder
-// som ikke ligger i banken, f.eks. eksterne adresser, får ingen variant).
+// Bildenøkkel fra en offentlig r2.dev-adresse (bankbilder) eller en
+// Supabase Storage-adresse (bilder lastet opp på gruppetilbudet), ellers
+// null (eksterne adresser får ingen variant). Samme regel som pdfBilde() i
+// forslag-print.html.
 function r2NokkelFraUrl(url, env) {
   if (!url) return null;
   const base = (env.R2_PUBLIC_BASE || "").replace(/\/$/, "") + "/";
-  if (!url.startsWith(base)) return null;
-  const key = url.slice(base.length);
-  return BILDE_NOKKEL_RE.test(key) ? key : null;
+  if (url.startsWith(base)) {
+    const key = url.slice(base.length);
+    return BILDE_NOKKEL_RE.test(key) ? key : null;
+  }
+  const sbBase = (env.SUPABASE_URL || "").replace(/\/$/, "") + "/storage/v1/object/public/";
+  if (sbBase.length > 30 && url.startsWith(sbBase)) {
+    const key = "supabase/" + url.slice(sbBase.length);
+    return SUPABASE_NOKKEL_RE.test(key) ? key : null;
+  }
+  return null;
 }
 
 // Alle (variant, nøkkel)-par PDF-en kommer til å be om - samme rolleregler

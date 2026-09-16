@@ -42,10 +42,12 @@
     gap:14px;
     align-items:flex-start;
     justify-content:space-between;
-    position:sticky;
-    top:0;
-    z-index:5;
   }
+  /* Oppryddingsrunde 16.09.2026 (pkt 8): header OG fanemenyen ligger i én
+     felles sticky-blokk, så fanene alltid står rett under headeren uansett
+     hvor høy den er (varsel, kalkyle-banner). Før var .tab-nav sticky med
+     en fast top:74px og forsvant bak headeren så snart den vokste. */
+  .sticky-topp{ position:sticky; top:0; z-index:5; background:var(--surface-1); }
   .editor-header .left{ flex:1 1 320px; min-width:260px; }
   .editor-header .nr{ font-size:11.5px; color:var(--ink-muted); font-variant-numeric:tabular-nums; }
   .editor-header input#f-tittel{
@@ -93,6 +95,14 @@
   .editor-header button.danger{ color:#b04a4a; }
   .editor-header button.danger:hover{ background:#fbeaea; border-color:#d03b3b; }
   .editor-header button:disabled{ opacity:0.7; cursor:progress; }
+  /* Pkt 10: «← Gå til priskalkyle» speiler kalkyle-editorens «Gå til
+     gruppetilbud →» (.btn.small der): samme padding, størrelse, hjørner
+     og farger, plassert øverst til høyre i begge grensesnittene. */
+  .editor-header button.btn-nav{
+    padding:5px 10px; font-size:12px; font-weight:500; border-radius:7px;
+    border:1px solid var(--border); background:var(--surface-1); color:var(--ink);
+  }
+  .editor-header button.btn-nav:hover{ background:var(--page); }
   /* Liten spinner foran «Genererer PDF…» (settes av pdfKnappStart i
      shared/pdf-nedlasting.js) - umiddelbar, tydelig respons på klikket. */
   .editor-header button.pdf-opptatt{ opacity:0.85; }
@@ -138,9 +148,6 @@
     padding:0 24px;
     background:var(--surface-1);
     border-bottom:1px solid var(--hairline);
-    position:sticky;
-    top:74px;
-    z-index:4;
     overflow-x:auto;
   }
   .tab-btn{
@@ -341,7 +348,7 @@
      alle fire boksene starter på nøyaktig samme sted, uansett hvor langt
      label-ordet er - flukten Vidar ba om. Flyselskap-boksen er samtidig
      smalnet inn til ca. 80% av forrige bredde. */
-  .fl-field-strekning label, .fl-field-avreise label, .fl-field-ankomst label, .fl-field-selskap label{ width:70px; flex:none; }
+  .fl-field-strekning label, .fl-field-avreise label, .fl-field-ankomst label, .fl-field-selskap label, .fl-field-bagasje label{ width:70px; flex:none; }
   .fl-field-strekning input{ width:190px; }
   .fl-field-avreise input, .fl-field-ankomst input{ width:194px; }
   .fl-field-selskap input{ width:108px; }
@@ -542,6 +549,8 @@
   .h-field-romtype select{ width:156px; }
   .h-field-maltider select{ width:150px; }
   .h-datoer-pair{ display:flex; gap:6px; }
+  /* Pkt 6: antall netter regnes av datoene og vises diskret under dem. */
+  .h-netter-vis{ font-size:12px; color:var(--ink-muted); margin:-2px 0 10px 62px; }
   .h-datoer-pair input{ width:128px; }
   .h-head-actions{ display:flex; align-items:center; gap:12px; }
   /* v7: "Velg fra hotelloversikt" er flyttet opp til høyre for selve
@@ -556,8 +565,29 @@
      stedet for det vanlige 880px-taket alle andre faner har) - det var mye
      ledig plass til høyre i 50/50-oppsettet ved normal skjermbredde. */
   .tab-panel[data-tab="presentasjon"]{ max-width:none; }
-  .pres-col{ flex:1; min-width:0; }
-  .pres-col .card:last-child{ margin-bottom:0; }
+  /* Pkt 15 (16.09.2026): Presentasjon er en vertikal, fullbredde
+     arbeidsflate - Høydepunkter øverst, så Forsideinfo, Om reisen og
+     Reiseforslag-tekstene. De to store tekstfeltene har PDF-ens egen
+     skrivebredde og typografi (666 px, DM Sans 14 px / 1,6 - se
+     .blokk p i forslag-print.html), slik at linjebrytning og avsnitt ser
+     omtrent ut som i dokumentet. Vanlig tekst, ingen rik editor. */
+  .pres-stack .card{ margin-bottom:22px; }
+  .pres-stack .card:last-child{ margin-bottom:0; }
+  .pres-textarea.pdf-bredde{
+    width:calc(666px + 26px); max-width:100%;
+    font:400 14px 'DM Sans', system-ui, -apple-system, "Segoe UI", sans-serif; line-height:1.6;
+    padding:12px 12px; white-space:pre-wrap; overflow-wrap:break-word;
+  }
+  .pres-textarea.pres-ingress{ min-height:96px; }
+  .pdf-bredde-rad{ width:calc(666px + 26px); max-width:100%; }
+  /* Høydepunktene som kort side om side over full bredde. */
+  #hoydepunktList{ display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:14px; }
+  #hoydepunktList .item-block{
+    border:1px solid var(--card-border); border-radius:10px; padding:12px 14px;
+    margin-top:0; background:var(--surface-1);
+  }
+  #hoydepunktList .field-grid{ row-gap:8px; }
+  #hoydepunktList textarea.hp-korttekst-ov{ min-height:74px; }
   .pres-textarea{
     width:100%; box-sizing:border-box; border:1px solid var(--card-border); border-radius:6px;
     padding:10px 12px; font-size:13px; font-family:inherit; color:var(--ink-primary);
@@ -612,7 +642,7 @@
   .felt-gruppe-hint{ font-size:11.5px; color:var(--ink-muted); margin-top:3px; }
   /* v7: Høydepunkt-kortenes felt-labels komprimert (fra standard 170px) -
      de bor nå i en 50%-bred kolonne og trenger mer plass til selve feltet. */
-  .tab-panel[data-tab="presentasjon"] #hoydepunktList .field-grid{ grid-template-columns:110px 1fr; }
+  .tab-panel[data-tab="presentasjon"] #hoydepunktList .field-grid{ grid-template-columns:84px 1fr; }
 
   .list-editor{ display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
   .list-editor-row{ display:flex; gap:6px; align-items:center; }
@@ -855,6 +885,7 @@
 
 <div id="editorArea" style="display:none;">
 
+  <div class="sticky-topp">
   <div class="editor-header">
     <div class="left">
       <div class="nr" id="f-nr"></div>
@@ -865,13 +896,17 @@
         <button id="oppdaterPrisBtn">Oppdater pris og datoer fra kalkyle</button>
       </div>
       <div class="save-status" id="saveStatus"></div>
-      <!-- PDF-struktur: det som må rettes før dokumentet kan genereres
-           (tittel som ikke får plass på én linje, oddetall bilder i
-           Om reisen-galleriet, for mange hotellbilder). Se
-           oppdaterPdfVarsler(). -->
+      <!-- Samlet validering. Pkt 1 (16.09.2026): vises IKKE mens
+           tilbudet bygges - først når brukeren forsøker å generere
+           Reiseforslag/Tilbud og noe mangler. Deretter holdes listen
+           oppdatert til den er tom. Se oppdaterPdfVarsler(). -->
       <div class="pdf-varsel" id="pdfVarsel"></div>
     </div>
     <div class="right">
+      <!-- Pkt 10: navigasjon til priskalkylen - samme knapp som kalkyle-
+           editorens «Gå til gruppetilbud →», motsatt vei. Tekst/handling
+           settes i renderKalkyleInfo(). -->
+      <button type="button" id="btnKalkyle" class="btn-nav" style="display:none;"></button>
       <select id="f-status"></select>
       <!-- Reiseforslag og Tilbud er to dokumenter fra samme sak - samme mal
            (forslag-print.html), «type=tilbud» velger tilbudsutgaven. Selve
@@ -900,6 +935,8 @@
       <button type="button" class="tab-nav-arrow-btn" id="tabNextBtn">Neste →</button>
     </div>
   </div>
+
+  </div><!-- /sticky-topp -->
 
   <!-- ===== Grunninfo (slått sammen med Flyinformasjon) =====
        v11: Grunninfo og Flyinformasjon er slått sammen til én fane, i tre
@@ -945,17 +982,29 @@
                 <div class="field-hint" id="g-skole-link" style="margin-top:3px;"></div>
               </div>
             </div>
-            <!-- v11: "Destinasjon / reiseidé" er omdøpt til "Reisemål" - id
-                 (g-destinasjon) og databasefeltet (destinasjon) er uendret.
-                 v13: står nå på samme linje som Avreiseflyplass. -->
-            <!-- PDF-struktur: Reisemål er PDF-ens tittel (H1 på forsiden) og
-                 skal alltid stå på ÉN linje. Produktgrense 35 tegn; i tillegg
-                 måles den sammensatte tittelen («Reisemål, Land») mot den
-                 faktiske bredden i PDF-en, se sjekkPdfTittel(). -->
+            <!-- Pkt 9 (16.09.2026): to separate begreper.
+                 A) «Koble til reisemål» = systemkoblingen til Reisemål-
+                    registeret (forslag.reisemaal_id - samme relasjon som
+                    før, flyttet hit fra Presentasjon). Låser opp bildebank,
+                    høydepunkter og landnavn, og må være på plass før Program.
+                 B) «Tittel» = kundevendt fritekst (forslag.destinasjon, samme
+                    felt som før) - PDF-ens H1 på forsiden, alltid på ÉN
+                    linje. Produktgrense 35 tegn (pkt 3: ingen live-varsel;
+                    bredden mot PDF-en valideres først ved generering). -->
+            <div class="gi-field span-full">
+              <label>Koble til reisemål</label>
+              <div class="pres-reisemaal-status" id="presReisemaalStatus"></div>
+              <div style="position:relative;">
+                <button type="button" class="btn-small-add" id="presVelgReisemaalBtn" style="margin-top:0;">Velg reisemål</button>
+                <div class="pres-reisemaal-wrap" id="presReisemaalWrap" style="display:none; position:relative; margin-top:8px;">
+                  <input type="text" id="presReisemaalSok" placeholder="Søk reisemål…" autocomplete="off">
+                  <div class="pres-reisemaal-dropdown" id="presReisemaalDropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:240px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
+                </div>
+              </div>
+            </div>
             <div class="gi-field">
-              <label for="g-destinasjon">Reisemål</label>
-              <input type="text" id="g-destinasjon" maxlength="35">
-              <div class="ordteller" id="g-destinasjon-teller"></div>
+              <label for="g-destinasjon">Tittel</label>
+              <input type="text" id="g-destinasjon" maxlength="35" placeholder="F.eks. Egypt – i faraoenes fotspor">
             </div>
             <!-- v: label endret fra "Avreisested" til "Avreiseflyplass" - id/felt
                  (g-avreisested / avreisested) uendret, kun visningstekst. -->
@@ -1101,104 +1150,64 @@
   </div>
 
   <!-- ===== Presentasjon =====
-       v7: to 50/50-kolonner - "Om reisen"/"Om reisemålet" til venstre
-       (stablet oppå hverandre), Høydepunkter til høyre. Begge tekstfeltene
-       har mistet sitt eget label-ord ("Tekst" var reelt overflødig,
-       "Om reisemålet" dekkes allerede av korttittelen "Reisemål" og
-       konteksten rett over feltet) og fått en hard 60-ords-sperre med
-       ordteller under nederste høyre hjørne, se refreshOrdteller(). -->
+       Pkt 15 (16.09.2026): vertikal, fullbredde arbeidsflate i naturlig
+       rekkefølge - Høydepunkter (kort side om side), Forsideinfo, Om reisen,
+       og til slutt tekstene som bare brukes i Reiseforslaget. Reisemål-
+       koblingen bor nå i Reiseinfo (pkt 9). «Ingress» heter «Forsideinfo» i
+       grensesnittet (pkt 12) - feltet er fortsatt forslag.ingress. -->
   <div class="tab-panel" data-tab="presentasjon">
-    <div class="two-col-row">
-      <div class="pres-col">
-        <!-- v: "Om reisen" - side 1 sin egen brødtekst om selve reisen
-             (skiller seg fra "Om reisemålet" under, som handler om
-             destinasjonen generelt). Nytt felt (forslag.om_reisen), del av
-             den godkjente 3-siders design v6g. -->
-        <!-- PDF-struktur: forsiden har en kort ingress (nytt felt
-             forslag.ingress, maks 350 tegn, ingen linjeskift). «Om reisen»
-             (forslag.om_reisen) er nå den romslige salgsteksten på side 2,
-             sammen med Om reisen-galleriet fra Bilder-fanen. -->
-        <div class="card" style="margin-bottom:28px;">
-          <div class="card-title">Ingress (forside)</div>
-          <textarea id="pres-ingress" class="pres-textarea" style="min-height:70px;" placeholder="Kort ingress øverst på forsiden - inntil fire linjer i PDF-en"></textarea>
+    <div class="pres-stack">
+      <!-- Høydepunkter plukkes fra det koblede reisemålets høydepunktbank
+           (reisemaal_hoydepunkter). Pkt 13A: banken er en MAL - ved valg
+           kopieres tittel og beskrivelse inn i tilbudets egne felt
+           (navn_override/korttekst_override, eksisterende kolonner) og kan
+           tilpasses lokalt uten å røre banken. PDF-en bruker den lokale
+           versjonen. Eldre rader uten lokal tekst faller tilbake på banken. -->
+      <div class="card">
+        <div class="card-title">Høydepunkter</div>
+        <div id="hpBankRad"></div>
+        <div class="item-list" id="hoydepunktList"></div>
+        <button type="button" class="btn-small-add" id="hpNyttBtn">+ Opprett nytt høydepunkt i banken</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Forsideinfo</div>
+        <textarea id="pres-ingress" class="pres-textarea pdf-bredde pres-ingress" placeholder="Kort tekst øverst på forsiden - normalt to-tre linjer"></textarea>
+        <div class="ordteller-rad pdf-bredde-rad">
+          <div class="ordteller-hint">Skrivebredden tilsvarer forsiden i PDF-en</div>
           <div class="ordteller" id="pres-ingress-teller"></div>
         </div>
-        <div class="card" style="margin-bottom:28px;">
-          <div class="card-title">Om reisen (side 2)</div>
-          <!-- UX-runde 06.09.2026: Reisemål-kortet er flyttet til høyre kolonne
-               (velge/konfigurere), og den frigjorte plassen gis til
-               skriveflaten - Om reisen er hovedteksten på en egen PDF-side. -->
-          <textarea id="pres-omreisen" class="pres-textarea pres-omreisen" placeholder="Den kundetilpassede salgsteksten - fyller øvre halvdel av side 2, bildene fyller nedre"></textarea>
-          <div class="ordteller-rad">
-            <div class="ordteller-hint">Anbefalt 1000–1300 tegn · maks 1500</div>
-            <div class="ordteller" id="pres-omreisen-teller"></div>
-          </div>
-        </div>
-        <!-- v9: "Fra forslag til reise" (tidligere "Veien videre") og
-             "Forbehold" er flyttet hit fra den nå fjernede Forbehold-fanen,
-             plassert under Reisemål i venstre kolonne. Samme
-             ordtellermønster som Om reisen/Reisemål over, men med 40-ords
-             sperre i stedet for 60.
-             Del 3: gruppert under en egen overskrift, fordi disse to
-             tekstene hører til REISEFORSLAGET. Tilbudets forbehold er et
-             eget felt under Vilkår og frister - to forskjellige tekster. -->
-        <div class="felt-gruppe">
-          <div class="felt-gruppe-tittel">Til bruk ved Reiseforslag</div>
-          <div class="felt-gruppe-hint">Disse tekstene brukes når du genererer et Reiseforslag.</div>
-        </div>
-        <div class="card" style="margin-bottom:28px;">
-          <div class="card-title">Fra forslag til reise</div>
-          <textarea id="vv-tekst" class="forbehold-textarea" style="min-height:90px;"></textarea>
-          <div class="ordteller" id="vv-tekst-teller"></div>
-          <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
-        </div>
-        <div class="card">
-          <div class="card-title">Forbehold</div>
-          <textarea id="fb-tekst" class="forbehold-textarea" style="min-height:90px;"></textarea>
-          <div class="ordteller" id="fb-tekst-teller"></div>
-          <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Om reisen</div>
+        <textarea id="pres-omreisen" class="pres-textarea pdf-bredde pres-omreisen" placeholder="Den kundetilpassede salgsteksten på side 2 - blank linje gir nytt avsnitt"></textarea>
+        <div class="ordteller-rad pdf-bredde-rad">
+          <div class="ordteller-hint">Skrivebredden tilsvarer side 2 i PDF-en · anbefalt 1000–1300 tegn · maks 1500</div>
+          <div class="ordteller" id="pres-omreisen-teller"></div>
         </div>
       </div>
-      <!-- v: Høydepunkter - plukkes fra det valgte reisemålets
-           høydepunktbank (bygget i reisemaal.html §4, forutsetter at "Velg
-           fra reisemål-oversikt" over er brukt slik at reisemaal_id er
-           satt). Referanser (forslag_hoydepunkter.hoydepunkt_id), ikke
-           kopier - men navn/korttekst kan overstyres lokalt per forslag
-           uten å endre banken. v7: flyttet til høyre kolonne, komprimert i
-           bredden fra tidligere fullbredde-løsning. -->
-      <div class="pres-col">
-        <!-- UX-runde 06.09.2026: Reisemål flyttet hit fra venstre kolonne -
-             høyre kolonne = velge/konfigurere (Reisemål, Høydepunkter),
-             venstre = skrive (Ingress, Om reisen). Reisemål står rett over
-             Høydepunkter fordi valgt reisemål styrer høydepunktbanken.
-             Kortet viser nå tydelig hvilket reisemål som er koblet (se
-             renderReisemaalStatus()) - før viste det bare valgknappen. -->
-        <div class="card pres-reisemaal-kort" style="margin-bottom:28px;">
-          <div class="card-title">Reisemål</div>
-          <div class="pres-reisemaal-status" id="presReisemaalStatus"></div>
-          <div style="position:relative;">
-            <button type="button" class="btn-small-add" id="presVelgReisemaalBtn">Velg reisemål</button>
-            <div class="pres-reisemaal-wrap" id="presReisemaalWrap" style="display:none; position:relative; margin-top:8px;">
-              <input type="text" id="presReisemaalSok" placeholder="Søk reisemål…" autocomplete="off">
-              <div class="pres-reisemaal-dropdown" id="presReisemaalDropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:240px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
-            </div>
-          </div>
-          <!-- PDF-struktur: «Om reisemålet» vises ikke lenger i PDF-en og
-               er skjult her. Feltet (forslag.om_reisemalet) beholdes i
-               basen og lagres uendret, så ingenting går tapt. -->
-          <div style="display:none;">
-            <textarea id="pres-reisemal" class="pres-textarea"></textarea>
-            <div class="ordteller" id="pres-reisemal-teller"></div>
-          </div>
-          <div class="field-hint" style="margin-top:10px;">Reisemålet gir høydepunktbank og landnavn i PDF-tittelen.</div>
-        </div>
-        <div class="card">
-          <div class="card-title">Høydepunkter</div>
-          <div class="field-hint" style="margin-bottom:12px;">Anbefalt: ca. 4 høydepunkter. Hentes fra reisemålets høydepunktbank (Reisemål-registeret).</div>
-          <div id="hpBankRad"></div>
-          <div class="item-list" id="hoydepunktList"></div>
-          <button type="button" class="btn-small-add" id="hpNyttBtn">+ Opprett nytt høydepunkt i banken</button>
-        </div>
+      <!-- Tekstene som hører til REISEFORSLAGET. Tilbudets forbehold er et
+           eget felt under Vilkår og frister - to forskjellige tekster. -->
+      <div class="felt-gruppe">
+        <div class="felt-gruppe-tittel">Til bruk ved Reiseforslag</div>
+        <div class="felt-gruppe-hint">Disse tekstene brukes når du genererer et Reiseforslag.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Fra forslag til reise</div>
+        <textarea id="vv-tekst" class="forbehold-textarea" style="min-height:90px;"></textarea>
+        <div class="ordteller" id="vv-tekst-teller" style="width:604px; max-width:100%;"></div>
+        <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Forbehold</div>
+        <textarea id="fb-tekst" class="forbehold-textarea" style="min-height:90px;"></textarea>
+        <div class="ordteller" id="fb-tekst-teller" style="width:604px; max-width:100%;"></div>
+        <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
+      </div>
+      <!-- «Om reisemålet» vises ikke i PDF-en og er skjult. Feltet
+           (forslag.om_reisemalet) beholdes i basen og lagres uendret. -->
+      <div style="display:none;">
+        <textarea id="pres-reisemal" class="pres-textarea"></textarea>
+        <div class="ordteller" id="pres-reisemal-teller"></div>
       </div>
     </div>
   </div>
@@ -1214,7 +1223,6 @@
   <div class="tab-panel" data-tab="vilkaar">
     <div class="card" style="margin-bottom:20px;">
       <div class="card-title">Tilbudsfrist</div>
-      <div class="field-hint" style="margin-bottom:12px;">Fristen kunden har på tilbudet. Forhåndsutfylt med 7 dager fra opprettelsen, fritt redigerbar - ingenting her er påkrevd under vanlig arbeid.</div>
       <div class="field-grid" style="grid-template-columns:160px 1fr; max-width:520px;">
         <label for="vk-frist">Tilbudsfrist</label>
         <input type="date" id="vk-frist">
@@ -1229,7 +1237,6 @@
          bestillingen er bekreftet hos leverandørene. -->
     <div class="card" style="margin-bottom:20px;">
       <div class="card-title">Forbehold</div>
-      <div class="field-hint" style="margin-bottom:10px;">Forbehold for tilbudet. Reiseforslagets forbehold står uendret under Presentasjon.</div>
       <textarea id="vk-forbehold" class="forbehold-textarea" style="min-height:110px;" placeholder="Forbehold som gjelder tilbudet."></textarea>
       <div class="ordteller" id="vk-forbehold-teller" style="width:604px; max-width:100%;"></div>
     </div>
@@ -1243,28 +1250,24 @@
          (avbestillingsbetingelsene er satt opp med én periode per linje). -->
     <div class="card" style="margin-bottom:20px;">
       <div class="card-title">Betalingsbetingelser</div>
-      <div class="field-hint" style="margin-bottom:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
       <textarea id="vk-betaling" class="forbehold-textarea" style="min-height:110px;" placeholder="F.eks. forfall og sluttbetaling."></textarea>
       <div class="ordteller" id="vk-betaling-teller" style="width:604px; max-width:100%;"></div>
     </div>
 
     <div class="card" style="margin-bottom:20px;">
       <div class="card-title">Navneliste og navneendringer</div>
-      <div class="field-hint" style="margin-bottom:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
       <textarea id="vk-navneliste" class="forbehold-textarea" style="min-height:110px;" placeholder="Frist for navneliste og vilkår for navneendringer."></textarea>
       <div class="ordteller" id="vk-navneliste-teller" style="width:604px; max-width:100%;"></div>
     </div>
 
     <div class="card" style="margin-bottom:20px;">
       <div class="card-title">Avbestillingsbetingelser</div>
-      <div class="field-hint" style="margin-bottom:10px;">Standardteksten er forhåndsutfylt og kan tilpasses. Én periode per linje.</div>
       <textarea id="vk-avbestilling" class="forbehold-textarea" style="min-height:130px;" placeholder="F.eks. frister og gebyrer ved avbestilling."></textarea>
       <div class="ordteller" id="vk-avbestilling-teller" style="width:604px; max-width:100%;"></div>
     </div>
 
     <div class="card">
       <div class="card-title">Øvrige betingelser</div>
-      <div class="field-hint" style="margin-bottom:10px;">Standardteksten er forhåndsutfylt og kan tilpasses. Generelle forbehold hører hjemme i Forbehold-feltet over.</div>
       <textarea id="vk-saerlige" class="forbehold-textarea" style="min-height:110px;" placeholder="Øvrige betingelser for tilbudet."></textarea>
       <div class="ordteller" id="vk-saerlige-teller" style="width:604px; max-width:100%;"></div>
     </div>
@@ -1715,9 +1718,14 @@ function renderKalkyleInfo(){
   const f = state.forslag;
   const info = el("kalkyleInfo");
   const drift = el("kalkyleDrift");
+  // Pkt 10: knappen øverst til høyre er navigasjonen begge veier - samme
+  // plass og stil som «Gå til gruppetilbud →» i kalkyle-editoren.
+  const knapp = el("btnKalkyle");
+  knapp.style.display = "";
+  knapp.textContent = f.kalkyle_id ? "← Gå til priskalkyle" : "Opprett priskalkyle";
+  knapp.title = f.kalkyle_id ? "Åpner priskalkylen dette gruppetilbudet er koblet til" : "Oppretter en ny priskalkyle koblet til dette gruppetilbudet";
   if(!f.kalkyle_id){
-    info.innerHTML = `🧮 Koble til kalkyle: <a href="#" id="opprettKalkyleLink">Opprett kalkyle →</a>`;
-    el("opprettKalkyleLink").addEventListener("click", (e)=>{ e.preventDefault(); opprettKalkyleFraForslag(); });
+    info.innerHTML = "";
     drift.style.display = "none";
     return;
   }
@@ -1727,7 +1735,7 @@ function renderKalkyleInfo(){
   // deretter stå 'åpne kalkyle' som på de andre, når man er tilbake i
   // reiseforslaget." Ingen egen mellomtilstand nødvendig - f.kalkyle_id er
   // det eneste som styrer hvilken av de to tekstene som vises.
-  info.innerHTML = `🧮 Koblet til kalkyle: <a href="kalkyle-editor.html?kalkyle=${encodeURIComponent(f.kalkyle_id)}">Åpne kalkyle →</a>`;
+  info.innerHTML = `🧮 Koblet til priskalkyle`;
   window.sb.from("kalkyler").select("sist_endret").eq("id", f.kalkyle_id).single().then(({data})=>{
     if(!data) return;
     const stale = f.kalkyle_sist_endret_ved_kobling && new Date(data.sist_endret) > new Date(f.kalkyle_sist_endret_ved_kobling);
@@ -2172,6 +2180,14 @@ function renderHotellegenskaper(container, f){
 // en", satt til 9 (i praksis mer enn nok for enhver reise).
 const HOTELL_MAKS = 9;
 
+// Pkt 6: antall netter = dager mellom innsjekk og utsjekk. null når en av
+// datoene mangler (ISO-strenger, ingen tidssoner involvert).
+function beregnNetter(f){
+  if(!f.fra_dato || !f.til_dato) return null;
+  const d = Math.round((new Date(f.til_dato.slice(0,10) + "T00:00:00Z") - new Date(f.fra_dato.slice(0,10) + "T00:00:00Z")) / 86400000);
+  return d >= 0 ? d : null;
+}
+
 function renderHotell(){
   const wrap = el("hotellList");
   wrap.innerHTML = "";
@@ -2219,7 +2235,6 @@ function renderHotell(){
             ${[1,2,3,4,5].map(n=>`<option value="${n}" ${Number(f.stjerner)===n?"selected":""}>${"★".repeat(n)}</option>`).join("")}
           </select>
         </div>
-        <div class="kv-field h-field-netter"><label>Antall netter</label><input type="number" class="h-netter" value="${f.netter??""}" min="0"></div>
       </div>
       <div class="kv-row">
         <div class="kv-field h-field-sted"><label>Reisemål</label><input class="h-sted" value="${escapeHtml(f.sted)}" placeholder="F.eks. Kroatia-kysten"></div>
@@ -2230,11 +2245,11 @@ function renderHotell(){
           </div>
         </div>
       </div>
+      <!-- Pkt 6: datoene er sannhetskilden - antall netter regnes av dem og
+           vises her, ikke som eget redigerbart felt. -->
+      <div class="h-netter-vis"></div>
       <div class="kv-row">
         <div class="kv-field h-field-land"><label>Land</label><input class="h-land" value="${escapeHtml(f.land)}" placeholder="F.eks. Kroatia"></div>
-        <div class="kv-field h-field-romtype"><label>Romtype</label>
-          <select class="h-standard-romtype">${ROOM_TYPE_OPTIONS.map(rt=>`<option value="${rt}" ${rt===(f.romtype_standard||"Dobbeltrom")?"selected":""}>${rt}</option>`).join("")}</select>
-        </div>
         <div class="kv-field h-field-maltider"><label>Måltider</label>
           <select class="h-maltider">${MALTIDER_OPTIONS.map(m=>`<option value="${escapeHtml(m.value)}" ${(f.maltider||"")===m.value?"selected":""}>${m.label}</option>`).join("")}</select>
         </div>
@@ -2253,8 +2268,28 @@ function renderHotell(){
     `;
     wrap.appendChild(card);
     const bind = (cls, field)=> card.querySelector(cls).addEventListener("change", e=>{ f[field] = e.target.value || null; });
-    bind(".h-sted","sted"); bind(".h-land","land"); bind(".h-fra","fra_dato"); bind(".h-til","til_dato");
-    card.querySelector(".h-netter").addEventListener("change", e=>{ f.netter = numOrNull(e.target.value); syncOgRenderInkludert(); });
+    bind(".h-sted","sted"); bind(".h-land","land");
+    // Pkt 6: inn-/utsjekksdato er sannhetskilden. Antall netter regnes av
+    // dem (og skrives til f.netter, som PDF-en og den automatiske
+    // Inkludert-linjen leser). Mangler en dato, beholdes den lagrede
+    // verdien - eksisterende data uten datoer mister ingenting.
+    const netterVis = card.querySelector(".h-netter-vis");
+    const visNetter = ()=>{
+      const n = beregnNetter(f);
+      netterVis.textContent = n == null ? (f.netter ? `${f.netter} ${f.netter===1?"natt":"netter"} (lagret - sett datoer for automatisk beregning)` : "Sett inn- og utsjekksdato for å få antall netter")
+        : (n === 0 ? "0 netter - sjekk datoene" : `${n} ${n===1?"natt":"netter"}`);
+      netterVis.style.color = (n === 0) ? "#b04a4a" : "";
+    };
+    const datoEndret = (cls, field)=> card.querySelector(cls).addEventListener("change", e=>{
+      f[field] = e.target.value || null;
+      const n = beregnNetter(f);
+      if(n != null) f.netter = n;
+      visNetter();
+      syncOgRenderInkludert();
+    });
+    datoEndret(".h-fra","fra_dato"); datoEndret(".h-til","til_dato");
+    { const n = beregnNetter(f); if(n != null && n !== f.netter) f.netter = n; }
+    visNetter();
     bind(".h-navn","hotellnavn");
     bind(".h-maltider","maltider"); bind(".h-beskrivelse","beskrivelse"); bind(".h-prisinfo","prisinfo");
     // PDF-struktur: hotellbeskrivelsen er en halvsideblokk i PDF-en - hard
@@ -2270,10 +2305,8 @@ function renderHotell(){
     card.querySelector(".h-maltider").addEventListener("change", syncOgRenderInkludert);
     card.querySelector(".h-stjerner-select").addEventListener("change", e=>{ f.stjerner = e.target.value ? Number(e.target.value) : null; });
     renderHotellegenskaper(card.querySelector(".h-egenskaper-wrap"), f);
-    card.querySelector(".h-standard-romtype").addEventListener("change", e=>{
-      f.romtype_standard = e.target.value;
-      syncOgRenderInkludert();
-    });
+    // Pkt 7: Romtype er ikke lenger et felt i Gruppetilbud. romtype_standard
+    // beholdes urørt i databasen (og i kalkylen), men settes/vises ikke her.
     card.querySelector(".item-remove").addEventListener("click", ()=>{
       const removedKey = item.clientKey;
       state.hotellopphold.splice(idx,1);
@@ -2629,7 +2662,7 @@ function programDagBank(){
   return {
     tittel: r ? ("Bildebank for " + r.navn) : "Reisemålets bildebank",
     erKoblet: ()=> !!state.forslag.reisemaal_id,
-    tomBeskjed: "Koble et reisemål under Presentasjon («Velg reisemål») for å se bildene i reisemålets bildebank. "
+    tomBeskjed: "Koble tilbudet til et reisemål under Reiseinfo («Koble til reisemål») for å se bildene i reisemålets bildebank. "
               + "Du kan også laste opp bilder direkte - de blir da liggende kun på dette gruppetilbudet.",
     hentBilder: reisemaalBildebankForValgtReisemaal,
     brukteIds: ()=>{
@@ -2685,9 +2718,11 @@ function beregnAutoHotellLinjer(){
     .map(item=>item.fields)
     .filter(h=> h.hotellnavn && h.netter)
     .map(h=>{
-      const romtype = (h.romtype_standard || "Dobbeltrom").toLowerCase();
+      // Pkt 7 (16.09.2026): romtypen er ute av Gruppetilbud, så linjen sier
+      // ikke lenger «i delt dobbeltrom». Eksisterende linjer med romtype
+      // byttes ut av synkingen ved neste hotellendring (ikke overstyrt).
       const maltidTxt = HOTELL_MALTID_INLINE[h.maltider] || "";
-      let linje = `${h.netter} ${h.netter===1?"natt":"netter"} på ${h.hotellnavn} i delt ${romtype}`;
+      let linje = `${h.netter} ${h.netter===1?"natt":"netter"} på ${h.hotellnavn}`;
       if(maltidTxt) linje += `, inkl. ${maltidTxt}`;
       return linje + ".";
     });
@@ -2831,7 +2866,9 @@ function syncOgRenderInkludert(){
    flyttFlyOgHotellLinjerTilTopp), så to-linjers radene deler rad. */
 function erAutoFlyLinje(v){ return /^Flyreise .+ t\/r, .+$/.test(v || ""); }
 function erAutoHotellLinje(v){
-  return /^\d+ (natt|netter) på .+ i delt .+\.$/.test(v || "") || (state.forslag.auto_hotell_linjer || []).includes(v);
+  // Både dagens form («5 netter på X, inkl. frokost.») og den gamle med
+  // romtype («… i delt dobbeltrom, …») gjenkjennes.
+  return /^\d+ (natt|netter) på .+\.$/.test(v || "") || (state.forslag.auto_hotell_linjer || []).includes(v);
 }
 function erAutoLinje(v){ return erAutoFlyLinje(v) || erAutoHotellLinje(v); }
 // Der PDF-en brekker flylinjen fast (samme regel som inkludertLinjeHtml i
@@ -2963,11 +3000,20 @@ el("addIkkeInkludertBtn").addEventListener("click", ()=>{
 const TEGN = {
   ingress: 350, omReisen: 1500, hotell: 370, program: 370, programTittel: 60,
   veienVidere: 250, forbehold: 200, vilkaar: 500,
-  hpNavn: 20, hpKorttekst: 120, flyRute: 38,
-  inkludertPunkt: 40, inkludertVekt: 17, ikkePunkt: 20, ikkeAntall: 6, ikkeSamlet: 110,
+  // Pkt 13: høydepunktene valideres mot kortets faktiske høyde ved
+  // generering (hoydepunktKortVarsel), ikke bare mot tegn.
+  hpNavn: 40, hpKorttekst: 160, flyRute: 38,
+  // Pkt 11: manuelle punkter kan være opptil 100 tegn (korte bullets, inntil
+  // to linjer i PDF-en). Ikke inkludert er én løpende tekst på inntil to
+  // linjer i PDF-en - 220 tegn samlet medregnet « · ».
+  inkludertPunkt: 100, inkludertVekt: 17, ikkePunkt: 100, ikkeAntall: 6, ikkeSamlet: 220,
   tittel: 35,
 };
-const LINJESKIFT_VEKT = 100;
+// Pkt 4 (16.09.2026): ett linjeskift teller som ETT tegn i alle felt.
+// Vekten 100 var årsaken til at Forbehold / Fra forslag til reise / hotell-
+// og programtekster «tellte 100 tegn per linjeskift» - vilkårsfeltene hadde
+// allerede vekt 1. Høydene måles uansett mot PDF-en ved generering.
+const LINJESKIFT_VEKT = 1;
 const PDF_TITTEL_BREDDE_PX = 656;   // H1-feltet er 666 px (210 mm - 2 x 64 px); 10 px slingringsmonn, samme som forslag-print.html
 
 // linjeskiftVekt: hva et linjeskift teller som. Standard er
@@ -3032,7 +3078,7 @@ function refreshTegnteller(ta, teller, maks, ingenLinjeskift, kapp, linjeskiftVe
 function kobleTegnteller(taId, tellerId, maks, ingenLinjeskift, linjeskiftVekt){
   el(taId).addEventListener("input", ()=> refreshTegnteller(el(taId), el(tellerId), maks, ingenLinjeskift, true, linjeskiftVekt));
 }
-kobleTegnteller("pres-ingress","pres-ingress-teller",TEGN.ingress,true);
+kobleTegnteller("pres-ingress","pres-ingress-teller",TEGN.ingress);   // linjeskift tillatt (pkt 15)
 el("pres-ingress").addEventListener("input", oppdaterPdfVarsler);
 el("pres-omreisen").addEventListener("input", oppdaterPdfVarsler);
 kobleTegnteller("pres-omreisen","pres-omreisen-teller",TEGN.omReisen,false,1);   // linjeskift = 1 tegn, se vektetLengde()
@@ -3110,12 +3156,29 @@ function antallLinjer(tekst, font, breddePx, lineHeight){
 }
 // Inkludert-punktene i PDF-en: 14 px DM Sans, linjehøyde 1,4, 299 px tekstbredde per kolonne.
 function inkludertLinjer(tekst){ return antallLinjer(tekst, "400 14px 'DM Sans', sans-serif", 299, 1.4); }
+// «Ikke inkludert» i PDF-en: én løpende linje på 11,5 px over 666 px (den
+// fete «Ikke inkludert:»-etiketten tar ca. 84 px av første linje).
+function ikkeInkludertLinjer(tekst){ return antallLinjer("Ikke inkludert: " + tekst, "400 11.5px 'DM Sans', sans-serif", 666, 1.5); }
+// Pkt 13C: høydepunktkortet på forsiden. Tekstdelen er 179 px bred (323 px
+// kolonne - 130 px bilde - 14 px luft); tittel 11,5 px fet versaler, tekst
+// 12 px / 1,45. Kortet er 114 px høyt (bildet) - blir tittel + tekst
+// høyere, vokser kortet og forsiden med det. null = passer, ellers en
+// konkret melding om hvilket felt som gjør kortet for høyt.
+function hoydepunktKortVarsel(navn, tekst){
+  const tittelLinjer = antallLinjer((navn || "").toUpperCase(), "700 11.5px 'DM Sans', sans-serif", 176, 1.3);
+  const tekstLinjer = antallLinjer(tekst || "", "400 12px 'DM Sans', sans-serif", 179, 1.45);
+  const hoyde = tittelLinjer * 11.5 * 1.3 + 3 + tekstLinjer * 12 * 1.45;
+  if(hoyde <= 114) return null;
+  if(tittelLinjer > 1) return `Høydepunktet «${navn}»: tittelen tar ${tittelLinjer} linjer i kortet - kort ned tittelen (detaljene hører hjemme i beskrivelsen).`;
+  return `Høydepunktet «${navn}»: beskrivelsen blir ${tekstLinjer} linjer og gjør kortet for høyt - kort ned beskrivelsen (1–2 korte setninger, ca. 80–120 tegn).`;
+}
 let pdfTittelForBred = false;
 let pdfVarslerNaa = [];
+// Pkt 3: ingen teller og ingen live-varsel under Tittel. Bredden mot
+// PDF-en (én linje) beregnes her og brukes først når PDF-en genereres.
 async function sjekkPdfTittel(){
   const felt = el("g-destinasjon");
   if(vektetLengde(felt.value) > TEGN.tittel) felt.value = felt.value.slice(0, TEGN.tittel);
-  const teller = el("g-destinasjon-teller");
   if(document.fonts){
     try{ await Promise.all(["600 34px Fraunces","600 19px Fraunces","600 18px Fraunces","400 14px 'DM Sans'","400 11.5px 'DM Sans'","700 11.5px 'DM Sans'"].map(f=> document.fonts.load(f))); }catch(e){}
   }
@@ -3123,8 +3186,6 @@ async function sjekkPdfTittel(){
   const storrelse = pdfTittelStorrelse(tittel);
   // For bred = får ikke plass på én linje selv ved minste tillatte størrelse.
   pdfTittelForBred = pdfTittelBredde(tittel) * storrelse / 34 > PDF_TITTEL_BREDDE_PX;
-  teller.textContent = `${felt.value.length}/${TEGN.tittel} tegn · PDF-tittel: «${tittel}»` + (storrelse < 34 ? ` (skaleres til ${storrelse} px)` : "");
-  teller.classList.toggle("full", pdfTittelForBred || felt.value.length >= TEGN.tittel);
   oppdaterPdfVarsler();
 }
 el("g-destinasjon").addEventListener("input", sjekkPdfTittel);
@@ -3157,7 +3218,7 @@ function tegnOverGrenseVarsler(){
     const n = vektetLengde(tekst || "", vekt);
     if(n > maks) v.push(`${navn} er ${n} tegn - maks ${maks}. Kort ned teksten.`);
   };
-  sjekk("Ingress (forside)", f.ingress, TEGN.ingress);
+  sjekk("Forsideinfo", f.ingress, TEGN.ingress);
   sjekk("Om reisen", f.om_reisen, TEGN.omReisen, 1);
   sjekk("Fra forslag til reise", f.veien_videre_tekst, TEGN.veienVidere);
   sjekk("Forbehold", f.forbehold_tekst, TEGN.forbehold);
@@ -3172,20 +3233,29 @@ function tegnOverGrenseVarsler(){
     sjekk(`Overskriften på dag ${d.fields.dagnummer}`, d.fields.overskrift, TEGN.programTittel);
   });
   state.hoydepunkter.forEach(h=>{
-    sjekk("Et høydepunktnavn (overstyrt)", h.fields.navn_override, TEGN.hpNavn);
-    sjekk("En høydepunkttekst (overstyrt)", h.fields.korttekst_override, TEGN.hpKorttekst);
+    sjekk("En høydepunkttittel", h.fields.navn_override, TEGN.hpNavn);
+    sjekk("En høydepunktbeskrivelse", h.fields.korttekst_override, TEGN.hpKorttekst);
   });
   state.transport.forEach(t=> sjekk("En flystrekning", t.fields.beskrivelse, TEGN.flyRute));
   return v;
 }
 
-function oppdaterPdfVarsler(){
+// Pkt 1: den samlede valideringen vises først når brukeren forsøker å
+// generere en PDF (aapnePdf setter pdfValideringVist). Etter det holdes
+// listen levende oppdatert til den er tom - da skjules den igjen.
+let pdfValideringVist = false;
+let pdfValideringType = false;   // false = Reiseforslag, true = Tilbud (sist forsøkt)
+function oppdaterPdfVarsler(erTilbud){
+  if(erTilbud === undefined) erTilbud = pdfValideringType;
   // Valider det som faktisk står i skjemaet, ikke gammel state - state
   // synkes ellers først ved lagring (2,5 s etter siste tastetrykk). Kun
   // etter at siden er ferdig lastet (autosaveKlar): under innlastingen er
   // state fasiten og skjemaet ennå ikke fylt.
   if(autosaveKlar) collectFieldsFromForm();
   const varsler = [];
+  // Tilbudsfristen står på tilbudets avslutningsside («Tilbudet er gyldig
+  // til og med …») og er obligatorisk for Tilbud - ikke for Reiseforslag.
+  if(erTilbud && !(el("vk-frist").value || "").trim()) varsler.push("Tilbudsfrist mangler - fylles ut under Vilkår og frister.");
   // Hovedbildet er obligatorisk (QA 06.09.2026): uten det er forsiden
   // tre fjerdedeler tom. Gjelder både Reiseforslag og Tilbud.
   if(!state.forslag.hovedbilde_url && !state.bilder.some(b=> b.fields.kategori==="Destinasjon" && b.fields.er_hovedbilde)){
@@ -3195,8 +3265,8 @@ function oppdaterPdfVarsler(){
   // Ingressen er obligatorisk i begge dokumenter - uten den står forsiden
   // med et tomt felt. De ni eksisterende sakene får den fylt manuelt;
   // om_reisen kopieres bevisst ikke, da ville samme tekst stått to steder.
-  if(!(el("pres-ingress").value || "").trim()) varsler.push("Ingress (forside) mangler - fylles ut under Presentasjon.");
-  if(pdfTittelForBred) varsler.push(`Tittelen «${pdfTittel()}» er for bred for én linje i PDF-en - kort ned Reisemål i Reiseinfo.`);
+  if(!(el("pres-ingress").value || "").trim()) varsler.push("Forsideinfo mangler - fylles ut under Presentasjon.");
+  if(pdfTittelForBred) varsler.push(`Tittelen «${pdfTittel()}» er for bred for én linje i PDF-en - kort ned Tittel i Reiseinfo.`);
   (state.forslag.inkludert || []).forEach(v=>{
     if(!v) return;
     if(erAutoLinje(v)){
@@ -3208,16 +3278,19 @@ function oppdaterPdfVarsler(){
       const fastBrekkGaar = !!deler && deler.every(d=> inkludertLinjer(d) <= 1);
       const forLang = !fastBrekkGaar && inkludertLinjer(v) > 2;
       if(forLang) varsler.push(`Den automatiske linjen «${v}» blir mer enn to linjer i PDF-en - forkort hotellnavnet i Hotell-fanen.`);
-    } else if(inkludertLinjer(v) > 1){
-      varsler.push(`Punktet «${v}» under Turen inkluderer er for langt for én linje - kort ned.`);
+    } else if(inkludertLinjer(v) > 2){
+      // Pkt 11: manuelle punkter får bruke to linjer i PDF-en.
+      varsler.push(`Punktet «${v}» under Turen inkluderer blir mer enn to linjer i PDF-en - kort ned.`);
     }
   });
   const ikkeLinje = (state.forslag.ikke_inkludert || []).filter(Boolean).join(" · ");
-  if(ikkeLinje && !passerEnLinje(ikkeLinje, "ikke")) varsler.push("Ikke inkludert blir mer enn én linje i PDF-en - kort ned punktene.");
+  if(ikkeLinje && ikkeInkludertLinjer(ikkeLinje) > 2) varsler.push("Ikke inkludert blir mer enn to linjer i PDF-en - kort ned punktene.");
   state.hoydepunkter.forEach(h=>{
     const bank = hoydepunktBankOversikt.find(b=>b.id===h.fields.hoydepunkt_id);
     const navn = h.fields.navn_override || (bank && bank.navn) || "";
-    if(navn && !passerEnLinje(navn.toUpperCase(), "hpNavn")) varsler.push(`Høydepunktnavnet «${navn}» er for bredt for én linje - kort ned (overstyr navnet i Presentasjon).`);
+    const tekst = h.fields.korttekst_override || (bank && bank.korttekst) || "";
+    const v = hoydepunktKortVarsel(navn, tekst);
+    if(v) varsler.push(v);
   });
   state.dagsprogram.forEach(d=>{
     if(d.fields.overskrift && !passerEnLinje(d.fields.overskrift, "dagTittel")) varsler.push(`Overskriften på dag ${d.fields.dagnummer} er for bred for én linje - kort ned.`);
@@ -3261,9 +3334,12 @@ function oppdaterPdfVarsler(){
   // velges eksplisitt (Bilder-fanen), ellers står siste side uten bilde.
   if(!state.bilder.some(b=> b.fields.er_avslutningsbilde)) varsler.push("Avslutningsbilde mangler - velg ett under Bilder. Bilder gjentas aldri i PDF-en, så det hentes ikke automatisk fra galleriet.");
   const boks = el("pdfVarsel");
-  boks.innerHTML = (varsler.length ? `<div style="font-weight:600; margin-bottom:2px;">Må rettes før PDF kan genereres:</div>` : "")
+  boks.innerHTML = (varsler.length ? `<div style="font-weight:600; margin-bottom:2px;">Må rettes før ${erTilbud ? "Tilbud" : "Reiseforslag"} kan genereres:</div>` : "")
     + varsler.map(v=>`<div>${escapeHtml(v)}</div>`).join("");
-  boks.classList.toggle("vis", varsler.length > 0);
+  // Pkt 1: synlig først etter et generreringsforsøk, og skjules igjen når
+  // listen er tom.
+  if(!varsler.length) pdfValideringVist = false;
+  boks.classList.toggle("vis", pdfValideringVist && varsler.length > 0);
   pdfVarslerNaa = varsler;
   const galleriVarsel = el("galleriPartallVarsel");
   if(galleriVarsel){
@@ -3279,7 +3355,7 @@ function renderPresentasjon(){
   el("pres-omreisen").value = f.om_reisen || "";
   el("pres-reisemal").value = f.om_reisemalet || "";
   renderReisemaalStatus();
-  refreshTegnteller(el("pres-ingress"), el("pres-ingress-teller"), TEGN.ingress, true);
+  refreshTegnteller(el("pres-ingress"), el("pres-ingress-teller"), TEGN.ingress);
   refreshTegnteller(el("pres-omreisen"), el("pres-omreisen-teller"), TEGN.omReisen, false, false, 1);
   renderHoydepunkter();
   sjekkPdfTittel();
@@ -3450,7 +3526,7 @@ function renderHoydepunkter(){
   const valgteIds = new Set(state.hoydepunkter.map(h=>h.fields.hoydepunkt_id));
   const tilgjengelig = bank.filter(h=>!valgteIds.has(h.id));
   if(!state.forslag.reisemaal_id){
-    bankRad.innerHTML = '<div class="hp-bank-tom">Velg et reisemål over («Velg reisemål») for å plukke høydepunkter fra banken.</div>';
+    bankRad.innerHTML = '<div class="hp-bank-tom">Koble tilbudet til et reisemål under Reiseinfo («Koble til reisemål») for å plukke høydepunkter fra banken.</div>';
   } else if(!bank.length){
     bankRad.innerHTML = '<div class="hp-bank-tom">Dette reisemålet har ingen høydepunkter i banken ennå. Opprett ett under, eller legg til i Reisemål-registeret.</div>';
   } else if(!tilgjengelig.length){
@@ -3487,17 +3563,17 @@ function renderHoydepunkter(){
         <button class="item-remove">Fjern</button>
       </div>
       <div class="field-grid">
-        <label>Navn (overstyr)</label><input class="hp-navn-ov" maxlength="${TEGN.hpNavn}" value="${escapeHtml(f.navn_override)}" placeholder="${escapeHtml(bankHp ? bankHp.navn : "")}">
-        <label>Korttekst (overstyr)</label><textarea class="hp-korttekst-ov" placeholder="${escapeHtml(bankHp ? bankHp.korttekst : "")}">${escapeHtml(f.korttekst_override)}</textarea>
+        <label>Tittel</label><input class="hp-navn-ov" maxlength="${TEGN.hpNavn}" value="${escapeHtml(f.navn_override || (bankHp ? bankHp.navn : ""))}">
+        <label>Beskrivelse</label><textarea class="hp-korttekst-ov">${escapeHtml(f.korttekst_override || (bankHp ? bankHp.korttekst : ""))}</textarea>
         <div></div><div class="ordteller hp-korttekst-teller"></div>
         <label>Bilde</label>
         <div class="hp-bilde-status">${(f.valgt_bilde_id || f.bilde_url) ? "🖼 Bilde valgt (endre på Bilder-siden)" : "Ingen bilde valgt ennå - velges på Bilder-siden"}</div>
       </div>
     `;
     wrap.appendChild(card);
+    // Pkt 13A: feltene viser og lagrer tilbudets EGEN tekst
+    // (navn_override/korttekst_override). Banken røres aldri herfra.
     card.querySelector(".hp-navn-ov").addEventListener("change", e=>{ f.navn_override = e.target.value.slice(0, TEGN.hpNavn) || null; oppdaterPdfVarsler(); });
-    // PDF-struktur: navn maks 20 tegn (én linje i kortet), korttekst maks
-    // 120 tegn (fem linjer) - kortet på forsiden beholder da høyden sin.
     const hpTa = card.querySelector(".hp-korttekst-ov"), hpTeller = card.querySelector(".hp-korttekst-teller");
     refreshTegnteller(hpTa, hpTeller, TEGN.hpKorttekst, true);
     hpTa.addEventListener("input", ()=>{ f.korttekst_override = refreshTegnteller(hpTa, hpTeller, TEGN.hpKorttekst, true, true) || null; });
@@ -3524,9 +3600,14 @@ function renderHoydepunkter(){
 }
 
 function leggTilHoydepunktFraBank(hoydepunktId){
+  // Pkt 13A: banken er mal - teksten kopieres inn som tilbudets egen ved
+  // valg, og kan tilpasses lokalt etterpå.
+  const bank = hoydepunktBankOversikt.find(h=>h.id===hoydepunktId);
   state.hoydepunkter.push({
     id:null, clientKey:newClientKey(),
-    fields:{ hoydepunkt_id:hoydepunktId, sortering: state.hoydepunkter.length, navn_override:null, korttekst_override:null, valgt_bilde_id:null, bilde_url:null },
+    fields:{ hoydepunkt_id:hoydepunktId, sortering: state.hoydepunkter.length,
+      navn_override: (bank && bank.navn) || null, korttekst_override: (bank && bank.korttekst) || null,
+      valgt_bilde_id:null, bilde_url:null },
   });
   renderHoydepunkter();
   renderBilder(); // v21: nytt alternativ i Bilder-fanens høydepunkt-nedtrekk
@@ -3534,7 +3615,7 @@ function leggTilHoydepunktFraBank(hoydepunktId){
 
 async function opprettHoydepunktInline(){
   const rid = state.forslag.reisemaal_id;
-  if(!rid){ alert("Velg et reisemål først («Velg reisemål» over)."); return; }
+  if(!rid){ alert("Koble tilbudet til et reisemål først (Reiseinfo → Koble til reisemål)."); return; }
   const navn = prompt("Navn på nytt høydepunkt:");
   if(!navn || !navn.trim()) return;
   el("saveStatus").textContent = "Oppretter høydepunkt…";
@@ -4072,7 +4153,7 @@ async function openBildebankModal(bankInfo, kategori, extra, matchFn, maks, sing
 
   if(!bankInfo.entityIdGetter()){
     bildebankModalBody.innerHTML = `<div class="bildebank-modal-empty">${erReisemaal
-      ? "Koble et reisemål under Presentasjon («Velg reisemål») for å se bildene i reisemålets bildebank."
+      ? "Koble tilbudet til et reisemål under Reiseinfo («Koble til reisemål») for å se bildene i reisemålets bildebank."
       : "Velg hotellet fra hotelloversikten («Velg fra hotelloversikt») for å se bildene i hotellets bildebank."}</div>`;
     return;
   }
@@ -4544,7 +4625,7 @@ function markerSkittenEtterOpplasting(){
 function autolagringDelegert(e){
   if(!autosaveKlar) return;
   const target = e.target;
-  if(target.closest && target.closest("#btnSlett, #btnPdf, #btnPdfTilbud, .tab-btn")) return;
+  if(target.closest && target.closest("#btnSlett, #btnPdf, #btnPdfTilbud, #btnKalkyle, .tab-btn")) return;
   autosaveDirty = true;
   clearTimeout(autosaveDebounceTimer);
   autosaveDebounceTimer = setTimeout(utlosAutolagring, 2500);
@@ -4582,9 +4663,14 @@ async function slettForslag(){
 // kommer med «Generer tilbud» i Del 4.
 async function aapnePdf(knappId){
   const knapp = el(knappId);
-  oppdaterPdfVarsler();
+  const erTilbud = knappId === "btnPdfTilbud";
+  pdfValideringType = erTilbud;
+  oppdaterPdfVarsler(erTilbud);
   if(pdfVarslerNaa.length){
-    alert("PDF-en kan ikke genereres ennå:\n\n- " + pdfVarslerNaa.join("\n- "));
+    // Pkt 1: her - og først her - vises den samlede valideringen.
+    pdfValideringVist = true;
+    oppdaterPdfVarsler(erTilbud);
+    alert((erTilbud ? "Tilbudet" : "Reiseforslaget") + " kan ikke genereres ennå:\n\n- " + pdfVarslerNaa.join("\n- "));
     return;
   }
   // Knappen settes til «Genererer PDF…» HER, synkront i klikket - før
@@ -4618,6 +4704,16 @@ el("btnPdf").addEventListener("click", e=>{ e.preventDefault(); aapnePdf("btnPdf
 el("btnPdfTilbud").addEventListener("click", e=>{ e.preventDefault(); aapnePdf("btnPdfTilbud"); });
 el("btnSlett").addEventListener("click", slettForslag);
 el("oppdaterPrisBtn").addEventListener("click", oppdaterFraKalkyle);
+// Pkt 10: lagrer ferdig før siden forlates (ellers kunne en fersk endring
+// gått tapt i debouncen), så videre til kalkylen - eller opprett en ny.
+el("btnKalkyle").addEventListener("click", async ()=>{
+  const f = state.forslag;
+  if(!f.kalkyle_id){ opprettKalkyleFraForslag(); return; }
+  clearTimeout(autosaveDebounceTimer);
+  autosaveDirty = false;
+  await performSave("manuell");
+  window.location.href = `kalkyle-editor.html?kalkyle=${encodeURIComponent(f.kalkyle_id)}`;
+});
 
 // v24: Utreise/Retur sitt startpunkt (avreise_tidspunkt/ankomst_tidspunkt)
 // forhåndsutfylles fra forslagets fra-/til-dato KUN når forslaget lastes inn
