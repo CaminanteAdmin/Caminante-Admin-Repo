@@ -12,12 +12,14 @@ const PDF_MAAL = {
   INNHOLD_BREDDE_PX: 666,          // 210 mm - 2 x 64 px sidemarg
   OM_REISEN: {
     TOPP_PX: 84,                   // section.side-start padding-top
-    H2_PX: 35,                     // «Om reisen»-overskriften inkl. 18 px margin under (pkt 7, 16.09.2026)
+    H2_PX: 34,                     // «Om reisen»-overskriften (16 px) inkl. 18 px margin under - målt 34,0 px (17.09.2026)
     MIN_AVSTAND_MM: 10,            // minste luft mellom siste tekstlinje og galleriet
     BUNN_MM: 12,                   // fast luft mellom galleriet og bunnstripen
     GALLERI_GAP_PX: 10,            // luft mellom bildene i galleriet
     GALLERI_FORHOLD: 16 / 9,       // bildenes bredde/høyde (aspect-ratio) - 16:9 fra 06.09.2026
-    SIKKERHET_MM: 3,               // slingringsmonn i editorens forhåndsmåling
+    SIKKERHET_MM: 1,               // slingringsmonn i editorens forhåndsmåling (avrunding). Var 3 mm - mer enn
+                                   // sidens faktiske restplass (2,7 mm) med Egypt-teksten + 6 bilder, så editoren
+                                   // stoppet et dokument som faktisk får plass (17.09.2026).
   },
 };
 

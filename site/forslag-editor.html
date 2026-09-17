@@ -3343,7 +3343,7 @@ function oppdaterPdfVarsler(erTilbud){
     const hoyde = omReisenHoydePx(omReisenTekst);
     const budsjett = omReisenTekstBudsjettPx(galleri);
     if(hoyde > budsjett){
-      const linjerForMye = Math.ceil((hoyde - budsjett) / (14 * 1.6));
+      const linjerForMye = Math.ceil((hoyde - budsjett) / (14 * 1.5));
       varsler.push(galleri
         ? `Om reisen er for lang for side 2 sammen med ${galleri} bilder - kort ned teksten med ca. ${linjerForMye} linje${linjerForMye===1?"":"r"}, eller fjern bilder fra galleriet.`
         : `Om reisen er for lang for side 2 - kort ned teksten med ca. ${linjerForMye} linje${linjerForMye===1?"":"r"}.`);
