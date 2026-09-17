@@ -12,7 +12,7 @@ const PDF_MAAL = {
   INNHOLD_BREDDE_PX: 666,          // 210 mm - 2 x 64 px sidemarg
   OM_REISEN: {
     TOPP_PX: 84,                   // section.side-start padding-top
-    H2_PX: 25,                     // «Om reisen»-overskriften inkl. margin under
+    H2_PX: 35,                     // «Om reisen»-overskriften inkl. 18 px margin under (pkt 7, 16.09.2026)
     MIN_AVSTAND_MM: 10,            // minste luft mellom siste tekstlinje og galleriet
     BUNN_MM: 12,                   // fast luft mellom galleriet og bunnstripen
     GALLERI_GAP_PX: 10,            // luft mellom bildene i galleriet

@@ -529,6 +529,9 @@
   .egenskaper-wrap{ display:flex; flex-wrap:wrap; gap:6px 16px; align-self:start; margin-top:2px; }
   .egenskaper-opt{ display:flex; align-items:center; gap:4px; font-size:13px; color:var(--ink-primary); cursor:pointer; width:auto; }
   .egenskaper-opt input{ width:auto; margin:0; }
+  .egenskaper-opt input:disabled + *, .egenskaper-opt:has(input:disabled){ color:var(--ink-muted); cursor:default; }
+  .egenskaper-teller{ font-size:11px; color:var(--ink-muted); align-self:center; }
+  .egenskaper-teller.full{ color:#b3261e; font-weight:600; }
 
   /* v7: Hotell-fanens tre info-linjer (Hotellnavn/Stjerner/Netter,
      Reisemål/Datoer, Land/Standard romtype/Måltider), bygget med .kv-row/
@@ -548,9 +551,10 @@
   .h-field-netter input{ width:56px; }
   .h-field-romtype select{ width:156px; }
   .h-field-maltider select{ width:150px; }
-  .h-datoer-pair{ display:flex; gap:6px; }
-  /* Pkt 6: antall netter regnes av datoene og vises diskret under dem. */
-  .h-netter-vis{ font-size:12px; color:var(--ink-muted); margin:-2px 0 10px 62px; }
+  .h-datoer-pair{ display:flex; gap:6px; align-items:center; }
+  /* Pkt 6 / siste rettingsrunde pkt 2: antall netter regnes av datoene og
+     vises som subtil grå tekst på samme linje, rett etter utsjekk. */
+  .h-netter-vis{ font-size:12px; color:var(--ink-muted); white-space:nowrap; margin-left:4px; }
   .h-datoer-pair input{ width:128px; }
   .h-head-actions{ display:flex; align-items:center; gap:12px; }
   /* v7: "Velg fra hotelloversikt" er flyttet opp til høyre for selve
@@ -575,13 +579,14 @@
   .pres-stack .card:last-child{ margin-bottom:0; }
   .pres-textarea.pdf-bredde{
     width:calc(666px + 26px); max-width:100%;
-    font:400 14px 'DM Sans', system-ui, -apple-system, "Segoe UI", sans-serif; line-height:1.6;
+    font:400 14px 'DM Sans', system-ui, -apple-system, "Segoe UI", sans-serif; line-height:1.5;
     padding:12px 12px; white-space:pre-wrap; overflow-wrap:break-word;
   }
   .pres-textarea.pres-ingress{ min-height:96px; }
   .pdf-bredde-rad{ width:calc(666px + 26px); max-width:100%; }
-  /* Høydepunktene som kort side om side over full bredde. */
-  #hoydepunktList{ display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:14px; }
+  /* Høydepunktene som kort i 2x2 (siste rettingsrunde pkt 4: fire
+     høydepunkter er normaltilstanden - 3+1 så tilfeldig ut). */
+  #hoydepunktList{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   #hoydepunktList .item-block{
     border:1px solid var(--card-border); border-radius:10px; padding:12px 14px;
     margin-top:0; background:var(--surface-1);
@@ -602,10 +607,10 @@
   .ordteller.full{ color:#b3261e; font-weight:600; }
   /* UX-runde 06.09.2026: én måleenhet i editoren - tegn. Om reisen har i
      tillegg en diskret anbefaling til venstre for telleren. */
-  .ordteller-rad{ display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-top:4px; }
+  .ordteller-rad{ display:flex; justify-content:flex-end; align-items:baseline; gap:12px; margin-top:4px; }
   .ordteller-rad .ordteller{ margin-top:0; flex:none; }
   .ordteller-hint{ font-size:11px; color:var(--ink-muted); }
-  .om-reisen-maaler p{ margin:0 0 6px; }
+  .om-reisen-maaler p{ margin:0 0 11px; }
   .om-reisen-maaler p:last-child{ margin:0; }
   /* Om reisen er hovedteksten på PDF-side 2 - skriveflaten skal gjenspeile
      at dette er en vesentlig tekst, ikke et lite felt. */
@@ -613,9 +618,20 @@
   /* Reisemål-kortet (høyre kolonne): kompakt statusvisning av hvilket
      reisemål som er koblet. .valgt = aktivt/koblet reisemål. */
   .pres-reisemaal-status{
-    display:flex; align-items:center; gap:10px; margin-bottom:10px;
+    display:flex; align-items:center; gap:10px;
     font-size:13px; color:var(--ink-muted);
   }
+  /* Siste rettingsrunde pkt 1: koblingen som én kompakt rad - status-
+     pillen og Endre/Fjern på samme linje, søkefeltet bare når det er
+     åpnet (Endre) eller ingenting er koblet. */
+  .reisemaal-kobling{ display:flex; align-items:center; gap:6px; flex-wrap:nowrap; }
+  .reisemaal-kobling[hidden]{ display:none; }
+  .reisemaal-kobling .pres-reisemaal-status{ min-width:0; flex:1 1 auto; }
+  .reisemaal-kobling .pres-reisemaal-navn{ max-width:100%; min-width:0; }
+  .reisemaal-kobling .pres-reisemaal-navn .txt{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .reisemaal-kobling .btn-small-add{ margin-top:0; padding:3px 7px; font-size:11.5px; flex:none; }
+  .reisemaal-kobling + .pres-reisemaal-wrap{ margin-top:8px; }
+  .reisemaal-kobling[hidden] + .pres-reisemaal-wrap{ margin-top:0; }
   .pres-reisemaal-status.valgt{ color:var(--ink-primary); }
   .pres-reisemaal-navn{
     display:inline-flex; align-items:center; gap:8px;
@@ -991,18 +1007,27 @@
                     felt som før) - PDF-ens H1 på forsiden, alltid på ÉN
                     linje. Produktgrense 35 tegn (pkt 3: ingen live-varsel;
                     bredden mot PDF-en valideres først ved generering). -->
+            <!-- Siste rettingsrunde pkt 1 (16.09.2026): én kompakt rad.
+                 Koblet: «Reisemål  [✓ Kairo & Luxor · Egypt] Endre Fjern».
+                 «Endre» åpner søkefeltet under raden, «Fjern» nuller bare
+                 forslag.reisemaal_id (tittel, program, bilder og høyde-
+                 punkter står urørt). Ikke koblet: «Koble til reisemål» med
+                 søkefeltet rett under - ingen egen status/knapp. Se
+                 renderReisemaalStatus(). -->
             <div class="gi-field span-full">
-              <label>Koble til reisemål</label>
-              <div class="pres-reisemaal-status" id="presReisemaalStatus"></div>
-              <div style="position:relative;">
-                <button type="button" class="btn-small-add" id="presVelgReisemaalBtn" style="margin-top:0;">Velg reisemål</button>
-                <div class="pres-reisemaal-wrap" id="presReisemaalWrap" style="display:none; position:relative; margin-top:8px;">
-                  <input type="text" id="presReisemaalSok" placeholder="Søk reisemål…" autocomplete="off">
-                  <div class="pres-reisemaal-dropdown" id="presReisemaalDropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:240px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
-                </div>
+              <label id="presReisemaalLabel">Reisemål</label>
+              <div class="reisemaal-kobling" id="presReisemaalKobling">
+                <div class="pres-reisemaal-status" id="presReisemaalStatus"></div>
+                <button type="button" class="btn-small-add" id="presVelgReisemaalBtn">Endre</button>
+                <button type="button" class="btn-small-add" id="presFjernReisemaalBtn">Fjern</button>
+              </div>
+              <div class="pres-reisemaal-wrap" id="presReisemaalWrap" style="display:none; position:relative;">
+                <input type="text" id="presReisemaalSok" placeholder="Søk reisemål…" autocomplete="off">
+                <div class="pres-reisemaal-dropdown" id="presReisemaalDropdown" style="display:none; position:absolute; z-index:6; top:100%; left:0; right:0; margin-top:2px; background:var(--surface-1); border:1px solid var(--card-border); border-radius:6px; max-height:240px; overflow-y:auto; box-shadow:0 4px 14px rgba(0,0,0,0.12);"></div>
               </div>
             </div>
-            <div class="gi-field">
+            <!-- Pkt 1: Tittel over full bredde. -->
+            <div class="gi-field span-full">
               <label for="g-destinasjon">Tittel</label>
               <input type="text" id="g-destinasjon" maxlength="35" placeholder="F.eks. Egypt – i faraoenes fotspor">
             </div>
@@ -1102,7 +1127,7 @@
   <div class="tab-panel" data-tab="program">
     <div class="card">
       <div class="card-title">Program - dag for dag</div>
-      <div class="field-hint" style="margin-bottom:12px;">Frivillig. Tas med i dokumentet bare når det er fylt ut. Med fra- og til-dato i Reiseinfo genereres dagene automatisk; uten datoer legger du dem til selv.</div>
+      <div class="field-hint" style="margin-bottom:12px;">Dagene følger datoene i Reiseinfo.</div>
       <div id="programHolder"></div>
       <button type="button" class="add-item-btn" id="btnNyDag" style="display:none;">+ Legg til dag</button>
     </div>
@@ -1127,8 +1152,8 @@
             <label for="pr-enkeltrom">Enkeltromstillegg</label><input type="number" id="pr-enkeltrom" step="1">
             <label for="pr-fra-pris">Fra-pris</label>
             <label class="pr-fra-pris-check"><input type="checkbox" id="pr-fra-pris"> Legg til «fra-pris»</label>
-            <label for="pr-forklaring" class="span-full">Kommentar angående priser</label><textarea id="pr-forklaring" class="span-full" placeholder="Vises i PDF, kort og kundevennlig"></textarea>
-            <label for="pr-intern" class="span-full">Intern kommentar</label><textarea id="pr-intern" class="span-full" placeholder="Vises IKKE i PDF - kun til internt bruk"></textarea>
+            <label for="pr-forklaring" class="span-full">Kommentar angående priser</label><textarea id="pr-forklaring" class="span-full"></textarea>
+            <label for="pr-intern" class="span-full">Intern kommentar</label><textarea id="pr-intern" class="span-full" placeholder="Kun til internt bruk"></textarea>
           </div>
         </div>
       </div>
@@ -1171,17 +1196,15 @@
       </div>
       <div class="card">
         <div class="card-title">Forsideinfo</div>
-        <textarea id="pres-ingress" class="pres-textarea pdf-bredde pres-ingress" placeholder="Kort tekst øverst på forsiden - normalt to-tre linjer"></textarea>
+        <textarea id="pres-ingress" class="pres-textarea pdf-bredde pres-ingress" placeholder="Kort introduksjon til reisen"></textarea>
         <div class="ordteller-rad pdf-bredde-rad">
-          <div class="ordteller-hint">Skrivebredden tilsvarer forsiden i PDF-en</div>
           <div class="ordteller" id="pres-ingress-teller"></div>
         </div>
       </div>
       <div class="card">
         <div class="card-title">Om reisen</div>
-        <textarea id="pres-omreisen" class="pres-textarea pdf-bredde pres-omreisen" placeholder="Den kundetilpassede salgsteksten på side 2 - blank linje gir nytt avsnitt"></textarea>
+        <textarea id="pres-omreisen" class="pres-textarea pdf-bredde pres-omreisen" placeholder="Salgsteksten om reisen. Blank linje gir nytt avsnitt."></textarea>
         <div class="ordteller-rad pdf-bredde-rad">
-          <div class="ordteller-hint">Skrivebredden tilsvarer side 2 i PDF-en · anbefalt 1000–1300 tegn · maks 1500</div>
           <div class="ordteller" id="pres-omreisen-teller"></div>
         </div>
       </div>
@@ -1189,19 +1212,16 @@
            eget felt under Vilkår og frister - to forskjellige tekster. -->
       <div class="felt-gruppe">
         <div class="felt-gruppe-tittel">Til bruk ved Reiseforslag</div>
-        <div class="felt-gruppe-hint">Disse tekstene brukes når du genererer et Reiseforslag.</div>
       </div>
       <div class="card">
         <div class="card-title">Fra forslag til reise</div>
         <textarea id="vv-tekst" class="forbehold-textarea" style="min-height:90px;"></textarea>
         <div class="ordteller" id="vv-tekst-teller" style="width:604px; max-width:100%;"></div>
-        <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
       </div>
       <div class="card">
         <div class="card-title">Forbehold</div>
         <textarea id="fb-tekst" class="forbehold-textarea" style="min-height:90px;"></textarea>
         <div class="ordteller" id="fb-tekst-teller" style="width:604px; max-width:100%;"></div>
-        <div class="field-hint" style="margin-top:10px;">Standardteksten er forhåndsutfylt og kan tilpasses.</div>
       </div>
       <!-- «Om reisemålet» vises ikke i PDF-en og er skjult. Feltet
            (forslag.om_reisemalet) beholdes i basen og lagres uendret. -->
@@ -1237,7 +1257,7 @@
          bestillingen er bekreftet hos leverandørene. -->
     <div class="card" style="margin-bottom:20px;">
       <div class="card-title">Forbehold</div>
-      <textarea id="vk-forbehold" class="forbehold-textarea" style="min-height:110px;" placeholder="Forbehold som gjelder tilbudet."></textarea>
+      <textarea id="vk-forbehold" class="forbehold-textarea" style="min-height:110px;"></textarea>
       <div class="ordteller" id="vk-forbehold-teller" style="width:604px; max-width:100%;"></div>
     </div>
 
@@ -1250,25 +1270,25 @@
          (avbestillingsbetingelsene er satt opp med én periode per linje). -->
     <div class="card" style="margin-bottom:20px;">
       <div class="card-title">Betalingsbetingelser</div>
-      <textarea id="vk-betaling" class="forbehold-textarea" style="min-height:110px;" placeholder="F.eks. forfall og sluttbetaling."></textarea>
+      <textarea id="vk-betaling" class="forbehold-textarea" style="min-height:110px;"></textarea>
       <div class="ordteller" id="vk-betaling-teller" style="width:604px; max-width:100%;"></div>
     </div>
 
     <div class="card" style="margin-bottom:20px;">
       <div class="card-title">Navneliste og navneendringer</div>
-      <textarea id="vk-navneliste" class="forbehold-textarea" style="min-height:110px;" placeholder="Frist for navneliste og vilkår for navneendringer."></textarea>
+      <textarea id="vk-navneliste" class="forbehold-textarea" style="min-height:110px;"></textarea>
       <div class="ordteller" id="vk-navneliste-teller" style="width:604px; max-width:100%;"></div>
     </div>
 
     <div class="card" style="margin-bottom:20px;">
       <div class="card-title">Avbestillingsbetingelser</div>
-      <textarea id="vk-avbestilling" class="forbehold-textarea" style="min-height:130px;" placeholder="F.eks. frister og gebyrer ved avbestilling."></textarea>
+      <textarea id="vk-avbestilling" class="forbehold-textarea" style="min-height:130px;"></textarea>
       <div class="ordteller" id="vk-avbestilling-teller" style="width:604px; max-width:100%;"></div>
     </div>
 
     <div class="card">
       <div class="card-title">Øvrige betingelser</div>
-      <textarea id="vk-saerlige" class="forbehold-textarea" style="min-height:110px;" placeholder="Øvrige betingelser for tilbudet."></textarea>
+      <textarea id="vk-saerlige" class="forbehold-textarea" style="min-height:110px;"></textarea>
       <div class="ordteller" id="vk-saerlige-teller" style="width:604px; max-width:100%;"></div>
     </div>
   </div>
@@ -2162,18 +2182,31 @@ const MALTIDER_OPTIONS = [
 // vises som badges i reiseforslaget på samme måte som romtype/måltider.
 const HOTELLEGENSKAPER_OPTIONS = ["Nærhet til strand","På stranden","Sentral beliggenhet","Utendørs basseng","Takterrasse","Innendørs basseng","Klimaanlegg","Treningsrom","Spa/velvære"];
 
+// Siste rettingsrunde pkt 8 (16.09.2026): maks fem fasiliteter per hotell
+// i Gruppetilbud - én badge-rad i PDF-en. Ved fem valgte låses de øvrige;
+// eldre rader med flere lagret får beskjed (PDF-en viser de fem første).
+const MAKS_FASILITETER = 5;
 function renderHotellegenskaper(container, f){
   const valgte = f.hotellegenskaper || [];
   container.innerHTML = HOTELLEGENSKAPER_OPTIONS.map(eg=>`
     <label class="egenskaper-opt">
       <input type="checkbox" class="h-egenskap" value="${escapeHtml(eg)}" ${valgte.includes(eg)?"checked":""}>
       ${escapeHtml(eg)}
-    </label>`).join("");
+    </label>`).join("") + `<span class="egenskaper-teller"></span>`;
+  const teller = container.querySelector(".egenskaper-teller");
+  const oppdater = ()=>{
+    const n = container.querySelectorAll(".h-egenskap:checked").length;
+    container.querySelectorAll(".h-egenskap:not(:checked)").forEach(cb=>{ cb.disabled = n >= MAKS_FASILITETER; });
+    teller.textContent = n > MAKS_FASILITETER ? `${n} valgt – maks ${MAKS_FASILITETER}, bare de fem første vises` : (n >= MAKS_FASILITETER ? `${n}/${MAKS_FASILITETER}` : "");
+    teller.classList.toggle("full", n > MAKS_FASILITETER);
+  };
   container.querySelectorAll(".h-egenskap").forEach(cb=>{
     cb.addEventListener("change", ()=>{
       f.hotellegenskaper = Array.from(container.querySelectorAll(".h-egenskap:checked")).map(x=>x.value);
+      oppdater();
     });
   });
+  oppdater();
 }
 
 // v4: maks antall hotellopphold - Vidar ba om en øvre grense "om vi trenger
@@ -2242,12 +2275,13 @@ function renderHotell(){
           <div class="h-datoer-pair">
             <input type="date" class="h-fra" value="${f.fra_dato||""}">
             <input type="date" class="h-til" value="${f.til_dato||""}">
+            <!-- Pkt 6 / siste rettingsrunde pkt 2: antall netter regnes av
+                 datoene og vises som grå tekst rett etter utsjekksdatoen -
+                 ikke som eget redigerbart felt. -->
+            <span class="h-netter-vis"></span>
           </div>
         </div>
       </div>
-      <!-- Pkt 6: datoene er sannhetskilden - antall netter regnes av dem og
-           vises her, ikke som eget redigerbart felt. -->
-      <div class="h-netter-vis"></div>
       <div class="kv-row">
         <div class="kv-field h-field-land"><label>Land</label><input class="h-land" value="${escapeHtml(f.land)}" placeholder="F.eks. Kroatia"></div>
         <div class="kv-field h-field-maltider"><label>Måltider</label>
@@ -2276,8 +2310,8 @@ function renderHotell(){
     const netterVis = card.querySelector(".h-netter-vis");
     const visNetter = ()=>{
       const n = beregnNetter(f);
-      netterVis.textContent = n == null ? (f.netter ? `${f.netter} ${f.netter===1?"natt":"netter"} (lagret - sett datoer for automatisk beregning)` : "Sett inn- og utsjekksdato for å få antall netter")
-        : (n === 0 ? "0 netter - sjekk datoene" : `${n} ${n===1?"natt":"netter"}`);
+      netterVis.textContent = n == null ? (f.netter ? `${f.netter} ${f.netter===1?"natt":"netter"}` : "")
+        : `${n} ${n===1?"natt":"netter"}`;
       netterVis.style.color = (n === 0) ? "#b04a4a" : "";
     };
     const datoEndret = (cls, field)=> card.querySelector(cls).addEventListener("change", e=>{
@@ -2895,14 +2929,15 @@ function oppdaterListeTeller(containerId, arrKey){
     el(containerId).parentElement.appendChild(teller);
   }
   let full;
+  // Siste rettingsrunde pkt 3: reglene (vekt, tegn per punkt, samlet
+  // grense) håndheves i feltene og vises ikke som permanent tekst. Bare
+  // når listen er full sies det fra - da forsvinner også «Legg til».
   if(arrKey === "inkludert"){
-    const vekt = inkludertVekt(arr);
-    teller.textContent = `${vekt}/${g.vekt} · fly- og hotellinjen teller som to · maks ${g.punkt} tegn per manuelt punkt`;
-    full = vekt >= g.vekt;
+    full = inkludertVekt(arr) >= g.vekt;
   } else {
-    teller.textContent = `${arr.length}/${g.antall} punkter · maks ${g.punkt} tegn per punkt · ${samletTegn(arr)}/${g.samlet} tegn samlet`;
     full = arr.length >= g.antall || samletTegn(arr) >= g.samlet;
   }
+  teller.textContent = full ? "Listen er full" : "";
   oppdaterPdfVarsler();
   teller.classList.toggle("full", full);
   const addBtn = el(arrKey === "inkludert" ? "addInkludertBtn" : "addIkkeInkludertBtn");
@@ -3203,7 +3238,7 @@ function omReisenHoydePx(tekst){
     omReisenMaaler = document.createElement("div");
     omReisenMaaler.className = "om-reisen-maaler";
     omReisenMaaler.style.cssText = `position:absolute; left:-10000px; top:0; visibility:hidden; width:${PDF_MAAL.INNHOLD_BREDDE_PX}px;`
-      + " font:400 14px 'DM Sans', sans-serif; line-height:1.6; white-space:pre-wrap; overflow-wrap:break-word;";
+      + " font:400 14px 'DM Sans', sans-serif; line-height:1.5; white-space:pre-wrap; overflow-wrap:break-word;";
     document.body.appendChild(omReisenMaaler);
   }
   omReisenMaaler.innerHTML = omReisenAvsnittHtml(tekst, escapeHtml);
@@ -3365,27 +3400,28 @@ function renderPresentasjon(){
    koblet (forslag.reisemaal_id) - før viste det bare valgknappen, selv om
    koblingen virket og høydepunktene ble oppdatert. Ren statusvisning; selve
    koblingen (velgReisemaalInn) er uendret. */
+// Siste rettingsrunde pkt 1 (16.09.2026): koblet reisemål vises som én
+// kompakt rad (pille «Navn · Land» + Endre + Fjern); uten kobling vises
+// bare etiketten «Koble til reisemål» og søkefeltet.
 function renderReisemaalStatus(){
   const f = state.forslag;
   const status = el("presReisemaalStatus");
-  const btn = el("presVelgReisemaalBtn");
+  const rad = el("presReisemaalKobling");
+  const wrap = el("presReisemaalWrap");
+  const label = el("presReisemaalLabel");
   const r = f.reisemaal_id ? reisemaalOversikt.find(x=>x.id===f.reisemaal_id) : null;
   if(r){
     const sted = [r.by, r.land].filter(Boolean).filter(x=> x.toLowerCase() !== (r.navn||"").toLowerCase()).join(", ");
     status.className = "pres-reisemaal-status valgt";
-    status.innerHTML = `<span class="pres-reisemaal-navn">${escapeHtml(r.navn||"")}</span>`
-      + (sted ? `<span class="pres-reisemaal-sted">${escapeHtml(sted)}</span>` : "");
-    btn.textContent = "Endre reisemål";
+    status.innerHTML = `<span class="pres-reisemaal-navn" title="${escapeHtml(r.navn||"")}${sted ? ` · ${escapeHtml(sted)}` : ""}"><span class="txt">${escapeHtml(r.navn||"")}${sted ? ` · ${escapeHtml(sted)}` : ""}</span></span>`;
   } else if(f.reisemaal_id){
     // reisemaal_id satt, men reisemålet finnes ikke (lenger) i registeret.
     status.className = "pres-reisemaal-status";
     status.textContent = "Koblet reisemål finnes ikke i Reisemål-registeret";
-    btn.textContent = "Endre reisemål";
-  } else {
-    status.className = "pres-reisemaal-status";
-    status.textContent = "Ingen reisemål valgt";
-    btn.textContent = "Velg reisemål";
   }
+  label.textContent = f.reisemaal_id ? "Reisemål" : "Koble til reisemål";
+  rad.hidden = !f.reisemaal_id;
+  if(!f.reisemaal_id) wrap.style.display = "block";
 }
 
 /* ---------- "Velg fra reisemål-oversikt" (Presentasjon) ----------
@@ -3431,11 +3467,15 @@ function velgReisemaalInn(id){
   // det GAMLE reisemålets bank og gir ikke lenger mening - fjernes, samme
   // prinsipp som at hotellbilder erstattes ved bytte av hotell (se
   // velgHotellFraOversiktInn()).
-  if(f.reisemaal_id !== r.id) state.hoydepunkter = [];
+  // Siste rettingsrunde pkt 1: etter «Fjern» (reisemaal_id = null) skal en
+  // ny kobling ikke rydde bort høydepunktene - bare et faktisk BYTTE gjør det.
+  if(f.reisemaal_id && f.reisemaal_id !== r.id) state.hoydepunkter = [];
   f.reisemaal_id = r.id;
   f.om_reisemalet = r.om_reisemaalet || "";
-  renderPresentasjon();
+  el("presReisemaalSok").value = "";
   el("presReisemaalWrap").style.display = "none";
+  renderPresentasjon();
+  renderBilder();
 }
 el("presVelgReisemaalBtn").addEventListener("click", ()=>{
   const wrap = el("presReisemaalWrap");
@@ -3445,6 +3485,14 @@ el("presVelgReisemaalBtn").addEventListener("click", ()=>{
     renderReisemaalDropdown(el("presReisemaalDropdown"), el("presReisemaalSok").value);
     el("presReisemaalSok").focus();
   }
+});
+// Pkt 1: «Fjern» nuller KUN koblingen (forslag.reisemaal_id). Tittel,
+// program, bilder, høydepunkter og all annen tekst i tilbudet står urørt.
+el("presFjernReisemaalBtn").addEventListener("click", ()=>{
+  state.forslag.reisemaal_id = null;
+  el("presReisemaalSok").value = "";
+  renderPresentasjon();
+  renderBilder();
 });
 el("presReisemaalSok").addEventListener("input", e=> renderReisemaalDropdown(el("presReisemaalDropdown"), e.target.value));
 el("presReisemaalSok").addEventListener("focus", e=> renderReisemaalDropdown(el("presReisemaalDropdown"), e.target.value));

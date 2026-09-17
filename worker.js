@@ -317,16 +317,45 @@ function pdfBildeVarianter(data, erTilbud, env) {
   return [...par.values()];
 }
 
-async function sikreAlleVarianter(env, liste) {
-  // Maks fire samtidige transformasjoner.
+// Bildene BAKES INN i HTML-en som sendes til Browser Run (16.09.2026,
+// siste rettingsrunde pkt 6). QA i ekte Browser Run viste at bilder lastet
+// opp på gruppetilbudet (Supabase Storage) fortsatt manglet i PDF-en,
+// mens bankbildene (R2) var med. Headless-siden i Browser Run er en
+// about:blank-side med rejectRequestPattern, og alt den skal hente over
+// nettet er en feilkilde vi ikke kan observere herfra. Nå henter
+// workeren selv hver ferdige variant fra R2 og sender den som data-URI i
+// PDF_DATA.bildeData («variant|nøkkel» → «data:image/jpeg;base64,…»).
+// Headless-siden gjør dermed ingen bildeforespørsler i det hele tatt, og
+// bank- og Supabase-bilder behandles helt likt. Bilderuten /bilde/…
+// beholdes for forhåndsvisningen i nettleseren.
+// Sikkerhetsgrense: over BILDEDATA_MAKS_BYTES base64 samlet faller
+// resten tilbake til bilderuten (skjer ikke i praksis - et fullt dokument
+// med 30-40 bilder ligger på 3-5 MB).
+const BILDEDATA_MAKS_BYTES = 12 * 1024 * 1024;
+function tilBase64(buf) {
+  const b = new Uint8Array(buf);
+  let s = "";
+  for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+async function lagBildeData(env, liste) {
+  // Maks fire samtidige transformasjoner/lesinger. Feil i én variant
+  // stopper hele PDF-en med en tydelig melding - aldri et tomt bilde.
   const ko = liste.slice();
+  const data = {};
+  let sum = 0;
   const arbeidere = Array.from({ length: Math.min(4, ko.length) }, async () => {
     while (ko.length) {
       const { variant, key } = ko.shift();
-      await sikreVariant(env, variant, key);
+      const obj = await sikreVariant(env, variant, key);
+      const b64 = tilBase64(await obj.arrayBuffer());
+      if (sum + b64.length > BILDEDATA_MAKS_BYTES) continue;
+      sum += b64.length;
+      data[`${variant}|${key}`] = `data:image/jpeg;base64,${b64}`;
     }
   });
   await Promise.all(arbeidere);
+  return data;
 }
 
 async function sbHent(env, token, sti) {
@@ -457,17 +486,19 @@ async function handlePdf(request, env) {
   }
   if (!html.includes("<!-- pdf-data -->")) return jsonSvar({ error: "PDF-malen mangler datamarkøren." }, 500);
 
-  // Bildevariantene må finnes før headless-siden ber om dem.
+  // Bildevariantene lages (om de ikke finnes) og bakes inn som data-URI-er
+  // - headless-siden henter ingen bilder selv (se lagBildeData).
+  let bildeData;
   try {
-    await sikreAlleVarianter(env, pdfBildeVarianter(data, erTilbud, env));
+    bildeData = await lagBildeData(env, pdfBildeVarianter(data, erTilbud, env));
   } catch (err) {
     console.error("PDF-bildevariant feilet", err);
     return jsonSvar({ error: "PDF-en kunne ikke lages: " + err.message }, 502);
   }
-  // Absolutt adresse til bilderuten - headless-siden har ingen egen adresse
-  // (html-modus), så relative adresser virker ikke der.
+  // Absolutt adresse til bilderuten - kun reserve for bilder som ikke ble
+  // bakt inn (headless-siden har ingen egen adresse i html-modus).
   const bildeBase = url.origin;
-  const json = JSON.stringify({ ...data, erTilbud, bildeBase, r2Base: env.R2_PUBLIC_BASE || "" })
+  const json = JSON.stringify({ ...data, erTilbud, bildeBase, bildeData, r2Base: env.R2_PUBLIC_BASE || "" })
     .replace(/<\//g, "<\\/").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
   html = html.replace("<!-- pdf-data -->", `<script>window.PDF_DATA = ${json};</script>`);
 
@@ -497,19 +528,33 @@ async function handlePdf(request, env) {
     return jsonSvar({ error: "PDF-tjenesten svarte ikke: " + (err && err.message ? err.message : err) }, 502);
   }
   if (!sjekk.ok) return browserRunFeil(sjekk, await sjekk.text());
-  let status = null, statusTekst = "";
+  let status = null, statusTekst = "", fonter = "", bildefeil = "";
   try {
     const j = await sjekk.json();
     const treff = j && j.result && j.result[0] && j.result[0].results && j.result[0].results[0];
     if (treff) {
-      const attr = (treff.attributes || []).find((a) => a.name === "data-status");
-      status = attr ? attr.value : null;
+      const attr = (navn) => { const a = (treff.attributes || []).find((x) => x.name === navn); return a ? a.value : ""; };
+      status = attr("data-status") || null;
+      fonter = attr("data-fonter");
+      bildefeil = attr("data-bildefeil");
       statusTekst = (treff.text || "").trim();
     }
   } catch (err) { status = null; }
   if (status !== "ok") {
     if (status === "feil") return jsonSvar({ error: "PDF-en ble ikke laget - en side har for mye innhold: " + statusTekst + ". Rett dette i editoren og prøv igjen." }, 422);
     return jsonSvar({ error: "Sidekontrollen ga ikke svar - dokumentet ble ikke ferdig bygget." }, 502);
+  }
+  // Siste rettingsrunde (16.09.2026): malen rapporterer om skriftene
+  // faktisk var aktive under målingen, og om noen bilder ikke lot seg
+  // laste. Begge gir en tydelig feil i stedet for en PDF med feil
+  // sideskift eller tomme bilder.
+  if (fonter) {
+    console.error("PDF: skrifter manglet under målingen", fonter);
+    return jsonSvar({ error: "PDF-en ble ikke laget - skriftene (" + fonter + ") ble ikke lastet i PDF-tjenesten, og sideskiftene ville blitt feil. Prøv igjen." }, 502);
+  }
+  if (bildefeil) {
+    console.error("PDF: bilder kunne ikke lastes", bildefeil);
+    return jsonSvar({ error: "PDF-en ble ikke laget - disse bildene kunne ikke lastes inn i dokumentet: " + bildefeil }, 502);
   }
 
   let svar;

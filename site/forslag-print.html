@@ -166,6 +166,14 @@
      måler mot. */
   section.blokk.om-reisen-side{ flex:1 1 auto; display:flex; flex-direction:column; padding-bottom:12mm; }
   .om-reisen-tekst{ flex:0 0 auto; }
+  /* Pkt 7 (16.09.2026, siste rettingsrunde): tre tydelige nivåer i
+     tekstens vertikale rytme - størst luft fra «OM REISEN» til første
+     avsnitt (18 px, var 8), middels mellom avsnittene (11 px, var 6),
+     minst mellom linjene i samme avsnitt (1,5, var 1,6). Samme tall i
+     editorens måler (omReisenHoydePx) og PDF_MAAL.OM_REISEN.H2_PX. */
+  .om-reisen-side h2{ margin-bottom:18px; }
+  .om-reisen-tekst p{ line-height:1.5; margin:0 0 11px; }
+  .om-reisen-tekst p:last-child{ margin-bottom:0; }
   .om-reisen-galleri{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:auto; padding-top:10mm; }
   .om-reisen-galleri img{ width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:0; display:block; background:var(--tint); }
   .om-reisen-blokk p{ margin-bottom:0; }
@@ -312,6 +320,32 @@
   .fly-seg-liste .fly-selskap, .fly-seg-liste .fly-nr{ display:inline; margin:0; }
   .fly-seg-liste .fly-nr{ font-size:10px; }
   .fly-seg-liste .seg-navn{ font-weight:700; color:var(--ink); display:block; font-size:10px; letter-spacing:0.04em; text-transform:uppercase; margin-bottom:1px; }
+  /* Pkt 9 (16.09.2026, siste rettingsrunde): tre flysegmenter (to
+     mellomlandinger) settes VERTIKALT (.reisekort--vertikal) i stedet for
+     å presses inn i bredden: hvert sted på sin egen linje med tidene til
+     høyre, og mellom stedene en kort loddrett strek med flysymbol og
+     segmentets flyselskap, flightnr og flytid. Transferpillen står under
+     mellomlandingen. Ingen mindre skrift, ingen forkorting - kortet bruker
+     høyden. 0-1 mellomlanding beholder den vannrette ruten. */
+  .fly-vertikal{ display:flex; flex-direction:column; }
+  .fv-punkt{ display:grid; grid-template-columns:16px auto 1fr; column-gap:12px; align-items:baseline; }
+  .fv-prikk{ width:7px; height:7px; border-radius:50%; background:var(--accent); justify-self:center; align-self:center; }
+  .fv-punkt .fly-sted{ font-size:19px; text-align:left; }
+  .fv-punkt .fly-tid{ margin:0; font-size:13px; text-align:left; padding-left:6px; }
+  .fv-punkt .fly-transfer{ grid-column:2; margin-top:5px; }
+  .fv-seg{ display:grid; grid-template-columns:16px 1fr; column-gap:12px; align-items:center; min-height:40px; padding:3px 0; }
+  .fv-linje{ position:relative; width:1px; height:100%; min-height:34px; background:var(--accent); justify-self:center; }
+  .fv-linje .fly-seg-ikon{ top:50%; }
+  .fv-seg-info{ font-size:11px; color:var(--ink-secondary); line-height:1.4; }
+  .fv-seg-info .fly-selskap, .fv-seg-info .fly-nr, .fv-seg-info .fly-varighet{ display:inline; margin:0; white-space:nowrap; }
+  .fv-seg-info .fly-varighet{ display:inline-flex; }
+  .fv-seg-info .fv-skille{ color:var(--ink-muted); margin:0 6px; }
+  .fly-egen-side .fv-punkt .fly-sted{ font-size:21px; }
+  .fly-egen-side .fv-punkt .fly-tid{ font-size:14px; }
+  .fly-egen-side .fv-seg{ min-height:46px; }
+  .fly-egen-side .fv-seg-info{ font-size:12px; }
+  .fly-kompakt .fv-punkt .fly-sted{ font-size:17px; }
+  .fly-kompakt .fv-seg{ min-height:34px; padding:2px 0; }
   .fly-egen-side .reisekort--tett .fly-sted{ font-size:16.5px; }
   .fly-egen-side .reisekort--tett .fly-seg{ flex:0 1 60px; min-width:44px; padding:11px 6px 0; }
   .fly-egen-side .reisekort--tett .fly-tid{ font-size:13px; }
@@ -514,6 +548,14 @@ const BILDE_NOKKEL_RE = /^(destinations|hoteller)\/[a-z0-9-]{1,80}\/[a-f0-9-]{36
 // offentlige Storage-adressen, lager varianten med Cloudflare Images og
 // lagrer den i R2. Samme optimalisering som for alle andre bilder.
 const SUPABASE_STORAGE_RE = /^https:\/\/[a-z0-9-]+\.supabase\.co\/storage\/v1\/object\/public\/(forslag-bilder\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(?:jpe?g|png|webp|gif|avif))$/i;
+// Siste rettingsrunde (16.09.2026, pkt 6): i Browser Run sender workeren
+// hver ferdige variant som data-URI i PDF_DATA.bildeData («variant|nøkkel»),
+// så headless-siden henter ingen bilder over nettet - bank- og Supabase-
+// bilder behandles likt. Bilderuten under er reserven (og forhånds-
+// visningen i nettleseren). PDF_BILDE_NOKLER husker hvilket bilde en src
+// er, slik at et bilde som likevel ikke lar seg laste kan navngis i
+// #pdf-status i stedet for å stå tomt i PDF-en.
+const PDF_BILDE_NOKLER = new Map();
 function pdfBilde(url, variant){
   if(!url) return url;
   const pd = window.PDF_DATA || {};
@@ -527,8 +569,11 @@ function pdfBilde(url, variant){
     const m = SUPABASE_STORAGE_RE.exec(url);
     if(m) key = "supabase/" + m[1];
   }
-  if(!key || !base) return url;
-  return `${base}/bilde/${variant}/${key.split("/").map(encodeURIComponent).join("/")}`;
+  const innbakt = key && pd.bildeData && Object.prototype.hasOwnProperty.call(pd.bildeData, `${variant}|${key}`)
+    ? pd.bildeData[`${variant}|${key}`] : null;
+  const src = innbakt || ((!key || !base) ? url : `${base}/bilde/${variant}/${key.split("/").map(encodeURIComponent).join("/")}`);
+  PDF_BILDE_NOKLER.set(src, `${variant}: ${key || url}`);
+  return src;
 }
 const UKEDAGER = ["søndag","mandag","tirsdag","onsdag","torsdag","fredag","lørdag"];
 
@@ -840,6 +885,26 @@ async function main(){
     await Promise.all(ventPaa).catch(()=>{});
     if(document.fonts.ready) await document.fonts.ready;
   }
+  // Siste rettingsrunde (16.09.2026): fonts.load/ready sier ikke om
+  // skriftene faktisk ble tilgjengelige (uten @font-face-treff løser de
+  // seg stille). Målingen krever de ekte skriftene, så det kontrolleres
+  // direkte: bredden av en prøvetekst i webfonten mot samme tekst i en
+  // reserve som garantert er ulik. Lik bredde = webfonten er ikke aktiv.
+  // Resultatet rapporteres i #pdf-status (data-fonter), og workeren
+  // stopper PDF-en heller enn å lage den med feil sideskift.
+  const manglendeFonter = (function(){
+    const test = (familie, vekt)=>{
+      const lag = (ff)=>{ const e = document.createElement("span"); e.style.cssText = `position:absolute; left:-10000px; top:0; font:${vekt} 24px ${ff}; white-space:nowrap; visibility:hidden;`; e.textContent = "Reiseforslag Kairo & Luxor 0123456789 æøå"; document.body.appendChild(e); return e; };
+      const a = lag(`${familie}, monospace`), b = lag("monospace");
+      const ulik = Math.abs(a.getBoundingClientRect().width - b.getBoundingClientRect().width) > 0.5;
+      a.remove(); b.remove();
+      return ulik;
+    };
+    const mangler = [];
+    if(!test("Fraunces", 600)) mangler.push("Fraunces");
+    if(!test("'DM Sans'", 400)) mangler.push("DM Sans");
+    return mangler;
+  })();
 
   /* ----- Side 1: hero, nøkkelfakta, ingress, Høydepunkter -----
      PDF-struktur (05.09.2026): forsiden er uendret visuelt, men «Om
@@ -940,7 +1005,11 @@ async function main(){
     // Pkt 7 (16.09.2026): romtype er ute av Gruppetilbud og vises ikke
     // lenger som badge (romtype_standard/-andre/-egendefinert står urørt i
     // basen). Måltider og hotellegenskaper vises som før.
-    const egenskaper = (h.hotellegenskaper||[]).filter(Boolean);
+    // Pkt 8 (16.09.2026, siste rettingsrunde): Gruppetilbud viser maks
+    // fem fasiliteter per hotell - én badge-rad. Editoren stopper på fem;
+    // eldre rader med flere lagret vises med de fem første (basen røres
+    // ikke).
+    const egenskaper = (h.hotellegenskaper||[]).filter(Boolean).slice(0, 5);
     const bilderHotell = bilderForHotell(h.id);
     return `<section class="${klasser.join(" ")}">
       ${first ? `<h2>Overnatting</h2>` : ""}
@@ -1054,7 +1123,28 @@ async function main(){
     // segmentinfoen (flytid, selskap, flightnr) samlet på en rad under
     // ruten, ett felt per segment, i stedet for under strekene.
     const langtNavn = punkter.some(p=> (flyplass(p.navn).sted || "").length > 14);
-    const tett = rader.length >= 3 || (rader.length >= 2 && langtNavn);
+    // Pkt 9 (16.09.2026, siste rettingsrunde): tre segmenter eller flere
+    // settes vertikalt - se .reisekort--vertikal i CSS.
+    if(rader.length >= 3){
+      let vert = "";
+      punkter.forEach((p, i)=>{
+        if(i > 0){
+          const t = rader[i-1];
+          const varighet = flytid(t);
+          const deler = [
+            t.selskap ? `<span class="fly-selskap">${esc(t.selskap)}</span>` : "",
+            t.flightnr ? `<span class="fly-nr">${esc(t.flightnr)}</span>` : "",
+            varighet ? `<span class="fly-varighet">${IKON_KLOKKE}${esc(varighet)}</span>` : "",
+          ].filter(Boolean).join('<span class="fv-skille">·</span>');
+          vert += `<div class="fv-seg"><div class="fv-linje"><span class="fly-seg-ikon">${IKON_FLY}</span></div><div class="fv-seg-info">${deler}</div></div>`;
+        }
+        const fp = flyplass(p.navn);
+        const tid = [p.ankomst, p.avgang].filter(Boolean).join("–");
+        vert += `<div class="fv-punkt"><span class="fv-prikk"></span><div class="fly-sted">${esc(fp.sted || "–")}</div>${tid ? `<div class="fly-tid">${esc(tid)}</div>` : "<div></div>"}${p.transfer ? `<div class="fly-transfer"><span class="tr-cap">Transfer</span>${esc(p.transfer)}</div>` : ""}</div>`;
+      });
+      return `<div class="reisekort reisekort--vertikal">${topp}<div class="fly-vertikal">${vert}</div></div>`;
+    }
+    const tett = rader.length >= 2 && langtNavn;
     let segListe = "";
     if(tett){
       segListe = `<div class="fly-seg-liste">${rader.map((t, i)=>{
@@ -1373,7 +1463,12 @@ async function main(){
   // 12 mm ellers) - stripen er mørk og bærer siden visuelt, og det er de
   // millimeterne som gjør at to hotellkort med fire bilder deler side.
   const HOTELL_SIDE_MAKS = (INNHOLD_MM - 8) * MM;
-  const PROGRAM_MAKS = (INNHOLD_MM - 17) * MM;
+  // Pkt 10 (16.09.2026, siste rettingsrunde): programsidene fylles til samme
+  // bunnluft som de andre innholdssidene (12 mm over stripen, var 17).
+  // Med ekte data (Egypt, 8 dager) målte dag 1-3 268,5 mm - 2,5 mm over
+  // det gamle budsjettet på 266 mm - og fordelingen falt til 2+3+3 selv om
+  // 3+3+2 er ønsket. Kortene er uendret; bare hvor mye av siden som brukes.
+  const PROGRAM_MAKS = (INNHOLD_MM - 12) * MM;
   const A4 = 297 * MM;
 
   // Måler blokkene med ekte bredde og stil. Alle bildehøyder i dokumentet er
@@ -1641,9 +1736,15 @@ async function main(){
   // overfull side gir en presis feil i stedet for en ødelagt PDF.
   if(window.PDF_DATA){
     const feil = [...document.querySelectorAll(".overfull-merke")].map(e=> e.textContent);
+    // Uten overfull-feil ventes det på bildene FØR statusen settes, slik at
+    // også bilder som ikke lot seg laste blir rapportert (data-bildefeil)
+    // og stopper PDF-en - aldri et tomt bilde i et kundedokument.
+    const bildefeil = feil.length ? [] : await ventPaaBilder();
     const st = document.createElement("div");
     st.id = "pdf-status";
     st.dataset.status = feil.length ? "feil" : "ok";
+    st.dataset.fonter = manglendeFonter.join(", ");
+    st.dataset.bildefeil = bildefeil.join(", ");
     st.textContent = feil.join(" | ");
     st.style.cssText = "position:absolute; width:0; height:0; overflow:hidden;";
     document.body.appendChild(st);
@@ -1656,13 +1757,21 @@ async function main(){
 // ferdig lastet OG dekodet. Fontene er allerede ventet på før målingen.
 // Bygger siden ikke ferdig, kommer markøren aldri, og workeren gir en
 // tidsfrist-feil i stedet for en halvferdig PDF.
-async function meldPdfKlar(){
+// Venter til alle bilder er ferdig lastet (eller har feilet) og returnerer
+// navnene (variant: nøkkel) på dem som ikke lot seg laste.
+async function ventPaaBilder(){
   const bilder = Array.from(document.querySelectorAll("#paper img"));
   await Promise.all(bilder.map(img => new Promise(res=>{
     if(img.complete) return res();
     img.addEventListener("load", res, { once:true });
     img.addEventListener("error", res, { once:true });
   })));
+  return bilder.filter(img => !(img.complete && img.naturalWidth > 0))
+    .map(img => PDF_BILDE_NOKLER.get(img.getAttribute("src")) || (img.getAttribute("src") || "").slice(0, 80));
+}
+async function meldPdfKlar(){
+  const bilder = Array.from(document.querySelectorAll("#paper img"));
+  await ventPaaBilder();
   // decode() er bare en forhåndsdekoding for tegningen; Chromium utsetter
   // den i et skjult dokument og lar løftet stå. Den skal aldri kunne holde
   // markøren tilbake når bildene faktisk ER lastet (complete over), så den
