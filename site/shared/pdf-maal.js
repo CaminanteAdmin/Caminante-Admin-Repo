@@ -4,8 +4,16 @@
 // regner med nøyaktig de samme tallene som malen faktisk bruker.
 //
 // Alle mål i px ved 96 dpi (1 mm = 3,78 px), samme enhet som CSS-en.
+//
+// CACHE-BUSTING (17.09.2026): filen inkluderes som «shared/pdf-maal.js?v=<VERSJON>»
+// i forslag-editor.html og forslag-print.html. Endrer du denne filen, bump
+// VERSJON her OG i begge <script src>-taggene (søk etter «pdf-maal.js?v=»).
+// Ny adresse = nettleseren kan aldri gjenbruke en gammel kopi, uansett
+// mellomlager. Editoren sjekker at innlastet VERSJON stemmer med adressen
+// den ba om, og sier fra i konsollen hvis de spriker.
 
 const PDF_MAAL = {
+  VERSJON: "20260917",
   MM: 96 / 25.4,
   SIDE_MM: 297,                    // A4
   MELLOMFOOTER_MM: 14,             // svart bunnstripe på innholdssidene (06.09.2026)

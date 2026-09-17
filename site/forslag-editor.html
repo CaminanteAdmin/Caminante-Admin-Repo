@@ -1352,7 +1352,19 @@
 <script src="shared/nav.js"></script>
 <script src="shared/bildevelger.js"></script>
 <script src="shared/pdf-nedlasting.js"></script>
-<script src="shared/pdf-maal.js"></script>
+<!-- pdf-maal.js har versjon i adressen (cache-busting) - bump ?v= sammen med
+     PDF_MAAL.VERSJON når filen endres, se toppen av shared/pdf-maal.js. -->
+<script src="shared/pdf-maal.js?v=20260917"></script>
+<script>
+// Kontroll: innlastet pdf-maal.js skal være den versjonen adressen ber om.
+(function(){
+  const tag = document.querySelector('script[src*="pdf-maal.js"]');
+  const bedt = tag ? (/[?&]v=([^&]+)/.exec(tag.getAttribute("src")) || [])[1] : null;
+  if(typeof PDF_MAAL === "undefined") console.error("pdf-maal.js ble ikke lastet");
+  else if(bedt && PDF_MAAL.VERSJON !== bedt) console.warn(`pdf-maal.js: adressen ber om v=${bedt}, men filen er ${PDF_MAAL.VERSJON} - bump begge`);
+  else console.info("pdf-maal.js " + (PDF_MAAL.VERSJON || "?"));
+})();
+</script>
 <script>
 /* ============================================================
    Forslag-editor - v1

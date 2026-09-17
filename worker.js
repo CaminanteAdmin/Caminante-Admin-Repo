@@ -428,7 +428,9 @@ async function hentPdfMal(env, request) {
   // Supabase-/innloggingsskriptene fjernes FØR innbakingen, så de aldri
   // havner i det som sendes til Browser Run.
   html = html.replace(/<!-- pdf-datakilde:start[\s\S]*?pdf-datakilde:slutt -->/, "");
-  const relative = [...html.matchAll(/<script\s+src="(shared\/[^"]+\.js)"><\/script>/g)];
+  // Adressen kan ha cache-busting-suffiks («shared/pdf-maal.js?v=…», 17.09.2026)
+  // - filen hentes uten suffikset.
+  const relative = [...html.matchAll(/<script\s+src="(shared\/[^"?]+\.js)(?:\?[^"]*)?"><\/script>/g)];
   for (const m of relative) {
     const kode = await hentAsset(env, request, "/" + m[1]);
     html = html.replace(m[0], `<script>/* ${m[1]} */\n${kode.replace(/<\/script/gi, "<\\/script")}\n</script>`);
