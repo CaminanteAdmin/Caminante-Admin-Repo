@@ -433,7 +433,9 @@ async function hentPdfMal(env, request) {
   const relative = [...html.matchAll(/<script\s+src="(shared\/[^"?]+\.js)(?:\?[^"]*)?"><\/script>/g)];
   for (const m of relative) {
     const kode = await hentAsset(env, request, "/" + m[1]);
-    html = html.replace(m[0], `<script>/* ${m[1]} */\n${kode.replace(/<\/script/gi, "<\\/script")}\n</script>`);
+    // Funksjon som erstatning: en streng ville tolket «$&», «$1» osv. i koden.
+    const innbakt = `<script>/* ${m[1]} */\n${kode.replace(/<\/script/gi, "<\\/script")}\n</script>`;
+    html = html.replace(m[0], () => innbakt);
   }
   return html;
 }
@@ -448,6 +450,37 @@ function pdfFilnavn(data, erTilbud) {
   const navn = `${erTilbud ? "Tilbud" : "Reiseforslag"} - ${tittel}`
     .replace(/[\\/:*?"<>|\r\n]+/g, " ").replace(/\s+/g, " ").trim();
   return `${navn}.pdf`;
+}
+
+// Tolker svaret fra quickAction «scrape» på #pdf-status og #pdf-logg.
+// «results» er dokumentert både som liste og som objekt - begge godtas.
+function tolkSidekontroll(tekst) {
+  const ut = { status: null, statusTekst: "", fonter: "", bildefeil: "", steg: "", hvor: "", brFeil: "", funnet: [], uparset: false };
+  let j;
+  try { j = JSON.parse(tekst); } catch (e) { ut.uparset = true; return ut; }
+  if (j && (j.success === false || (Array.isArray(j.errors) && j.errors.length))) {
+    ut.brFeil = (j.errors || []).map((e) => (e && e.message) || JSON.stringify(e)).join("; ") || "success=false";
+  }
+  const element = (sel) => {
+    const rad = (Array.isArray(j && j.result) ? j.result : []).find((r) => r && r.selector === sel);
+    if (!rad) return null;
+    const res = Array.isArray(rad.results) ? rad.results[0] : rad.results;
+    return res && typeof res === "object" ? res : null;
+  };
+  const attr = (el, navn) => { const a = ((el && el.attributes) || []).find((x) => x.name === navn); return a ? a.value : ""; };
+  const st = element("#pdf-status"), logg = element("#pdf-logg");
+  if (st) ut.funnet.push("#pdf-status");
+  if (logg) ut.funnet.push("#pdf-logg");
+  if (st) {
+    ut.status = attr(st, "data-status") || null;
+    ut.fonter = attr(st, "data-fonter");
+    ut.bildefeil = attr(st, "data-bildefeil");
+    ut.hvor = attr(st, "data-hvor");
+    ut.statusTekst = (st.text || "").trim();
+    ut.steg = attr(st, "data-steg");
+  }
+  if (logg && !ut.steg) ut.steg = attr(logg, "data-steg");
+  return ut;
 }
 
 // Feil fra Browser Run (begge kallene) som forståelig norsk melding.
@@ -502,7 +535,12 @@ async function handlePdf(request, env) {
   const bildeBase = url.origin;
   const json = JSON.stringify({ ...data, erTilbud, bildeBase, bildeData, r2Base: env.R2_PUBLIC_BASE || "" })
     .replace(/<\//g, "<\\/").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
-  html = html.replace("<!-- pdf-data -->", `<script>window.PDF_DATA = ${json};</script>`);
+  // Funksjon som erstatning, så «$»-mønstre i dataene aldri tolkes.
+  const dataSkript = `<script>window.PDF_DATA = ${json};</script>`;
+  html = html.replace("<!-- pdf-data -->", () => dataSkript);
+  const bildeAntall = Object.keys(bildeData).length;
+  const bildeMB = (Object.values(bildeData).reduce((n, v) => n + v.length, 0) / 1048576).toFixed(1);
+  const htmlMB = (html.length / 1048576).toFixed(1);
 
   // Felles sideoppsett for begge Browser Run-kallene: samme medium som
   // dokumentet er målt og designet mot (@media print, @page A4 uten marg).
@@ -523,29 +561,37 @@ async function handlePdf(request, env) {
     sjekk = await env.BROWSER.quickAction("scrape", {
       ...sideOppsett,
       waitForSelector: { selector: "#pdf-status", timeout: PDF_VENT_MS },
-      elements: [{ selector: "#pdf-status" }],
+      elements: [{ selector: "#pdf-status" }, { selector: "#pdf-logg" }],
     });
   } catch (err) {
     console.error("Browser Run-sidekontroll feilet", err);
     return jsonSvar({ error: "PDF-tjenesten svarte ikke: " + (err && err.message ? err.message : err) }, 502);
   }
   if (!sjekk.ok) return browserRunFeil(sjekk, await sjekk.text());
-  let status = null, statusTekst = "", fonter = "", bildefeil = "";
-  try {
-    const j = await sjekk.json();
-    const treff = j && j.result && j.result[0] && j.result[0].results && j.result[0].results[0];
-    if (treff) {
-      const attr = (navn) => { const a = (treff.attributes || []).find((x) => x.name === navn); return a ? a.value : ""; };
-      status = attr("data-status") || null;
-      fonter = attr("data-fonter");
-      bildefeil = attr("data-bildefeil");
-      statusTekst = (treff.text || "").trim();
-    }
-  } catch (err) { status = null; }
-  if (status !== "ok") {
-    if (status === "feil") return jsonSvar({ error: "PDF-en ble ikke laget - en side har for mye innhold: " + statusTekst + ". Rett dette i editoren og prøv igjen." }, 422);
-    return jsonSvar({ error: "Sidekontrollen ga ikke svar - dokumentet ble ikke ferdig bygget." }, 502);
+  // Diagnostikk (17.09.2026): svaret tolkes fullt ut - Browser Runs egne
+  // feil (success/errors), begge elementene, og malens fremdriftslogg -
+  // slik at et stopp i kjeden rapporteres med sted og årsak, aldri bare
+  // «ga ikke svar».
+  const raaTekst = await sjekk.text();
+  const k = tolkSidekontroll(raaTekst);
+  const omfang = `HTML ${htmlMB} MB, ${bildeAntall} innbakte bilder (${bildeMB} MB)`;
+  if (k.brFeil) {
+    console.error("Browser Run meldte feil i sidekontrollen", k.brFeil, omfang);
+    return jsonSvar({ error: "PDF-tjenesten meldte feil under sidekontrollen: " + k.brFeil + ". " + omfang + "." }, 502);
   }
+  if (k.status === "unntak") {
+    console.error("PDF-malen feilet", k.steg, k.hvor, k.statusTekst, omfang);
+    return jsonSvar({ error: `Dokumentet kunne ikke bygges i PDF-tjenesten (steg «${k.steg}», ${k.hvor}): ${k.statusTekst}. ${omfang}.` }, 502);
+  }
+  if (k.status !== "ok") {
+    if (k.status === "feil") return jsonSvar({ error: "PDF-en ble ikke laget - en side har for mye innhold: " + k.statusTekst + ". Rett dette i editoren og prøv igjen." }, 422);
+    console.error("Sidekontrollen uten status", k.uparset ? "ikke JSON" : "", "steg:", k.steg, omfang, raaTekst.slice(0, 600));
+    const hvorfor = k.uparset ? "svaret fra PDF-tjenesten var ikke lesbart"
+      : k.steg ? `malen kom til steget «${k.steg}» men satte aldri status`
+      : "verken #pdf-status eller fremdriftsloggen fantes i svaret" + (k.funnet.length ? ` (fant: ${k.funnet.join(", ")})` : "");
+    return jsonSvar({ error: `Sidekontrollen ga ikke svar - ${hvorfor}. ${omfang}. Svar fra PDF-tjenesten: ${raaTekst.slice(0, 300)}` }, 502);
+  }
+  const fonter = k.fonter, bildefeil = k.bildefeil;
   // Siste rettingsrunde (16.09.2026): malen rapporterer om skriftene
   // faktisk var aktive under målingen, og om noen bilder ikke lot seg
   // laste. Begge gir en tydelig feil i stedet for en PDF med feil

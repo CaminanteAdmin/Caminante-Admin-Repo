@@ -504,6 +504,42 @@
 <div id="loadMsg" class="load-msg">Laster forslag…</div>
 <div id="paper" class="paper" style="display:none;"></div>
 
+<!-- PDF-modus: fremdriftslogg og unntaksfanger (17.09.2026). Ligger FØR
+     pdf-data-markøren, slik at også en feil i selve dataskriptet (avkuttet
+     eller ugyldig HTML fra workeren) blir fanget og rapportert. I Browser Run
+     fantes det til nå bare ett signal, #pdf-status, satt helt til slutt;
+     stoppet byggingen før det, fikk workeren bare «Sidekontrollen ga ikke
+     svar». Nå føres hvert steg i #pdf-logg (data-steg), og ethvert unntak -
+     i dataskriptet, main(), window.error eller en avvist promise - setter
+     #pdf-status med data-status="unntak" og feilmeldingen, så workeren får
+     svar med en gang og kan si nøyaktig hva som feilet. Elementene er
+     usynlige og harmløse i skjermforhåndsvisningen. -->
+<script>
+const PDF_LOGG = (function(){
+  const l = document.createElement("div");
+  l.id = "pdf-logg"; l.dataset.steg = "html-start";
+  l.style.cssText = "position:absolute; width:0; height:0; overflow:hidden;";
+  document.body.appendChild(l);
+  return l;
+})();
+function pdfSteg(navn){ PDF_LOGG.dataset.steg = navn; }
+function pdfUnntak(feil, hvor){
+  console.error("PDF-unntak", hvor, feil);
+  if(document.getElementById("pdf-status")) return;
+  const melding = (feil && feil.message) ? feil.message : String(feil);
+  const linje = (feil && feil.stack) ? (feil.stack.split("\n").find(l=> /:\d+:\d+/.test(l)) || "").trim().slice(0, 160) : "";
+  const st = document.createElement("div");
+  st.id = "pdf-status";
+  st.dataset.status = "unntak";
+  st.dataset.steg = PDF_LOGG.dataset.steg;
+  st.dataset.hvor = hvor || "";
+  st.textContent = melding + (linje ? ` [${linje}]` : "");
+  st.style.cssText = "position:absolute; width:0; height:0; overflow:hidden;";
+  document.body.appendChild(st);
+}
+window.addEventListener("error", e=> pdfUnntak(e.error || e.message, "window.error"));
+window.addEventListener("unhandledrejection", e=> pdfUnntak(e.reason, "unhandledrejection"));
+</script>
 <!-- pdf-data -->
 <!-- pdf-datakilde:start (fjernes av worker.js i PDF-modus: headless-siden
      skal aldri ha Supabase-tilgang, dataene kommer via window.PDF_DATA) -->
@@ -513,6 +549,8 @@
 <!-- pdf-datakilde:slutt -->
 <script src="shared/pdf-maal.js?v=20260917"></script>
 <script>
+pdfSteg("skript-start");
+if(window.PDF_DATA && typeof PDF_MAAL === "undefined") pdfUnntak(new Error("PDF_MAAL mangler - shared/pdf-maal.js ble ikke bakt inn i Browser Run-HTML-en"), "oppstart");
 /* ============================================================
    Forslag - print-vennlig visning (v6g, 2026-08-22)
    Ren, kundevennlig 3-siders fremstilling av ett forslag - se
@@ -790,6 +828,7 @@ async function hentData(){
 }
 
 async function main(){
+  pdfSteg("data");
   const data = await hentData();
   if(!data) return;
   const { f, transportRows, hotellRows, bildeRows, hpRows, dagRows, ansvarligNavn,
@@ -878,6 +917,7 @@ async function main(){
   // ALLEREDE er etterspurt av layouten, og Fraunces brukes ikke av noe som
   // står på siden før målingen. Derfor bes det eksplisitt om de vektene og
   // størrelsene dokumentet faktisk bruker.
+  pdfSteg("fonter");
   if(document.fonts){
     const ventPaa = ["600 34px Fraunces","600 30px Fraunces","600 20px Fraunces","600 19px Fraunces","600 18px Fraunces",
                      "400 14px 'DM Sans'","400 13.5px 'DM Sans'","700 13px 'DM Sans'","600 13px 'DM Sans'","750 12px 'DM Sans'","750 11px 'DM Sans'"]
@@ -892,6 +932,7 @@ async function main(){
   // reserve som garantert er ulik. Lik bredde = webfonten er ikke aktiv.
   // Resultatet rapporteres i #pdf-status (data-fonter), og workeren
   // stopper PDF-en heller enn å lage den med feil sideskift.
+  pdfSteg("fontkontroll");
   const manglendeFonter = (function(){
     const test = (familie, vekt)=>{
       const lag = (ff)=>{ const e = document.createElement("span"); e.style.cssText = `position:absolute; left:-10000px; top:0; font:${vekt} 24px ${ff}; white-space:nowrap; visibility:hidden;`; e.textContent = "Reiseforslag Kairo & Luxor 0123456789 æøå"; document.body.appendChild(e); return e; };
@@ -1648,6 +1689,7 @@ async function main(){
      </div>`] : []),
   ];
 
+  pdfSteg("sider-bygget");
   el("paper").innerHTML = sider.join("");
   el("paper").style.display = "block";
   el("loadMsg").style.display = "none";
@@ -1735,6 +1777,7 @@ async function main(){
   // (quickAction «scrape») og lager PDF-en bare når status er «ok» - en
   // overfull side gir en presis feil i stedet for en ødelagt PDF.
   if(window.PDF_DATA){
+    pdfSteg("bilder");
     const feil = [...document.querySelectorAll(".overfull-merke")].map(e=> e.textContent);
     // Uten overfull-feil ventes det på bildene FØR statusen settes, slik at
     // også bilder som ikke lot seg laste blir rapportert (data-bildefeil)
@@ -1747,6 +1790,7 @@ async function main(){
     st.dataset.bildefeil = bildefeil.join(", ");
     st.textContent = feil.join(" | ");
     st.style.cssText = "position:absolute; width:0; height:0; overflow:hidden;";
+    pdfSteg("status");
     document.body.appendChild(st);
     if(!feil.length) await meldPdfKlar();
   }
@@ -1789,6 +1833,7 @@ async function meldPdfKlar(){
 
 main().catch(err=>{
   console.error(err);
+  pdfUnntak(err, "main");
   const m = el("loadMsg");
   if(m) m.textContent = "Kunne ikke bygge dokumentet: " + (err && err.message ? err.message : err);
 });
