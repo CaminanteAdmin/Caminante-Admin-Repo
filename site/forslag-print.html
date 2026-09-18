@@ -525,6 +525,53 @@ const PDF_LOGG = (function(){
 const PDF_START_MS = performance.now();
 function pdfMs(){ return String(Math.round(performance.now() - PDF_START_MS)); }
 function pdfSteg(navn){ PDF_LOGG.dataset.steg = navn; PDF_LOGG.dataset.ms = pdfMs(); }
+
+/* Ferdigmarkør og load-hold (18.09.2026). Ekte Browser Run tok side-
+   kontrollen 334 ms etter start - rett etter «load» - mens bildene ennå
+   var uferdige: waitForSelector holdt ikke kjøringen tilbake, og «load»
+   kom tidlig fordi bildene er innbakte (ingen nettverkslasting som før
+   forsinket den). To tiltak, uavhengige av hverandre:
+   1) #pdf-ferdig - finnes IKKE i HTML-en og legges først til DOM-en når
+      dokumentet faktisk er ferdig behandlet: endelig #pdf-status (ok/feil
+      med bildefeil) ELLER en håndtert exception. Workeren venter på og
+      leser denne markøren.
+   2) load-hold: i PDF-modus holdes vinduets «load»-hendelse tilbake med et
+      åpent iframe-dokument (document.open uten close) til dokumentet er
+      ferdig - #pdf-klar ved suksess, #pdf-ferdig ved feil/unntak. Tar
+      Browser Run elementene «etter load» uansett waitForSelector, skjer
+      det da først når alt er ferdig. Sikkerhetstak PDF_HOLD_MAKS_MS
+      (under Browser Runs 30 s gotoOptions.timeout), så «load» alltid
+      kommer. Kun i PDF-modus (startes fra hovedskriptet når PDF_DATA
+      finnes) - skjermforhåndsvisningen holder ingenting. */
+const PDF_HOLD_MAKS_MS = 28000;
+let pdfHoldDok = null;
+function pdfStartHold(){
+  if(pdfHoldDok) return;
+  try {
+    const fr = document.createElement("iframe");
+    fr.id = "pdf-hold";
+    fr.setAttribute("aria-hidden", "true");
+    fr.style.cssText = "position:absolute; width:0; height:0; border:0; visibility:hidden;";
+    document.body.appendChild(fr);
+    pdfHoldDok = fr.contentDocument;
+    pdfHoldDok.open();
+    pdfHoldDok.write("<!doctype html><title>pdf-hold</title>");
+    setTimeout(()=>{ if(pdfHoldDok) console.warn("PDF: load-hold sluppet ved sikkerhetstaket"); pdfSlippLoad(); }, PDF_HOLD_MAKS_MS);
+  } catch(e){ console.warn("PDF: load-hold kunne ikke startes", e); pdfHoldDok = null; }
+}
+function pdfSlippLoad(){
+  if(!pdfHoldDok) return;
+  const d = pdfHoldDok; pdfHoldDok = null;
+  try { d.close(); } catch(e){}
+}
+function pdfFerdig(){
+  if(document.getElementById("pdf-ferdig")) return;
+  const m = document.createElement("div");
+  m.id = "pdf-ferdig";
+  m.dataset.ms = pdfMs();
+  m.style.cssText = "position:absolute; width:0; height:0; overflow:hidden;";
+  document.body.appendChild(m);
+}
 function pdfUnntak(feil, hvor){
   console.error("PDF-unntak", hvor, feil);
   if(document.getElementById("pdf-status")) return;
@@ -538,6 +585,9 @@ function pdfUnntak(feil, hvor){
   st.textContent = melding + (linje ? ` [${linje}]` : "");
   st.style.cssText = "position:absolute; width:0; height:0; overflow:hidden;";
   document.body.appendChild(st);
+  // Ferdig - med feil. Workeren får svaret med en gang.
+  pdfFerdig();
+  pdfSlippLoad();
 }
 window.addEventListener("error", e=> pdfUnntak(e.error || e.message, "window.error"));
 window.addEventListener("unhandledrejection", e=> pdfUnntak(e.reason, "unhandledrejection"));
@@ -552,6 +602,7 @@ window.addEventListener("unhandledrejection", e=> pdfUnntak(e.reason, "unhandled
 <script src="shared/pdf-maal.js?v=20260917"></script>
 <script>
 pdfSteg("skript-start");
+if(window.PDF_DATA) pdfStartHold();
 if(window.PDF_DATA && typeof PDF_MAAL === "undefined") pdfUnntak(new Error("PDF_MAAL mangler - shared/pdf-maal.js ble ikke bakt inn i Browser Run-HTML-en"), "oppstart");
 /* ============================================================
    Forslag - print-vennlig visning (v6g, 2026-08-22)
@@ -1800,7 +1851,11 @@ async function main(){
     st.style.cssText = "position:absolute; width:0; height:0; overflow:hidden;";
     pdfSteg("status");
     document.body.appendChild(st);
-    if(!feil.length) await meldPdfKlar();
+    // Endelig status er satt - dokumentet er ferdig behandlet.
+    pdfFerdig();
+    if(feil.length){ pdfSlippLoad(); return; }
+    await meldPdfKlar();
+    pdfSlippLoad();
   }
 }
 
@@ -1895,6 +1950,7 @@ async function meldPdfKlar(){
   ]);
   const m = document.createElement("div");
   m.id = "pdf-klar";
+  m.dataset.ms = pdfMs();
   m.style.cssText = "position:absolute; width:0; height:0; overflow:hidden;";
   document.body.appendChild(m);
 }

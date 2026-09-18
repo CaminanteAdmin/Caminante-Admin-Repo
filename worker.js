@@ -455,7 +455,7 @@ function pdfFilnavn(data, erTilbud) {
 // Tolker svaret fra quickAction «scrape» på #pdf-status og #pdf-logg.
 // «results» er dokumentert både som liste og som objekt - begge godtas.
 function tolkSidekontroll(tekst) {
-  const ut = { status: null, statusTekst: "", fonter: "", bildefeil: "", steg: "", hvor: "", brFeil: "", funnet: [], uparset: false, bilder: "", ms: "" };
+  const ut = { status: null, statusTekst: "", fonter: "", bildefeil: "", steg: "", hvor: "", brFeil: "", funnet: [], uparset: false, bilder: "", ms: "", ferdig: false };
   let j;
   try { j = JSON.parse(tekst); } catch (e) { ut.uparset = true; return ut; }
   if (j && (j.success === false || (Array.isArray(j.errors) && j.errors.length))) {
@@ -468,9 +468,10 @@ function tolkSidekontroll(tekst) {
     return res && typeof res === "object" ? res : null;
   };
   const attr = (el, navn) => { const a = ((el && el.attributes) || []).find((x) => x.name === navn); return a ? a.value : ""; };
-  const st = element("#pdf-status"), logg = element("#pdf-logg");
+  const st = element("#pdf-status"), logg = element("#pdf-logg"), ferdig = element("#pdf-ferdig");
   if (st) ut.funnet.push("#pdf-status");
   if (logg) ut.funnet.push("#pdf-logg");
+  if (ferdig) { ut.funnet.push("#pdf-ferdig"); ut.ferdig = true; }
   if (st) {
     ut.status = attr(st, "data-status") || null;
     ut.fonter = attr(st, "data-fonter");
@@ -564,8 +565,11 @@ async function handlePdf(request, env) {
   try {
     sjekk = await env.BROWSER.quickAction("scrape", {
       ...sideOppsett,
-      waitForSelector: { selector: "#pdf-status", timeout: PDF_VENT_MS },
-      elements: [{ selector: "#pdf-status" }, { selector: "#pdf-logg" }],
+      // #pdf-ferdig finnes først når dokumentet er ferdig behandlet (endelig
+      // #pdf-status, eller en håndtert exception) - aldri i selve HTML-en.
+      // Malen holder dessuten «load» tilbake til samme punkt (18.09.2026).
+      waitForSelector: { selector: "#pdf-ferdig", timeout: PDF_VENT_MS },
+      elements: [{ selector: "#pdf-status" }, { selector: "#pdf-logg" }, { selector: "#pdf-ferdig" }],
     });
   } catch (err) {
     console.error("Browser Run-sidekontroll feilet", err);
@@ -592,7 +596,7 @@ async function handlePdf(request, env) {
     if (k.status === "feil") return jsonSvar({ error: "PDF-en ble ikke laget - en side har for mye innhold: " + k.statusTekst + ". Rett dette i editoren og prøv igjen." }, 422);
     console.error("Sidekontrollen uten status", k.uparset ? "ikke JSON" : "", "steg:", k.steg, omfang, raaTekst.slice(0, 600));
     const hvorfor = k.uparset ? "svaret fra PDF-tjenesten var ikke lesbart"
-      : k.steg ? `malen kom til steget «${k.steg}» men satte aldri status`
+      : k.steg ? `sidekontrollen ble tatt før dokumentet var ferdig (ingen #pdf-ferdig) - malen var på steget «${k.steg}»`
       : "verken #pdf-status eller fremdriftsloggen fantes i svaret" + (k.funnet.length ? ` (fant: ${k.funnet.join(", ")})` : "");
     return jsonSvar({ error: `Sidekontrollen ga ikke svar - ${hvorfor}. ${omfang}. Svar fra PDF-tjenesten: ${raaTekst.slice(0, 300)}` }, 502);
   }
