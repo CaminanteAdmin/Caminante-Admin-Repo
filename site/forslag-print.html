@@ -517,12 +517,14 @@
 <script>
 const PDF_LOGG = (function(){
   const l = document.createElement("div");
-  l.id = "pdf-logg"; l.dataset.steg = "html-start";
+  l.id = "pdf-logg"; l.dataset.steg = "html-start"; l.dataset.ms = "0";
   l.style.cssText = "position:absolute; width:0; height:0; overflow:hidden;";
   document.body.appendChild(l);
   return l;
 })();
-function pdfSteg(navn){ PDF_LOGG.dataset.steg = navn; }
+const PDF_START_MS = performance.now();
+function pdfMs(){ return String(Math.round(performance.now() - PDF_START_MS)); }
+function pdfSteg(navn){ PDF_LOGG.dataset.steg = navn; PDF_LOGG.dataset.ms = pdfMs(); }
 function pdfUnntak(feil, hvor){
   console.error("PDF-unntak", hvor, feil);
   if(document.getElementById("pdf-status")) return;
@@ -1782,12 +1784,18 @@ async function main(){
     // Uten overfull-feil ventes det på bildene FØR statusen settes, slik at
     // også bilder som ikke lot seg laste blir rapportert (data-bildefeil)
     // og stopper PDF-en - aldri et tomt bilde i et kundedokument.
-    const bildefeil = feil.length ? [] : await ventPaaBilder();
+    let bildefeil = [];
+    if(!feil.length){
+      try { bildefeil = await ventPaaBilder(); }
+      catch(e){ pdfUnntak(e, "ventPaaBilder"); return; }
+    }
     const st = document.createElement("div");
     st.id = "pdf-status";
     st.dataset.status = feil.length ? "feil" : "ok";
     st.dataset.fonter = manglendeFonter.join(", ");
     st.dataset.bildefeil = bildefeil.join(", ");
+    st.dataset.bilder = PDF_LOGG.dataset.bilder || "";
+    st.dataset.ms = pdfMs();
     st.textContent = feil.join(" | ");
     st.style.cssText = "position:absolute; width:0; height:0; overflow:hidden;";
     pdfSteg("status");
@@ -1803,15 +1811,76 @@ async function main(){
 // tidsfrist-feil i stedet for en halvferdig PDF.
 // Venter til alle bilder er ferdig lastet (eller har feilet) og returnerer
 // navnene (variant: nøkkel) på dem som ikke lot seg laste.
+// Bildeventing (18.09.2026): deterministisk og tidsbegrenset. Den forrige
+// utgaven ventet på load/error per bilde uten noen slutt - i ekte Browser
+// Run stoppet dokumentet på steget «bilder» og #pdf-status kom aldri.
+// Nå: hvert bilde klassifiseres (ok / ugyldig / uferdig) ut fra complete og
+// naturalWidth; ventingen drives av BÅDE load/error-hendelser og en 100 ms
+// puls som leser tilstanden direkte (en hendelse som allerede har skjedd,
+// eller aldri kommer, kan derfor ikke holde ventingen). Absolutt frist
+// BILDE_FRIST_MS - deretter rapporteres uferdige bilder som bildefeil, og
+// #pdf-status settes uansett. Data-URI-bilder som fortsatt ikke er ferdige
+// etter BILDE_BLOB_MS får samme bytes som blob:-adresse (ren minne-
+// dekoding, ingen «henting»), som reserve mot en lasterbane som ikke
+// leverer data:-adresser. Underveis og til slutt ligger en oppsummering i
+// #pdf-logg/#pdf-status (data-bilder): antall totalt/ok/ugyldig/uferdig og
+// hvor lenge ventingen har pågått - uten selve data-URI-ene.
+const BILDE_FRIST_MS = window.PDF_BILDE_FRIST_MS || 20000;
+const BILDE_BLOB_MS = window.PDF_BILDE_BLOB_MS || 4000;
+function bildeTilstand(img){ return !img.complete ? "uferdig" : img.naturalWidth > 0 ? "ok" : "ugyldig"; }
+function bildeKilde(img){
+  const s = img.getAttribute("src") || "";
+  return s.startsWith("data:") ? `data-URI ${Math.round(s.length * 0.75 / 1024)} KB` : s.startsWith("blob:") ? "blob" : s.slice(0, 60);
+}
+function bildeOppsummering(bilder, ekstra){
+  const t = bilder.map(bildeTilstand);
+  const tell = navn => t.filter(x=> x === navn).length;
+  return `${bilder.length} totalt, ${tell("ok")} ok, ${tell("ugyldig")} ugyldig, ${tell("uferdig")} uferdig${ekstra || ""}`;
+}
+function dataUriTilBlobUrl(uri){
+  const m = /^data:([^;,]+)(;base64)?,([\s\S]*)$/.exec(uri);
+  if(!m) throw new Error("ikke en data-URI");
+  const bin = m[2] ? atob(m[3]) : decodeURIComponent(m[3]);
+  const b = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([b], { type: m[1] }));
+}
 async function ventPaaBilder(){
   const bilder = Array.from(document.querySelectorAll("#paper img"));
-  await Promise.all(bilder.map(img => new Promise(res=>{
-    if(img.complete) return res();
-    img.addEventListener("load", res, { once:true });
-    img.addEventListener("error", res, { once:true });
-  })));
-  return bilder.filter(img => !(img.complete && img.naturalWidth > 0))
-    .map(img => PDF_BILDE_NOKLER.get(img.getAttribute("src")) || (img.getAttribute("src") || "").slice(0, 80));
+  // Rolle/nøkkel per bilde tas vare på FØR en ev. blob-bytting endrer src.
+  const roller = bilder.map((img, i)=> PDF_BILDE_NOKLER.get(img.getAttribute("src")) || `bilde ${i+1} (${(img.className || (img.parentElement && img.parentElement.className) || "").split(" ")[0] || "img"})`);
+  const kilder = bilder.map(bildeKilde);
+  const start = performance.now();
+  let blobByttet = 0;
+  const logg = ()=>{
+    const brukt = Math.round(performance.now() - start);
+    PDF_LOGG.dataset.bilder = bildeOppsummering(bilder, (blobByttet ? `, ${blobByttet} byttet til blob` : "") + `, ventet ${brukt} ms`);
+  };
+  await new Promise(res=>{
+    let ferdig = false, tikk = null;
+    const slutt = ()=>{ if(ferdig) return; ferdig = true; clearInterval(tikk); res(); };
+    const sjekk = ()=>{
+      if(ferdig) return;
+      logg();
+      if(bilder.every(i=> i.complete) || performance.now() - start > BILDE_FRIST_MS) slutt();
+    };
+    tikk = setInterval(()=>{
+      if(!blobByttet && performance.now() - start > BILDE_BLOB_MS){
+        bilder.forEach(i=>{
+          if(i.complete || !(i.getAttribute("src") || "").startsWith("data:")) return;
+          try { i.src = dataUriTilBlobUrl(i.getAttribute("src")); blobByttet++; } catch(e){ console.warn("blob-bytte feilet", e); }
+        });
+        if(!blobByttet) blobByttet = -1; // ingenting å bytte - ikke prøv igjen
+      }
+      sjekk();
+    }, 100);
+    bilder.forEach(i=>{ i.addEventListener("load", sjekk); i.addEventListener("error", sjekk); });
+    sjekk();
+  });
+  if(blobByttet < 0) blobByttet = 0;
+  logg();
+  return bilder.map((img, i)=> ({ img, i })).filter(x=> bildeTilstand(x.img) !== "ok")
+    .map(x=> `${roller[x.i]} (${kilder[x.i]}, ${bildeTilstand(x.img)})`);
 }
 async function meldPdfKlar(){
   const bilder = Array.from(document.querySelectorAll("#paper img"));

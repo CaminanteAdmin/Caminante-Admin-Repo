@@ -455,7 +455,7 @@ function pdfFilnavn(data, erTilbud) {
 // Tolker svaret fra quickAction «scrape» på #pdf-status og #pdf-logg.
 // «results» er dokumentert både som liste og som objekt - begge godtas.
 function tolkSidekontroll(tekst) {
-  const ut = { status: null, statusTekst: "", fonter: "", bildefeil: "", steg: "", hvor: "", brFeil: "", funnet: [], uparset: false };
+  const ut = { status: null, statusTekst: "", fonter: "", bildefeil: "", steg: "", hvor: "", brFeil: "", funnet: [], uparset: false, bilder: "", ms: "" };
   let j;
   try { j = JSON.parse(tekst); } catch (e) { ut.uparset = true; return ut; }
   if (j && (j.success === false || (Array.isArray(j.errors) && j.errors.length))) {
@@ -478,8 +478,12 @@ function tolkSidekontroll(tekst) {
     ut.hvor = attr(st, "data-hvor");
     ut.statusTekst = (st.text || "").trim();
     ut.steg = attr(st, "data-steg");
+    ut.bilder = attr(st, "data-bilder");
+    ut.ms = attr(st, "data-ms");
   }
   if (logg && !ut.steg) ut.steg = attr(logg, "data-steg");
+  if (logg && !ut.bilder) ut.bilder = attr(logg, "data-bilder");
+  if (logg && !ut.ms) ut.ms = attr(logg, "data-ms");
   return ut;
 }
 
@@ -574,7 +578,8 @@ async function handlePdf(request, env) {
   // «ga ikke svar».
   const raaTekst = await sjekk.text();
   const k = tolkSidekontroll(raaTekst);
-  const omfang = `HTML ${htmlMB} MB, ${bildeAntall} innbakte bilder (${bildeMB} MB)`;
+  const omfang = `HTML ${htmlMB} MB, ${bildeAntall} innbakte bilder (${bildeMB} MB)`
+    + (k.ms ? `, siden hadde kjørt ${k.ms} ms` : "") + (k.bilder ? `, bildestatus: ${k.bilder}` : "");
   if (k.brFeil) {
     console.error("Browser Run meldte feil i sidekontrollen", k.brFeil, omfang);
     return jsonSvar({ error: "PDF-tjenesten meldte feil under sidekontrollen: " + k.brFeil + ". " + omfang + "." }, 502);
@@ -602,7 +607,7 @@ async function handlePdf(request, env) {
   }
   if (bildefeil) {
     console.error("PDF: bilder kunne ikke lastes", bildefeil);
-    return jsonSvar({ error: "PDF-en ble ikke laget - disse bildene kunne ikke lastes inn i dokumentet: " + bildefeil }, 502);
+    return jsonSvar({ error: "PDF-en ble ikke laget - disse bildene kunne ikke lastes inn i dokumentet: " + bildefeil + ". " + omfang + "." }, 502);
   }
 
   let svar;
