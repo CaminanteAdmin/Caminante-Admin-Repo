@@ -1338,28 +1338,44 @@ function reiselederCardM1(p){
       <div class="card-title">Reiseleder</div>
       <div class="hint" id="${p}rl_none_hint">Ingen reiseledere registrert. Sett "Antall reiseledere" i Reiseinformasjon for å legge til honorar og kostnader.</div>
       <div id="${p}rl_fields" style="display:none;">
-        <div class="field">
-          <label>Fly</label>
-          <div class="hint" id="${p}rl_fly_auto">–</div>
+        <!-- Delt rom (2026-09-21): vises kun ved nøyaktig to reiseledere. På =
+             RL1 og RL2 belastes ETT twinrom (hotellets dobbeltrompris) - RL1
+             får kostnaden, RL2 får 0 kr overnatting. Lagres som alle andre
+             felt i kalkyle_data.values (m1_rl_deler_rom); mangler nøkkelen i
+             eldre kalkyler, står boksen av. -->
+        <div class="field" id="${p}rl_deler_wrap" style="display:none;">
+          <label for="${p}rl_deler_rom" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="${p}rl_deler_rom" onchange="recalcAll()" style="width:auto;margin:0;">
+            Reiselederne deler rom
+          </label>
         </div>
-        <div class="field">
-          <label>Overnatting</label>
-          <div class="hint" id="${p}rl_overnatting_auto">–</div>
-        </div>
-        <div class="field">
-          <label>Aktiviteter</label>
-          <div class="hint" id="${p}rl_aktiviteter_auto">–</div>
-        </div>
-        <div class="field">
-          <label>Mat</label>
-          <div class="hint" id="${p}rl_mat_auto">–</div>
-        </div>
-        <div class="field">
-          <label>Sum reisekostnader per reiseleder</label>
-          <div class="hint" id="${p}rl_sum_auto">–</div>
+        <div id="${p}rl_felles">
+          <div class="field">
+            <label>Fly</label>
+            <div class="hint" id="${p}rl_fly_auto">–</div>
+          </div>
+          <div class="field">
+            <label>Overnatting</label>
+            <div class="hint" id="${p}rl_overnatting_auto">–</div>
+          </div>
+          <div class="field">
+            <label>Aktiviteter</label>
+            <div class="hint" id="${p}rl_aktiviteter_auto">–</div>
+          </div>
+          <div class="field">
+            <label>Mat</label>
+            <div class="hint" id="${p}rl_mat_auto">–</div>
+          </div>
+          <div class="field">
+            <label>Sum reisekostnader per reiseleder</label>
+            <div class="hint" id="${p}rl_sum_auto">–</div>
+          </div>
         </div>
         ${personRows}
         ${totalRows}
+        <!-- To kolonner (Reiseleder 1 | Reiseleder 2) når to reiseledere har
+             ulike kostnader - erstatter de delte linjene og totallinjene over. -->
+        <div id="${p}rl_sammenlign" style="display:none;"></div>
       </div>
     </div>`;
 }
@@ -1442,11 +1458,15 @@ function pureCalc1(p){
   const totalHodetall = (p.anslatt||0);
   const hotelsWithNetter = p.hotels.filter(h=>h.netter>0);
 
-  let sumNetter=0, totalRomkost=0, totalSengeplasser=0, oppholdEnkeltPerPerson=0, enkeltTilleggPerPerson=0;
+  let sumNetter=0, totalRomkost=0, totalSengeplasser=0, oppholdEnkeltPerPerson=0, enkeltTilleggPerPerson=0, oppholdTwinRom=0;
   // v9: lærerplasser og reiseledere er slått sammen til én kombinert kategori
   // ("reiseledere"), som alltid bor på enkeltrom (se rlFellesPerPerson under).
   // Må hentes ut før hotell-løkken siden den nå også brukes i romMiks-tellingen.
   const antallReiseledere = p.antallReiseledere||0;
+  // Delt rom (2026-09-21): gjelder KUN når det er nøyaktig to reiseledere og
+  // boksen er huket av. Da deler RL1 og RL2 ett twinrom (dobbeltrompris) i
+  // stedet for ett enkeltrom hver. Eldre kalkyler uten feltet: false.
+  const rlDelerRom = antallReiseledere===2 && !!p.rlDelerRom;
   // v17: samlet estimert rommiks (antall rom per romtype) på tvers av alle
   // hotell, brukt til den nye "Estimert rommiks"-boksen. Teller både rom fra
   // detaljert rombestilling og fra kjapt-anslag-grenen (tildeles hotellets
@@ -1504,8 +1524,8 @@ function pureCalc1(p){
     } else {
       // Kjapt anslag: helautomatisk anslag, inkluderer fortsatt ett enkeltrom
       // per reiseleder (v18/v34) siden brukeren ikke spesifiserer noe selv her.
-      romMiks.enkelt += antallReiseledere;
-      hotelMiks.enkelt += antallReiseledere;
+      if(rlDelerRom){ romMiks.dobbel += 1; hotelMiks.dobbel += 1; }
+      else { romMiks.enkelt += antallReiseledere; hotelMiks.enkelt += antallReiseledere; }
       const stdType = h.standard || 'dobbel';
       const rooms = totalHodetall>0 ? Math.ceil(totalHodetall / ROOM_PERSONER[stdType]) : 0;
       totalRomkost += rooms * h.pris[stdType] * h.netter;
@@ -1518,6 +1538,9 @@ function pureCalc1(p){
     }
     romMiksHotels.push({idx: h._idx+1, miks: hotelMiks});
     oppholdEnkeltPerPerson += h.pris.enkelt * h.netter;
+    // Twinrommet reiselederne deler (delt rom): dobbeltrompris per natt.
+    // Mangler dobbeltrompris (hotell kun med enkeltrom), brukes enkeltrom.
+    oppholdTwinRom += (h.pris.dobbel>0 ? h.pris.dobbel : h.pris.enkelt) * h.netter;
     // v10: enkeltromstillegg - kun til informasjon (hva det koster ekstra å
     // booke enkeltrom fremfor å dele dobbeltrom). Hvis ingen egen enkeltrompris
     // er oppgitt, er h.pris.enkelt allerede satt lik dobbeltromprisen av
@@ -1542,12 +1565,26 @@ function pureCalc1(p){
   // individuelt honorar og andre kostnader per reiseleder.
   // (antallReiseledere er hentet ut lenger opp, før hotell-løkken.)
   const rlFellesPerPerson = p.fly + matPerPerson + aktivitetSum + oppholdEnkeltPerPerson;
-  // Den delte satsen (fly/mat/aktiviteter/opphold) skalerer med hele antallet,
-  // også utover MAX_REISELEDERE-taket for individuelle honorar-felt. Honorar/
-  // andre kostnader legges til kun for de reiselederne som faktisk har felt.
-  let totalRLKostnad = rlFellesPerPerson * antallReiseledere;
+  // Overnatting per reiseleder (indeks 0 = RL1): enkeltrom (enkeltrompris,
+  // eller dobbeltrompris når enkeltrompris ikke er oppgitt - se gatherHotel)
+  // per reiseleder, ELLER ved delt rom: ett twinrom på RL1 og 0 kr på RL2.
+  const rlOpphold = i => rlDelerRom ? (i===0 ? oppholdTwinRom : 0) : oppholdEnkeltPerPerson;
+  // Den delte satsen (fly/mat/aktiviteter) skalerer med hele antallet, også
+  // utover MAX_REISELEDERE-taket for individuelle honorar-felt; overnatting
+  // regnes per reiseleder (rlOpphold). Honorar/andre kostnader legges til kun
+  // for de reiselederne som faktisk har felt.
+  let totalRLKostnad = (p.fly + matPerPerson + aktivitetSum) * antallReiseledere;
+  for(let i=0;i<antallReiseledere;i++) totalRLKostnad += rlOpphold(i);
   (p.reiseledere||[]).forEach(rl=>{
     totalRLKostnad += (rl.honorarDag||0)*p.dager + (rl.andre||0) + (rl.kjoregodtgjorelse||0) + (rl.parkering||0);
+  });
+  // Kostnadsbilde per reiseleder (for Reiseleder-kortet): samme tall som
+  // inngår i totalRLKostnad, brutt ned per person.
+  const rlKostnader = (p.reiseledere||[]).map((rl, i)=>{
+    const k = { fly: p.fly, opphold: rlOpphold(i), aktiviteter: aktivitetSum, mat: matPerPerson,
+      honorar: (rl.honorarDag||0)*p.dager, andre: rl.andre||0, kjoregodtgjorelse: rl.kjoregodtgjorelse||0, parkering: rl.parkering||0 };
+    k.total = k.fly + k.opphold + k.aktiviteter + k.mat + k.honorar + k.andre + k.kjoregodtgjorelse + k.parkering;
+    return k;
   });
 
   const Kfast = transportSum + andreFasteSum + totalRomkost + totalRLKostnad;
@@ -1646,7 +1683,7 @@ function pureCalc1(p){
   return {
     sumNetter, nightMismatch, totalRomkost, totalSengeplasser, totalReisende, bedsMismatch, bedsMismatchText,
     Kvar, Kfast, andreFasteSum, transportSum, aktivitetSum, matPerPerson, totalRLKostnad,
-    oppholdEnkeltPerPerson, enkeltTilleggPerPerson, anslatt, DBmaal, prisOpprinnelig, sensRows,
+    oppholdEnkeltPerPerson, enkeltTilleggPerPerson, oppholdTwinRom, rlDelerRom, rlKostnader, anslatt, DBmaal, prisOpprinnelig, sensRows,
     perPerson, totalt, dbBlock, totalInntekt, romMiks, romMiksHotels,
     kundepris, totalOms, dbPerson, dbTotalt, dbPct, breakEven
   };
@@ -1822,6 +1859,7 @@ function gatherModule1(){
     andreFasteKostnader: gatherList(p,'fast', state.m1.fastCount, 'm1'),
     antallReiseledere: num(p+'rl_antall',0)||0,
     reiseledere: gatherReiseledere(p,'m1', num(p+'rl_antall',0)||0),
+    rlDelerRom: !!(el(p+'rl_deler_rom') && el(p+'rl_deler_rom').checked),
     anslatt: num(p+'anslatt',0)||0,
     dbPerPerson: num(p+'db_per_person',0)||0,
     kundepris: state.m1.kundepris
@@ -2034,14 +2072,26 @@ function renderModule1(res, raw){
   const rlFieldsBox = el(p+'rl_fields');
   if(rlNoneHint) rlNoneHint.style.display = antallRL>0 ? 'none' : '';
   if(rlFieldsBox) rlFieldsBox.style.display = antallRL>0 ? '' : 'none';
+  // Delt rom-boksen bare ved nøyaktig to reiseledere.
+  const delerWrap = el(p+'rl_deler_wrap');
+  if(delerWrap) delerWrap.style.display = antallRL===2 ? '' : 'none';
+  const rlK = res.rlKostnader || [];
+  // To kolonner når to reiseledere har ULIKE kostnader (én eller flere
+  // linjer avviker - typisk delt rom, ulikt honorar eller andre kostnader).
+  // Ellers dagens enkle visning (like tall trenger ikke to kolonner).
+  const rlUlike = antallRL===2 && rlK.length===2 && ['fly','opphold','aktiviteter','mat','honorar','andre','kjoregodtgjorelse','parkering']
+    .some(k=> Math.abs((rlK[0][k]||0) - (rlK[1][k]||0)) > 0.005);
+  const felles = el(p+'rl_felles');
+  if(felles) felles.style.display = rlUlike ? 'none' : '';
   el(p+'rl_fly_auto').textContent = kr(raw.fly);
-  el(p+'rl_overnatting_auto').textContent = kr(res.oppholdEnkeltPerPerson);
+  el(p+'rl_overnatting_auto').textContent = kr(rlK[0] ? rlK[0].opphold : res.oppholdEnkeltPerPerson);
   el(p+'rl_aktiviteter_auto').textContent = kr(res.aktivitetSum);
   el(p+'rl_mat_auto').textContent = kr(res.matPerPerson);
-  // v27: "Sum reisekostnader per reiseleder" = de fire delte linjene over
-  // (samme som rlFellesPerPerson i pureCalc1), og "Totalkostnader reiseleder N"
-  // = denne summen + honorar for alle dager + andre kostnader, per reiseleder.
-  const rlSum = (raw.fly||0) + (res.oppholdEnkeltPerPerson||0) + (res.aktivitetSum||0) + (res.matPerPerson||0);
+  // v27: "Sum reisekostnader per reiseleder" = de fire delte linjene over,
+  // og "Totalkostnader reiseleder N" = denne summen + honorar for alle dager
+  // + andre kostnader, per reiseleder (tallene kommer fra pureCalc1.rlKostnader).
+  const rlSum = rlK[0] ? (rlK[0].fly + rlK[0].opphold + rlK[0].aktiviteter + rlK[0].mat)
+    : (raw.fly||0) + (res.oppholdEnkeltPerPerson||0) + (res.aktivitetSum||0) + (res.matPerPerson||0);
   el(p+'rl_sum_auto').textContent = kr(rlSum);
   for(let i=1;i<=MAX_REISELEDERE;i++){
     const row = el(p+'rlperson_'+i);
@@ -2049,12 +2099,25 @@ function renderModule1(res, raw){
     const row2 = el(p+'rlperson2_'+i);
     if(row2) row2.style.display = i<=antallRL ? '' : 'none';
     const totalRow = el(p+'rltotal_'+i);
-    if(totalRow) totalRow.style.display = i<=antallRL ? '' : 'none';
-    if(i<=antallRL){
-      const rl = (raw.reiseledere && raw.reiseledere[i-1]) || {honorarDag:0, andre:0, kjoregodtgjorelse:0, parkering:0};
-      const total = rlSum + (rl.honorarDag||0)*(raw.dager||0) + (rl.andre||0) + (rl.kjoregodtgjorelse||0) + (rl.parkering||0);
+    if(totalRow) totalRow.style.display = (i<=antallRL && !rlUlike) ? '' : 'none';
+    if(i<=antallRL && rlK[i-1]){
       const totalEl = el(p+'rltotal_'+i+'_val');
-      if(totalEl) totalEl.textContent = kr(total);
+      if(totalEl) totalEl.textContent = kr(rlK[i-1].total);
+    }
+  }
+  const sammenlign = el(p+'rl_sammenlign');
+  if(sammenlign){
+    sammenlign.style.display = rlUlike ? '' : 'none';
+    if(rlUlike){
+      const linjer = [['Fly','fly'],['Overnatting','opphold'],['Aktiviteter','aktiviteter'],['Mat','mat'],
+        [`Honorar (${raw.dager||0} dager)`,'honorar'],['Andre kostnader','andre'],['Kjøregodtgjørelse','kjoregodtgjorelse'],['Parkering','parkering']];
+      sammenlign.innerHTML = `<table>
+        <thead><tr><th></th><th>Reiseleder 1</th><th>Reiseleder 2</th></tr></thead>
+        <tbody>
+          ${linjer.map(([navn, k])=>`<tr><td>${navn}</td><td>${kr(rlK[0][k])}</td><td>${kr(rlK[1][k])}</td></tr>`).join('')}
+          <tr><td><b>Totalkostnader</b></td><td><b>${kr(rlK[0].total)}</b></td><td><b>${kr(rlK[1].total)}</b></td></tr>
+        </tbody>
+      </table>${res.rlDelerRom ? '<div class="hint" style="margin-top:6px;">Reiselederne deler ett twinrom - hele romkostnaden ligger på reiseleder 1.</div>' : ''}`;
     }
   }
 
