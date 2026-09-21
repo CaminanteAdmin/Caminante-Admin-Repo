@@ -293,7 +293,7 @@
      2) Flytid rett under segmentet («Flytid 1 t 25 min»), og transfertid
         som eget bindeledd MELLOM segmentene («TRANSFERTID 1 t 20 min»,
         sentrert på en hårlinje).
-     3) Flyselskap · flightnr som diskret metadata under flytiden.
+     3) Flightkode · Flytid som diskret metadata sentrert under streken.
      Flytid/transfertid utelates når de ikke kan beregnes sikkert
      (eksisterende regler) - bindeleddet står da som ren hårlinje. */
   .fly-segmenter{ display:flex; flex-direction:column; }
@@ -307,17 +307,25 @@
      (flyselskap · flytid · flightnr) står som én liten, sentrert
      bildetekst rett under streken - sted og klokkeslett er fortsatt
      radens høyeste og laveste punkter. */
-  .fs-rad{ display:flex; align-items:flex-start; gap:14px; }
-  .fs-punkt{ flex:0 1 auto; min-width:min-content; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  /* Fast senterakse (21.09.2026): raden er et rutenett med to like
+     sidekolonner og en midtkolonne med fast bredde. Flystrek, flyikon og
+     metadata står dermed på kortets senterakse i alle segmenter, uansett
+     hvor lange stedsnavnene er - lange navn bryter i sin egen kolonne
+     (aldri smalere enn lengste ord). */
+  .fs-rad{ display:grid; grid-template-columns:minmax(min-content, 1fr) 150px minmax(min-content, 1fr); column-gap:14px; align-items:start; }
+  .fs-punkt{ min-width:0; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
   .fs-punkt--til{ justify-content:flex-end; text-align:right; }
   .fs-sted{ font-family:var(--font-serif); font-size:19px; font-weight:600; line-height:1.15; color:var(--ink); }
   .fs-tid{ font-size:17px; font-weight:700; line-height:1.15; color:var(--ink); white-space:nowrap; letter-spacing:0.01em; }
-  .fs-midt{ flex:1 1 72px; min-width:60px; display:flex; flex-direction:column; align-items:center; }
+  /* «+N» (21.09.2026): ankomst N kalenderdager etter avreise, rett etter
+     ankomsttiden - mindre, litt hevet, sekundært i forhold til klokkeslettet. */
+  .fs-pluss{ font-size:0.62em; font-weight:600; color:var(--ink-secondary); vertical-align:0.45em; margin-left:2px; letter-spacing:0; }
+  .fs-midt{ min-width:0; display:flex; flex-direction:column; align-items:center; }
   .fs-linje{ width:100%; position:relative; height:1px; background:var(--accent); margin-top:12px; }
   .fs-linje::before, .fs-linje::after{ content:""; position:absolute; top:-2px; width:5px; height:5px; border-radius:50%; background:var(--accent); }
   .fs-linje::before{ left:0; }
   .fs-linje::after{ right:0; }
-  .fs-meta{ margin-top:11px; font-size:10px; font-weight:500; letter-spacing:0.03em; line-height:1.35; color:var(--ink-muted); text-align:center; }
+  .fs-meta{ margin-top:11px; width:max-content; max-width:100%; font-size:10px; font-weight:500; letter-spacing:0.03em; line-height:1.35; color:var(--ink-muted); text-align:center; }
   /* Metadata bryter bare mellom leddene (aldri inne i «Flytid 4 t 25 min»). */
   .fs-meta .fs-ledd{ white-space:nowrap; }
   .fs-meta .fs-skille{ margin:0 4px; }
@@ -345,7 +353,9 @@
   .fly-egen-side .reisekort .label{ font-size:12px; }
   .fly-egen-side .fs-sted{ font-size:22px; }
   .fly-egen-side .fs-tid{ font-size:19.5px; }
-  .fly-egen-side .fs-midt{ min-width:90px; }
+  /* Egen side: midtkolonnen holdes på 136 px, så «Kristiansand 06:00» (22/19,5 px)
+     får plass på én linje i sidekolonnene (ca. 210 px hver ved 210 mm). */
+  .fly-egen-side .fs-rad{ grid-template-columns:minmax(min-content, 1fr) 136px minmax(min-content, 1fr); }
   .fly-egen-side .fs-linje{ margin-top:14px; }
   .fly-egen-side .fs-meta{ margin-top:12px; font-size:11px; }
   .fly-egen-side .fs-transfer{ margin:20px 0 16px; }
@@ -365,7 +375,7 @@
   .fly-kompakt .reisekort .label{ font-size:10px; }
   .fly-kompakt .fs-sted{ font-size:17px; }
   .fly-kompakt .fs-tid{ font-size:15.5px; }
-  .fly-kompakt .fs-midt{ min-width:56px; }
+  .fly-kompakt .fs-rad{ grid-template-columns:minmax(min-content, 1fr) 120px minmax(min-content, 1fr); }
   .fly-kompakt .fs-linje{ margin-top:10px; }
   .fly-kompakt .fs-meta{ margin-top:8px; font-size:9.5px; }
   .fly-kompakt .fs-transfer{ margin:11px 0 9px; }
@@ -699,7 +709,7 @@ const FLYPLASSER = {
   "oslo":"OSL","oslo gardermoen":"OSL","gardermoen":"OSL","oslo lufthavn":"OSL","torp":"TRF","sandefjord":"TRF","sandefjord torp":"TRF",
   "tromsø":"TOS","tromso":"TOS","tromsø langnes":"TOS","bergen flesland":"BGO","trondheim værnes":"TRD","stavanger sola":"SVG","københavn kastrup":"CPH","kastrup":"CPH","malta international":"MLA","bergen":"BGO","trondheim":"TRD","stavanger":"SVG","bodø":"BOO","bodo":"BOO","evenes":"EVE","harstad":"EVE","harstad/narvik":"EVE","narvik":"EVE",
   "bardufoss":"BDU","alta":"ALF","kirkenes":"KKN","hammerfest":"HFT","lakselv":"LKL","andenes":"ANX","svolvær":"SVJ","leknes":"LKN","stokmarknes":"SKN",
-  "kristiansand":"KRS","ålesund":"AES","alesund":"AES","molde":"MOL","kristiansund":"KSU","haugesund":"HAU","florø":"FRO","ørsta":"HOV","volda":"HOV","sogndal":"SOG","brønnøysund":"BNN","sandnessjøen":"SSJ","mo i rana":"MQN","mosjøen":"MJF","røros":"RRS","longyearbyen":"LYR","svalbard":"LYR",
+  "kristiansand":"KRS","kjevik":"KRS","ålesund":"AES","alesund":"AES","molde":"MOL","kristiansund":"KSU","haugesund":"HAU","florø":"FRO","ørsta":"HOV","volda":"HOV","sogndal":"SOG","brønnøysund":"BNN","sandnessjøen":"SSJ","mo i rana":"MQN","mosjøen":"MJF","røros":"RRS","longyearbyen":"LYR","svalbard":"LYR",
   "københavn":"CPH","kobenhavn":"CPH","copenhagen":"CPH","billund":"BLL","aalborg":"AAL","stockholm":"ARN","arlanda":"ARN","stockholm arlanda":"ARN","göteborg":"GOT","gøteborg":"GOT","goteborg":"GOT","malmö":"MMX","malmo":"MMX","helsinki":"HEL","helsingfors":"HEL","reykjavik":"KEF","keflavik":"KEF",
   "london":"LHR","london heathrow":"LHR","heathrow":"LHR","gatwick":"LGW","london gatwick":"LGW","stansted":"STN","manchester":"MAN","edinburgh":"EDI","dublin":"DUB",
   "amsterdam":"AMS","schiphol":"AMS","brussel":"BRU","brussels":"BRU","paris":"CDG","charles de gaulle":"CDG","paris orly":"ORY","nice":"NCE","lyon":"LYS","marseille":"MRS",
@@ -1132,23 +1142,32 @@ async function main(){
   // (flytid(): entydig sted + kjent tidssone; transfer: begge tidspunkter
   // satt) - da står bindeleddet som ren linje. Eventuell IATA-kode i
   // parentes («Tromsø (TOS)») vises ikke.
+  // Kalenderdager fra lokal avreisedato til lokal ankomstdato (datodelen
+  // av tidspunktene, uavhengig av klokkeslett og tidssone). 0 = samme dag.
+  function ankomstDager(t){
+    const d = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ""); return m ? Date.UTC(+m[1], +m[2]-1, +m[3]) : null; };
+    const a = d(t.avreise_tidspunkt), b = d(t.ankomst_tidspunkt);
+    if(a == null || b == null) return 0;
+    return Math.round((b - a) / 86400000);
+  }
   function flySegmentHtml(t){
     const [fra, til] = delStrekning(t.beskrivelse);
     const pFra = flyplass(fra), pTil = flyplass(til || fra);
     const avg = tidHHMM(t.avreise_tidspunkt), ank = tidHHMM(t.ankomst_tidspunkt);
+    const dager = ankomstDager(t);
+    const pluss = dager > 0 ? `<span class="fs-pluss">+${dager}</span>` : "";
     const varighet = flytid(t);
-    // Metadata på én linje: flyselskap · Flytid … · flightnr - det som
-    // finnes, i den rekkefølgen.
+    // Metadata på én linje (21.09.2026): «FLIGHTKODE · Flytid …» - det som
+    // finnes. Flyselskapets navn vises ikke lenger (koden bærer det).
     const meta = [
-      t.selskap ? esc(t.selskap) : "",
-      varighet ? `Flytid ${esc(varighet)}` : "",
       t.flightnr ? `<span class="fs-nr">${esc(t.flightnr)}</span>` : "",
+      varighet ? `Flytid ${esc(varighet)}` : "",
     ].filter(Boolean).map(x=> `<span class="fs-ledd">${x}</span>`).join('<span class="fs-skille">·</span>');
     return `<div class="fly-segment">
       <div class="fs-rad">
         <div class="fs-punkt fs-punkt--fra"><span class="fs-sted">${esc(pFra.sted || "–")}</span>${avg ? `<span class="fs-tid">${esc(avg)}</span>` : ""}</div>
         <div class="fs-midt"><div class="fs-linje"><span class="fly-seg-ikon">${IKON_FLY}</span></div>${meta ? `<div class="fs-meta">${meta}</div>` : ""}</div>
-        <div class="fs-punkt fs-punkt--til">${ank ? `<span class="fs-tid">${esc(ank)}</span>` : ""}<span class="fs-sted">${esc(pTil.sted || "–")}</span></div>
+        <div class="fs-punkt fs-punkt--til">${ank ? `<span class="fs-tid">${esc(ank)}${pluss}</span>` : ""}<span class="fs-sted">${esc(pTil.sted || "–")}</span></div>
       </div>
     </div>`;
   }
