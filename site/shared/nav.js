@@ -18,6 +18,7 @@
 
   const CAM_NAV_ITEMS = [
     { label: "Oversikt",       href: "index.html" },
+    { label: "Neste samtale",  href: "neste-samtale.html" },
     { label: "Priskalkulator", href: "priskalkulator.html" },
     // Påmeldingsturer og Bibelcamp er samme liste og samme editor - menyen
     // skiller dem bare på type (se reiser.html). Gruppetilbud er modulen

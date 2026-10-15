@@ -148,6 +148,30 @@
     border:1.5px dashed rgba(11,11,11,0.35);
   }
   .cal-load-msg{ padding:20px 14px; color:var(--ink-muted); font-size:13px; background:var(--surface-1); border:1px solid var(--hairline); border-radius:var(--radius); }
+
+  /* ---------- Neste samtale-kort (teller + de første punktene) ---------- */
+  .ns-kort{
+    background:var(--surface-1);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:14px 16px;
+    margin-bottom:28px;
+  }
+  .ns-kort-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .ns-kort-head h2{
+    font-size:13px; font-weight:650; margin:0; color:var(--ink-secondary);
+    text-transform:uppercase; letter-spacing:0.03em;
+  }
+  .ns-kort-head h2 .ns-teller{
+    display:inline-block; min-width:20px; padding:1px 7px; margin-left:6px;
+    border-radius:20px; background:var(--accent); color:#fff;
+    font-size:11.5px; text-align:center; letter-spacing:0;
+  }
+  .ns-kort-head a{ font-size:12.5px; color:var(--accent); text-decoration:none; font-weight:600; white-space:nowrap; }
+  .ns-kort ul{ list-style:none; margin:10px 0 0; padding:0; }
+  .ns-kort li{ font-size:13.5px; padding:5px 0; border-top:1px solid var(--hairline); overflow-wrap:anywhere; }
+  .ns-kort li:first-child{ border-top:none; }
+  .ns-kort .ns-mer, .ns-kort .ns-tom{ font-size:12.5px; color:var(--ink-muted); margin-top:8px; }
 </style>
 </head>
 <body>
@@ -163,6 +187,16 @@
 <div class="page-layout">
   <div class="page-head">
     <h1>Oversikt</h1>
+  </div>
+
+  <div class="ns-kort" id="nsKort" style="display:none;">
+    <div class="ns-kort-head">
+      <h2>Neste samtale<span class="ns-teller" id="nsTeller">0</span></h2>
+      <a href="neste-samtale.html">Åpne listen →</a>
+    </div>
+    <ul id="nsListe"></ul>
+    <div class="ns-mer" id="nsMer" style="display:none;"></div>
+    <div class="ns-tom" id="nsTom" style="display:none;">Ingen åpne punkter – listen er tom.</div>
   </div>
 
   <div class="kalender-column">
@@ -383,6 +417,34 @@ document.getElementById("todayNavBtn").addEventListener("click", ()=>{ previewOf
   document.getElementById("previewNav").style.display = "flex";
   document.getElementById("previewMonths").style.display = "grid";
   renderPreview();
+})();
+</script>
+<script>
+/* ==================== Neste samtale-kort ==================== */
+(async ()=>{
+  try{
+    const { data: { session } } = await window.sb.auth.getSession();
+    if(!session) return;
+    const { data, error } = await window.sb.from("neste_samtale")
+      .select("id, tekst").eq("ferdig", false).order("opprettet_ved", { ascending:true });
+    if(error) return;
+    const rader = data || [];
+    const MAKS = 3;
+    document.getElementById("nsTeller").textContent = rader.length;
+    const ul = document.getElementById("nsListe");
+    rader.slice(0, MAKS).forEach(r=>{
+      const li = document.createElement("li");
+      li.textContent = r.tekst;
+      ul.appendChild(li);
+    });
+    if(rader.length > MAKS){
+      const mer = document.getElementById("nsMer");
+      mer.textContent = `+ ${rader.length - MAKS} til`;
+      mer.style.display = "block";
+    }
+    if(!rader.length) document.getElementById("nsTom").style.display = "block";
+    document.getElementById("nsKort").style.display = "block";
+  }catch(e){ console.error(e); }
 })();
 </script>
 </body>

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neste samtale – Caminante Admin</title>
+<link rel="stylesheet" href="shared/style.css">
+<style>
+  /* Felles, ikke-hastende huskeliste mellom Vidar og Jan-Tore: ting som må
+     snakkes om, men som man ellers glemmer. Tabell: public.neste_samtale. */
+  .ns-wrap{ max-width:760px; margin:0 auto; padding:32px 24px 56px; }
+  .ns-wrap h1{ font-size:20px; margin:0 0 4px; }
+  .ns-sub{ font-size:13.5px; color:var(--ink-secondary); margin:0 0 20px; }
+
+  .ns-add{
+    background:var(--surface-1);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius);
+    padding:12px;
+    display:flex; flex-direction:column; gap:8px;
+    margin-bottom:22px;
+  }
+  .ns-add-row{ display:flex; gap:8px; }
+  .ns-add input, .ns-add textarea, .ns-edit input, .ns-edit textarea{
+    font:inherit; font-size:14px;
+    padding:8px 10px;
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    background:var(--surface-1);
+    color:var(--ink-primary);
+    width:100%;
+  }
+  .ns-add textarea, .ns-edit textarea{ resize:vertical; min-height:56px; font-size:13px; }
+  .ns-add input:focus, .ns-add textarea:focus, .ns-edit input:focus, .ns-edit textarea:focus{
+    outline:none; border-color:var(--accent);
+  }
+  .ns-btn{
+    padding:8px 14px;
+    border:1px solid var(--accent);
+    border-radius:8px;
+    background:var(--accent);
+    color:#fff;
+    font-size:13.5px; font-weight:600;
+    cursor:pointer; white-space:nowrap;
+  }
+  .ns-btn:hover{ filter:brightness(1.08); }
+  .ns-btn:disabled{ opacity:.5; cursor:default; }
+  .ns-btn.ns-secondary{ background:var(--surface-1); color:var(--ink-secondary); border-color:var(--hairline); }
+  .ns-btn.ns-secondary:hover{ background:var(--page); filter:none; }
+
+  .ns-section-title{
+    font-size:12px; font-weight:650; text-transform:uppercase; letter-spacing:0.03em;
+    color:var(--ink-secondary); margin:0 0 8px;
+  }
+  .ns-list{ list-style:none; margin:0 0 24px; padding:0;
+    background:var(--surface-1); border:1px solid var(--hairline); border-radius:var(--radius); }
+  .ns-item{
+    display:flex; gap:12px; align-items:flex-start;
+    padding:12px 14px;
+    border-bottom:1px solid var(--hairline);
+  }
+  .ns-item:last-child{ border-bottom:none; }
+  .ns-item input[type="checkbox"]{ width:18px; height:18px; margin-top:2px; flex:0 0 auto; cursor:pointer; accent-color:var(--accent); }
+  .ns-body{ flex:1 1 auto; min-width:0; }
+  .ns-tekst{ font-size:14.5px; line-height:1.4; overflow-wrap:anywhere; }
+  .ns-notat{ font-size:13px; color:var(--ink-secondary); margin-top:3px; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .ns-meta{ font-size:11.5px; color:var(--ink-muted); margin-top:4px; }
+  .ns-actions{ display:flex; gap:4px; flex:0 0 auto; }
+  .ns-link{
+    background:none; border:none; padding:3px 6px; border-radius:6px;
+    font-size:12px; color:var(--ink-muted); cursor:pointer;
+  }
+  .ns-link:hover{ background:var(--page); color:var(--ink-primary); }
+  .ns-link.ns-danger:hover{ color:#c0392b; }
+  .ns-edit{ display:flex; flex-direction:column; gap:6px; margin:2px 0; }
+  .ns-edit-btns{ display:flex; gap:6px; }
+  .ns-empty{ padding:18px 14px; font-size:13.5px; color:var(--ink-muted); }
+
+  details.ns-done > summary{
+    cursor:pointer; list-style:none;
+    font-size:12px; font-weight:650; text-transform:uppercase; letter-spacing:0.03em;
+    color:var(--ink-secondary); margin:0 0 8px;
+  }
+  details.ns-done > summary::-webkit-details-marker{ display:none; }
+  details.ns-done > summary::before{ content:"▸ "; }
+  details.ns-done[open] > summary::before{ content:"▾ "; }
+  .ns-item.ns-ferdig .ns-tekst{ text-decoration:line-through; color:var(--ink-muted); }
+
+  .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
+  .ns-error{ color:#c0392b; font-size:13px; margin:0 0 12px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html"><span class="company">Caminante Admin</span><span class="tool-name">Neste samtale</span></a>
+  <div class="user-area">
+    <span id="userName"></span>
+    <button class="logout-btn" id="logoutBtn">Logg ut</button>
+  </div>
+</div>
+
+<div id="loadMsg" class="load-msg">Laster…</div>
+
+<div class="ns-wrap" id="mainArea" style="display:none;">
+  <h1>Ting vi tar opp ved neste samtale</h1>
+  <p class="ns-sub">Ting som ikke haster, men som vi ikke vil glemme. Kryss av når det er tatt opp.</p>
+
+  <p class="ns-error" id="errMsg" style="display:none;"></p>
+
+  <form class="ns-add" id="addForm" autocomplete="off">
+    <div class="ns-add-row">
+      <input type="text" id="addTekst" placeholder="Hva må vi snakke om?" maxlength="300" required>
+      <button type="submit" class="ns-btn" id="addBtn">Legg til</button>
+    </div>
+    <textarea id="addNotat" placeholder="Notat (valgfritt)"></textarea>
+  </form>
+
+  <h2 class="ns-section-title" id="aapneTittel">Åpne punkter</h2>
+  <ul class="ns-list" id="aapneListe"></ul>
+
+  <details class="ns-done" id="doneDetails">
+    <summary id="doneSummary">Tatt opp</summary>
+    <ul class="ns-list" id="doneListe"></ul>
+  </details>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+let session = null;
+let punkter = [];
+let navnById = {};
+let redigererId = null;
+
+function escapeHtml(str){
+  return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+function fornavn(id){
+  const n = navnById[id];
+  return n ? n.split(" ")[0] : "ukjent";
+}
+function fmtDato(d){
+  if(!d) return "";
+  const dt = new Date(d);
+  if(isNaN(dt)) return "";
+  return dt.toLocaleDateString("nb-NO", { day:"numeric", month:"short" });
+}
+function visFeil(msg){
+  const el = document.getElementById("errMsg");
+  el.textContent = msg || "";
+  el.style.display = msg ? "block" : "none";
+}
+
+async function lastData(){
+  const [{ data: rader, error: e1 }, { data: profiler }] = await Promise.all([
+    window.sb.from("neste_samtale").select("*").order("opprettet_ved", { ascending:true }),
+    window.sb.from("profiles").select("id, navn"),
+  ]);
+  if(e1){
+    visFeil("Kunne ikke laste listen. Prøv å laste siden på nytt.");
+    console.error(e1);
+    return false;
+  }
+  navnById = {};
+  (profiler||[]).forEach(p=> navnById[p.id] = p.navn);
+  punkter = rader || [];
+  visFeil("");
+  return true;
+}
+
+function render(){
+  const aapne = punkter.filter(p=> !p.ferdig);
+  const ferdige = punkter.filter(p=> p.ferdig)
+    .sort((a,b)=> new Date(b.ferdig_ved||0) - new Date(a.ferdig_ved||0));
+
+  document.getElementById("aapneTittel").textContent = `Åpne punkter (${aapne.length})`;
+  document.getElementById("doneSummary").textContent = `Tatt opp (${ferdige.length})`;
+
+  const aapneEl = document.getElementById("aapneListe");
+  aapneEl.innerHTML = aapne.length
+    ? aapne.map(itemHtml).join("")
+    : `<li class="ns-empty">Ingenting på listen akkurat nå.</li>`;
+
+  const doneEl = document.getElementById("doneListe");
+  doneEl.innerHTML = ferdige.length
+    ? ferdige.map(itemHtml).join("")
+    : `<li class="ns-empty">Ingenting er krysset av ennå.</li>`;
+
+  if(redigererId){
+    const inp = document.getElementById("editTekst");
+    if(inp) inp.focus();
+  }
+}
+
+function itemHtml(p){
+  if(p.id === redigererId){
+    return `<li class="ns-item" data-id="${p.id}">
+      <div class="ns-body ns-edit">
+        <input type="text" id="editTekst" value="${escapeHtml(p.tekst)}" maxlength="300">
+        <textarea id="editNotat" placeholder="Notat (valgfritt)">${escapeHtml(p.notat||"")}</textarea>
+        <div class="ns-edit-btns">
+          <button class="ns-btn" data-act="lagre" data-id="${p.id}">Lagre</button>
+          <button class="ns-btn ns-secondary" data-act="avbryt" data-id="${p.id}">Avbryt</button>
+        </div>
+      </div>
+    </li>`;
+  }
+  const meta = p.ferdig
+    ? `Tatt opp ${escapeHtml(fmtDato(p.ferdig_ved))} · krysset av av ${escapeHtml(fornavn(p.ferdig_av))} · lagt inn av ${escapeHtml(fornavn(p.opprettet_av))}`
+    : `Lagt inn av ${escapeHtml(fornavn(p.opprettet_av))} · ${escapeHtml(fmtDato(p.opprettet_ved))}`;
+  const actions = p.ferdig
+    ? `<button class="ns-link" data-act="angre" data-id="${p.id}">Angre</button>`
+    : `<button class="ns-link" data-act="rediger" data-id="${p.id}">Rediger</button>
+       <button class="ns-link ns-danger" data-act="slett" data-id="${p.id}">Slett</button>`;
+  return `<li class="ns-item${p.ferdig ? " ns-ferdig" : ""}" data-id="${p.id}">
+    <input type="checkbox" data-act="toggle" data-id="${p.id}" ${p.ferdig ? "checked" : ""} aria-label="Tatt opp">
+    <div class="ns-body">
+      <div class="ns-tekst">${escapeHtml(p.tekst)}</div>
+      ${p.notat ? `<div class="ns-notat">${escapeHtml(p.notat)}</div>` : ""}
+      <div class="ns-meta">${meta}</div>
+    </div>
+    <div class="ns-actions">${actions}</div>
+  </li>`;
+}
+
+async function oppdater(id, felter){
+  const { error } = await window.sb.from("neste_samtale").update(felter).eq("id", id);
+  if(error){ visFeil("Kunne ikke lagre endringen. Prøv igjen."); console.error(error); return false; }
+  visFeil("");
+  return true;
+}
+
+async function toggleFerdig(id, ferdig){
+  const felter = ferdig
+    ? { ferdig:true, ferdig_av: session.user.id, ferdig_ved: new Date().toISOString() }
+    : { ferdig:false, ferdig_av:null, ferdig_ved:null };
+  if(await oppdater(id, felter)){
+    const p = punkter.find(x=> x.id === id);
+    if(p) Object.assign(p, felter);
+  }
+  render();
+}
+
+document.getElementById("addForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const tekst = document.getElementById("addTekst").value.trim();
+  const notat = document.getElementById("addNotat").value.trim();
+  if(!tekst) return;
+  const btn = document.getElementById("addBtn");
+  btn.disabled = true;
+  const { data, error } = await window.sb.from("neste_samtale")
+    .insert({ tekst, notat: notat || null, opprettet_av: session.user.id })
+    .select().single();
+  btn.disabled = false;
+  if(error){ visFeil("Kunne ikke legge til punktet. Prøv igjen."); console.error(error); return; }
+  visFeil("");
+  punkter.push(data);
+  document.getElementById("addTekst").value = "";
+  document.getElementById("addNotat").value = "";
+  document.getElementById("addTekst").focus();
+  render();
+});
+
+document.getElementById("mainArea").addEventListener("click", async (e)=>{
+  const el = e.target.closest("[data-act]");
+  if(!el) return;
+  const act = el.dataset.act, id = el.dataset.id;
+  if(act === "toggle"){ return; } // håndteres av change-hendelsen under
+  if(act === "angre"){ await toggleFerdig(id, false); }
+  else if(act === "rediger"){ redigererId = id; render(); }
+  else if(act === "avbryt"){ redigererId = null; render(); }
+  else if(act === "lagre"){
+    const tekst = document.getElementById("editTekst").value.trim();
+    const notat = document.getElementById("editNotat").value.trim();
+    if(!tekst) return;
+    if(await oppdater(id, { tekst, notat: notat || null })){
+      const p = punkter.find(x=> x.id === id);
+      if(p){ p.tekst = tekst; p.notat = notat || null; }
+      redigererId = null;
+    }
+    render();
+  }
+  else if(act === "slett"){
+    const p = punkter.find(x=> x.id === id);
+    if(!p || !confirm(`Slette «${p.tekst}»?`)) return;
+    const { error } = await window.sb.from("neste_samtale").delete().eq("id", id);
+    if(error){ visFeil("Kunne ikke slette punktet. Prøv igjen."); console.error(error); return; }
+    punkter = punkter.filter(x=> x.id !== id);
+    render();
+  }
+});
+document.getElementById("mainArea").addEventListener("change", async (e)=>{
+  const el = e.target.closest('input[data-act="toggle"]');
+  if(el) await toggleFerdig(el.dataset.id, el.checked);
+});
+
+// Ny rad fra den andre dukker opp når man kommer tilbake til fanen.
+async function oppfrisk(){
+  if(redigererId || document.activeElement === document.getElementById("addTekst")) return;
+  if(await lastData()) render();
+}
+window.addEventListener("focus", oppfrisk);
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) oppfrisk(); });
+
+(async ()=>{
+  session = await requireLogin();
+  if(!session) return;
+  const ok = await lastData();
+  document.getElementById("loadMsg").style.display = "none";
+  document.getElementById("mainArea").style.display = "block";
+  if(ok) render();
+})();
+</script>
+</body>
+</html>

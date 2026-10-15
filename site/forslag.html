@@ -183,7 +183,6 @@
         <tr>
           <th data-key="forslagsnummer">Nr. <span class="arrow"></span></th>
           <th data-key="tittel">Tittel / destinasjon <span class="arrow"></span></th>
-          <th data-key="kunde_navn">Kunde <span class="arrow"></span></th>
           <th data-key="kundetype">Kundetype <span class="arrow"></span></th>
           <th data-key="fra_dato">Reiseperiode <span class="arrow"></span></th>
           <th data-key="antall_reisende">Antall <span class="arrow"></span></th>
@@ -349,7 +348,6 @@ function renderList(){
         <div class="forslag-tittel">${escapeHtml(f.tittel)}</div>
         <div class="forslag-sub">${escapeHtml(f.destinasjon)}</div>
       </td>
-      <td>${escapeHtml(f.kunde_visning)}</td>
       <td>${escapeHtml(f.kundetype)}</td>
       <td>${escapeHtml(fmtPeriode(f))}</td>
       <td>${f.antall_reisende ?? ""}</td>
