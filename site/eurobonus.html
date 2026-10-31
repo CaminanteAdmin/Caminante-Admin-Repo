@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EuroBonus – Caminante Admin</title>
+<link rel="stylesheet" href="shared/style.css">
+<style>
+  /* EuroBonus: én samlet saldo (den faktiske på kontoen) føres manuelt i
+     eurobonus_saldo. Fordelingen regnes ut her:
+       Vidar     = inngående 31.12.2026 - brukt fra Vidars konto
+       Jan-Tore  = inngående 31.12.2026 - brukt fra Jan-Tores konto
+       Caminante = samlet saldo - Vidar - Jan-Tore  (alt opptjent etter 01.01.2027)
+     Tabeller: eurobonus_saldo, eurobonus_kontoer (inngående), eurobonus_reiser
+     (se sql/eurobonus_v1.sql). */
+  .eb-wrap{ max-width:1040px; margin:0 auto; padding:28px 24px 56px; }
+  .eb-head h1{ font-size:20px; margin:0 0 4px; }
+  .eb-sub{ font-size:13.5px; color:var(--ink-secondary); margin:0 0 20px; }
+  .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
+  .eb-error{ color:#c0392b; font-size:13px; margin:0 0 12px; }
+
+  /* ---------- Saldo øverst ---------- */
+  .eb-saldo-grid{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:16px; margin-bottom:10px; }
+  .eb-saldo{
+    background:var(--surface-1); border:1px solid var(--hairline); border-radius:var(--radius);
+    padding:16px 18px 14px; position:relative;
+  }
+  .eb-saldo.eb-konto-inn{ background:#eaf3fd; border-color:#b7d6f7; }
+  .eb-saldo.eb-konto-inn .eb-saldo-navn{ color:var(--accent); }
+  .eb-saldo.eb-konto-inn .eb-saldo-tall:hover{ border-color:#b7d6f7; }
+  .eb-saldo-beregnet{
+    display:block; margin:6px 0 2px;
+    font-size:34px; font-weight:700; letter-spacing:-0.01em;
+    font-variant-numeric:tabular-nums; color:var(--ink-primary);
+  }
+  .eb-saldo-beregnet.ukjent{ color:var(--ink-muted); font-size:22px; font-weight:500; }
+  .eb-saldo-beregnet.negativ{ color:#8a6a1d; }
+  .eb-saldo-detalj{ font-size:11.5px; color:var(--ink-muted); margin-top:8px; padding-top:8px; border-top:1px solid var(--hairline); line-height:1.5; }
+  .eb-hint{ font-size:12.5px; color:var(--ink-secondary); margin:0 0 6px; }
+  .eb-hint.varsel{ color:#8a6a1d; }
+  .eb-hintwrap{ margin-bottom:18px; }
+  .eb-saldo-navn{
+    font-size:12px; font-weight:650; text-transform:uppercase; letter-spacing:0.03em;
+    color:var(--ink-secondary);
+  }
+  .eb-saldo-tall{
+    display:block; width:100%; margin:6px 0 2px; padding:2px 4px; margin-left:-4px;
+    font:inherit; font-size:34px; font-weight:700; letter-spacing:-0.01em;
+    font-variant-numeric:tabular-nums;
+    color:var(--ink-primary);
+    border:1px solid transparent; border-radius:8px; background:transparent;
+  }
+  .eb-saldo-tall:hover{ border-color:var(--hairline); }
+  .eb-saldo-tall:focus{ outline:none; border-color:var(--accent); background:var(--surface-1); }
+  .eb-saldo-tall::placeholder{ color:var(--ink-muted); font-weight:500; }
+  .eb-saldo-enhet{ font-size:12px; color:var(--ink-muted); margin-left:2px; }
+  .eb-saldo-dato{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-muted); margin-top:4px; }
+  .eb-saldo-dato input[type="date"]{
+    font:inherit; font-size:12px; color:var(--ink-secondary);
+    border:1px solid transparent; border-radius:6px; padding:2px 4px; background:transparent;
+  }
+  .eb-saldo-dato input[type="date"]:hover{ border-color:var(--hairline); }
+  .eb-saldo-dato input[type="date"]:focus{ outline:none; border-color:var(--accent); background:var(--surface-1); }
+  .eb-saldo-brukt{ font-size:11.5px; color:var(--ink-muted); margin-top:8px; padding-top:8px; border-top:1px solid var(--hairline); }
+  .eb-lagret{
+    position:absolute; top:14px; right:16px; font-size:11.5px; color:var(--good);
+    opacity:0; transition:opacity .25s;
+  }
+  .eb-lagret.vis{ opacity:1; }
+
+  /* ---------- Kort / skjema ---------- */
+  .eb-kort{
+    background:var(--surface-1); border:1px solid var(--hairline); border-radius:var(--radius);
+    padding:16px 18px; margin-bottom:24px;
+  }
+  .eb-kort h2{
+    font-size:13px; font-weight:650; margin:0 0 14px; color:var(--ink-secondary);
+    text-transform:uppercase; letter-spacing:0.03em;
+  }
+  .eb-rad{ display:flex; flex-wrap:wrap; gap:12px; margin-bottom:12px; align-items:flex-end; }
+  .eb-felt{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .eb-felt > label, .eb-felt > .eb-lbl{ font-size:11.5px; color:var(--ink-muted); }
+  .eb-felt.bred{ flex:1 1 180px; }
+  .eb-felt.smal{ flex:0 0 150px; }
+  .eb-felt.mini{ flex:0 0 110px; }
+  .eb-kort input[type="text"], .eb-kort input[type="date"], .eb-kort input[type="number"], .eb-kort select{
+    font:inherit; font-size:14px; padding:8px 10px;
+    border:1px solid var(--hairline); border-radius:8px;
+    background:var(--surface-1); color:var(--ink-primary); width:100%;
+  }
+  .eb-kort input:focus, .eb-kort select:focus{ outline:none; border-color:var(--accent); }
+  .eb-kort input.tall{ text-align:right; font-variant-numeric:tabular-nums; }
+
+  .eb-seg{ display:inline-flex; border:1px solid var(--hairline); border-radius:8px; overflow:hidden; }
+  .eb-seg button{
+    font:inherit; font-size:13px; padding:8px 14px; border:none; background:var(--surface-1);
+    color:var(--ink-secondary); cursor:pointer; border-right:1px solid var(--hairline);
+  }
+  .eb-seg button:last-child{ border-right:none; }
+  .eb-seg button:hover{ background:var(--page); }
+  .eb-seg button.aktiv{ background:var(--accent); color:#fff; }
+
+  .eb-etapper{ display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
+  .eb-etappe{ display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+  .eb-etappe-navn{ flex:0 0 74px; font-size:12px; font-weight:650; color:var(--ink-secondary); padding-bottom:10px; }
+
+  .eb-reisende{ display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+  .eb-person{ display:flex; gap:8px; align-items:center; }
+  .eb-person .nr{ flex:0 0 18px; font-size:12px; color:var(--ink-muted); }
+  .eb-person select{ flex:0 0 150px; width:150px; }
+  .eb-person input[type="text"]{ flex:1 1 200px; }
+
+  .eb-knapper{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .eb-btn{
+    padding:9px 16px; border:1px solid var(--accent); border-radius:8px; background:var(--accent);
+    color:#fff; font-size:13.5px; font-weight:600; cursor:pointer; white-space:nowrap;
+  }
+  .eb-btn:hover{ filter:brightness(1.08); }
+  .eb-btn:disabled{ opacity:.5; cursor:default; }
+  .eb-btn.sek{ background:var(--surface-1); color:var(--ink-secondary); border-color:var(--hairline); }
+  .eb-btn.sek:hover{ background:var(--page); filter:none; }
+  .eb-feil{ font-size:13px; color:#c0392b; }
+  .eb-redigerer{
+    font-size:12.5px; color:#8a6a1d; background:#fdf4e3; border:1px solid #eddaaf;
+    border-radius:8px; padding:6px 10px; margin-bottom:12px;
+  }
+
+  /* ---------- Liste ---------- */
+  .eb-tabellwrap{ overflow-x:auto; }
+  .eb-kort table{ width:100%; border-collapse:collapse; font-size:13px; }
+  .eb-kort thead th{
+    text-align:left; font-weight:600; color:var(--ink-secondary);
+    padding:8px 8px; border-bottom:1px solid var(--hairline); white-space:nowrap;
+  }
+  .eb-kort thead th.tall, .eb-kort td.tall{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .eb-kort tbody td{ padding:10px 8px; border-bottom:1px solid var(--hairline); vertical-align:top; }
+  .eb-kort tbody tr.sum td{ border-bottom:none; font-weight:650; background:var(--page); }
+  .eb-rute{ font-weight:600; }
+  .eb-dato{ font-size:12px; color:var(--ink-secondary); }
+  .eb-notat{ font-size:12px; color:var(--ink-muted); margin-top:2px; }
+  .eb-chip{
+    display:inline-block; font-size:10.5px; padding:1.5px 8px; border-radius:20px;
+    border:1px solid var(--hairline); background:var(--page); color:var(--ink-secondary); white-space:nowrap;
+  }
+  .eb-chip.caminante{ background:#eaf3fd; border-color:#b7d6f7; color:var(--accent); }
+  .eb-chip.vidar{ background:#e7f5e7; border-color:#bfe3bf; color:#0a7a0a; }
+  .eb-chip.jan-tore{ background:#fdf4e3; border-color:#eddaaf; color:#8a6a1d; }
+  .eb-handl{ white-space:nowrap; text-align:right; }
+  .eb-link{ background:none; border:none; padding:3px 6px; border-radius:6px; font-size:12px; color:var(--ink-muted); cursor:pointer; }
+  .eb-link:hover{ background:var(--page); color:var(--ink-primary); }
+  .eb-link.fare:hover{ color:#c0392b; }
+  .eb-tom{ padding:20px 8px; color:var(--ink-muted); font-size:13.5px; }
+
+  .eb-inng-grid{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:16px; }
+  .eb-note{ font-size:12px; color:var(--ink-muted); margin:0 0 12px; line-height:1.5; }
+
+  @media (max-width:980px){ .eb-saldo-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  @media (max-width:760px){
+    .eb-saldo-grid, .eb-inng-grid{ grid-template-columns:minmax(0,1fr); }
+    .eb-felt.smal, .eb-felt.mini{ flex:1 1 140px; }
+    .eb-etappe-navn{ flex:0 0 100%; padding-bottom:0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html"><span class="company">Caminante Admin</span><span class="tool-name">EuroBonus</span></a>
+  <div class="user-area">
+    <span id="userName"></span>
+    <button class="logout-btn" id="logoutBtn">Logg ut</button>
+  </div>
+</div>
+
+<div id="loadMsg" class="load-msg">Laster EuroBonus…</div>
+
+<div class="eb-wrap" id="mainArea" style="display:none;">
+  <div class="eb-head">
+    <h1>EuroBonus</h1>
+    <p class="eb-sub">Saldoen på EuroBonus-kontoen føres manuelt. Fordelingen på Caminante, Vidar og Jan-Tore regnes ut automatisk: alt som tjenes opp etter 01.01.2027 er Caminantes. En konto kan gå i minus – da lånes det av de andre. Caminantes minus jevnes ut etter hvert som nye poeng kommer inn.</p>
+  </div>
+  <p class="eb-error" id="errMsg" style="display:none;"></p>
+
+  <!-- ===== Saldo ===== -->
+  <div class="eb-saldo-grid" id="saldoGrid"></div>
+  <div class="eb-hintwrap" id="saldoHint"></div>
+
+  <!-- ===== Registrer bonusreise ===== -->
+  <div class="eb-kort" id="skjemaKort">
+    <h2 id="skjemaTittel">Registrer bonusreise</h2>
+    <div class="eb-redigerer" id="redigererMsg" style="display:none;">Du redigerer en registrert reise. Lagre endringene eller avbryt.</div>
+
+    <div class="eb-rad">
+      <div class="eb-felt">
+        <span class="eb-lbl">Reisetype</span>
+        <div class="eb-seg" id="typeSeg">
+          <button type="button" data-type="enkel" class="aktiv">Enkeltreise</button>
+          <button type="button" data-type="tur_retur">Tur/retur</button>
+          <button type="button" data-type="open_jaw">Open jaw</button>
+        </div>
+      </div>
+      <div class="eb-felt smal">
+        <label for="fKonto">Poeng trekkes fra</label>
+        <select id="fKonto">
+          <option value="caminante">Caminante</option>
+          <option value="vidar">Vidar</option>
+          <option value="jan-tore">Jan-Tore</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="eb-etapper" id="etapper"></div>
+
+    <div class="eb-rad">
+      <div class="eb-felt smal">
+        <label for="fPoeng">Poeng totalt</label>
+        <input type="text" id="fPoeng" class="tall" inputmode="numeric" placeholder="0" autocomplete="off">
+      </div>
+      <div class="eb-felt smal">
+        <label for="fSkatter">Skatter og avgifter totalt (kr)</label>
+        <input type="text" id="fSkatter" class="tall" inputmode="decimal" placeholder="0" autocomplete="off">
+      </div>
+      <div class="eb-felt mini">
+        <label for="fAntall">Antall personer</label>
+        <input type="number" id="fAntall" min="1" max="20" step="1" value="1">
+      </div>
+    </div>
+
+    <div class="eb-felt" style="margin-bottom:6px;"><span class="eb-lbl">Hvem reiser</span></div>
+    <div class="eb-reisende" id="reisende"></div>
+
+    <div class="eb-rad">
+      <div class="eb-felt bred">
+        <label for="fNotat">Notat / formål (valgfritt)</label>
+        <input type="text" id="fNotat" maxlength="300" placeholder="F.eks. kartlegging skole, tjenestereise Krakow" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="eb-knapper">
+      <button type="button" class="eb-btn" id="lagreBtn">Legg til</button>
+      <button type="button" class="eb-btn sek" id="avbrytBtn" style="display:none;">Avbryt</button>
+      <span class="eb-feil" id="skjemaFeil"></span>
+    </div>
+  </div>
+
+  <!-- ===== Bestilte bonusreiser ===== -->
+  <div class="eb-kort">
+    <h2 id="listeTittel">Bestilte bonusreiser</h2>
+    <div class="eb-tabellwrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Reise</th>
+            <th>Reisende</th>
+            <th>Konto</th>
+            <th class="tall">Poeng</th>
+            <th class="tall">Skatter og avgifter</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="listBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== Inngående saldo ===== -->
+  <div class="eb-kort">
+    <h2>Inngående saldo 31.12.2026</h2>
+    <p class="eb-note">Engangsregistrering av hvordan saldoen var fordelt per 31.12.2026: poengene Vidar og Jan-Tore tar med inn, og det Caminante allerede har tjent opp. Dette er grunnlaget for fordelingen øverst: Vidar og Jan-Tore har inngående saldo minus det de har brukt, og resten av saldoen på kontoen er Caminantes. Alt som tjenes opp etter 01.01.2027 er Caminantes og brukes på tjenestereiser (inkl. kartlegging).</p>
+    <div class="eb-inng-grid" id="inngGrid"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+const KONTOER = [
+  { id:"caminante", navn:"Caminante" },
+  { id:"vidar",     navn:"Vidar" },
+  { id:"jan-tore",  navn:"Jan-Tore" },
+];
+const KONTO_NAVN = Object.fromEntries(KONTOER.map(k=>[k.id, k.navn]));
+const MND = ["jan.","feb.","mars","april","mai","juni","juli","aug.","sep.","okt.","nov.","des."];
+
+let session = null;
+let kontoer = {};        // konto-id -> rad (inngående saldo)
+let samlet = { saldo:null, saldo_dato:null };  // den faktiske saldoen på kontoen
+let reiser = [];
+let skjemaType = "enkel";
+let redigererId = null;
+let minNavn = "Vidar";   // fornavn på den som er innlogget (for forhåndsvalg av reisende)
+
+const $ = id => document.getElementById(id);
+function escapeHtml(str){
+  return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+
+/* ---------- Tall og datoer ---------- */
+function fmtInt(n){
+  if(n === null || n === undefined || n === "") return "";
+  return String(Math.round(Number(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+function fmtKr(n){
+  const num = Number(n || 0);
+  const harOre = Math.abs(num - Math.round(num)) > 0.004;
+  const [h, d] = num.toFixed(harOre ? 2 : 0).split(".");
+  return h.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + (d ? "," + d : "");
+}
+function parseInt0(s){
+  const d = String(s ?? "").replace(/\D/g, "");
+  return d === "" ? null : parseInt(d, 10);
+}
+function parseKr(s){
+  const t = String(s ?? "").trim().replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
+  if(t === "") return 0;
+  const n = Number(t);
+  return isNaN(n) ? null : n;
+}
+function delDato(d){
+  if(!d) return null;
+  const [y, m, dag] = d.split("-").map(Number);
+  return { y, m, dag };
+}
+function fmtDato(d){
+  const a = delDato(d);
+  return a ? `${a.dag}. ${MND[a.m-1]} ${a.y}` : "";
+}
+function fmtDatoLang(d){ // "31. okt 2026" for saldo
+  const a = delDato(d);
+  return a ? `${a.dag}. ${MND[a.m-1].replace(".","")} ${a.y}` : "";
+}
+function fmtPeriode(a, b){
+  const x = delDato(a), y = delDato(b);
+  if(!x) return "";
+  if(!y) return fmtDato(a);
+  if(x.y === y.y && x.m === y.m){
+    if(x.dag === y.dag) return fmtDato(a);
+    return `${x.dag}.–${y.dag}. ${MND[x.m-1]} ${x.y}`;
+  }
+  if(x.y === y.y) return `${x.dag}. ${MND[x.m-1]} – ${y.dag}. ${MND[y.m-1]} ${x.y}`;
+  return `${fmtDato(a)} – ${fmtDato(b)}`;
+}
+function iDag(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function visFeil(msg){
+  const el = $("errMsg");
+  el.textContent = msg || "";
+  el.style.display = msg ? "block" : "none";
+}
+
+/* ---------- Data ---------- */
+async function lastData(){
+  const [{ data: k, error: e1 }, { data: r, error: e2 }, { data: s, error: e3 }, { data: p }] = await Promise.all([
+    window.sb.from("eurobonus_kontoer").select("*"),
+    window.sb.from("eurobonus_reiser").select("*").order("opprettet_ved", { ascending:false }),
+    window.sb.from("eurobonus_saldo").select("*"),
+    window.sb.from("profiles").select("id, navn"),
+  ]);
+  if(e1 || e2 || e3){
+    visFeil("Kunne ikke laste EuroBonus-dataene. Sjekk at tabellene er opprettet i Supabase, og prøv igjen.");
+    console.error(e1, e2, e3);
+    return false;
+  }
+  kontoer = {};
+  (k||[]).forEach(row => kontoer[row.konto] = row);
+  samlet = (s && s[0]) ? s[0] : { id:1, saldo:null, saldo_dato:null };
+  reiser = r || [];
+  const meg = (p||[]).find(x => x.id === session.user.id);
+  const fn = meg && meg.navn ? meg.navn.split(" ")[0] : "";
+  if(/^jan/i.test(fn)) minNavn = "Jan-Tore"; else minNavn = "Vidar";
+  visFeil("");
+  return true;
+}
+
+function bruktPerKonto(){
+  const sum = { caminante:0, vidar:0, "jan-tore":0 };
+  reiser.forEach(r => { if(sum[r.konto] !== undefined) sum[r.konto] += Number(r.poeng || 0); });
+  return sum;
+}
+
+/* ---------- Fordeling av saldoen ----------
+   Vidar/Jan-Tore: inngående 31.12.2026 minus poeng brukt fra egen konto.
+   Caminante: samlet saldo minus Vidar og Jan-Tore (alt opptjent etter 01.01.2027,
+   minus det Caminante selv har brukt - det ligger allerede inne i saldoen). */
+function beregnFordeling(){
+  const brukt = bruktPerKonto();
+  const inn = id => (kontoer[id] && kontoer[id].inngaaende_saldo != null) ? Number(kontoer[id].inngaaende_saldo) : null;
+  const vidar = inn("vidar") !== null ? inn("vidar") - brukt.vidar : null;
+  const janTore = inn("jan-tore") !== null ? inn("jan-tore") - brukt["jan-tore"] : null;
+  const S = samlet.saldo != null ? Number(samlet.saldo) : null;
+  const caminante = (S !== null && vidar !== null && janTore !== null) ? S - vidar - janTore : null;
+  const inngC = inn("caminante");
+  return {
+    brukt,
+    caminante, vidar, janTore,
+    inngVidar: inn("vidar"), inngJanTore: inn("jan-tore"), inngCaminante: inngC,
+    // Opptjent etter 01.01.2027 = det Caminante har nå + det Caminante har brukt - det Caminante hadde ved start
+    opptjentCaminante: (caminante !== null && inngC !== null) ? caminante + brukt.caminante - inngC : null,
+    saldo: S,
+  };
+}
+function fmtSigned(n){ return (n < 0 ? "−" : "") + fmtInt(Math.abs(n)); }
+function laanTekst(verdi, hvem, jevnesUt){
+  if(verdi === null || verdi >= 0) return "";
+  return `Låner ${fmtInt(-verdi)} poeng av ${hvem}${jevnesUt ? " – jevnes ut etter hvert som nye poeng kommer inn" : ""}. `;
+}
+function reiserEtterSaldodato(){
+  if(!samlet.saldo_dato) return 0;
+  return reiser.filter(r => (r.opprettet_ved || "").slice(0,10) > samlet.saldo_dato).length;
+}
+function beregnetHtml(verdi){
+  if(verdi === null) return `<span class="eb-saldo-beregnet ukjent">–</span>`;
+  return `<span class="eb-saldo-beregnet${verdi < 0 ? " negativ" : ""}">${fmtSigned(verdi)}</span>`;
+}
+
+/* ---------- Saldo-kort ---------- */
+function renderSaldo(){
+  $("saldoGrid").innerHTML = `
+    <div class="eb-saldo" data-konto="caminante">
+      <div class="eb-saldo-navn">Caminante</div>
+      <div id="beregnet-caminante"></div>
+      <div class="eb-saldo-detalj" id="detalj-caminante"></div>
+    </div>
+    <div class="eb-saldo" data-konto="vidar">
+      <div class="eb-saldo-navn">Vidar</div>
+      <div id="beregnet-vidar"></div>
+      <div class="eb-saldo-detalj" id="detalj-vidar"></div>
+    </div>
+    <div class="eb-saldo" data-konto="jan-tore">
+      <div class="eb-saldo-navn">Jan-Tore</div>
+      <div id="beregnet-jan-tore"></div>
+      <div class="eb-saldo-detalj" id="detalj-jan-tore"></div>
+    </div>
+    <div class="eb-saldo eb-konto-inn">
+      <span class="eb-lagret" id="lagret-samlet">Lagret</span>
+      <div class="eb-saldo-navn">Saldo på kontoen</div>
+      <input type="text" class="eb-saldo-tall" id="saldo-samlet" inputmode="numeric" autocomplete="off"
+             placeholder="Ikke satt" value="${escapeHtml(fmtInt(samlet.saldo))}" aria-label="Saldo på EuroBonus-kontoen">
+      <div class="eb-saldo-dato">
+        <span>poeng per</span>
+        <input type="date" id="saldodato-samlet" value="${escapeHtml(samlet.saldo_dato || "")}" aria-label="Saldodato">
+      </div>
+      <div class="eb-saldo-detalj">Skriv inn saldoen fra EuroBonus-kontoen. Fordelingen til venstre regnes ut automatisk.</div>
+    </div>`;
+
+  const tall = $("saldo-samlet"), dato = $("saldodato-samlet");
+  tall.addEventListener("focus", () => {
+    const v = parseInt0(tall.value);
+    tall.value = v === null ? "" : String(v);
+    tall.select();
+  });
+  tall.addEventListener("blur", lagreSaldo);
+  tall.addEventListener("keydown", e => { if(e.key === "Enter") tall.blur(); });
+  dato.addEventListener("change", lagreSaldo);
+  oppdaterFordeling();
+}
+function oppdaterFordeling(){
+  const f = beregnFordeling();
+  $("beregnet-caminante").innerHTML = beregnetHtml(f.caminante);
+  $("beregnet-vidar").innerHTML = beregnetHtml(f.vidar);
+  $("beregnet-jan-tore").innerHTML = beregnetHtml(f.janTore);
+  const bruktC = fmtInt(f.brukt.caminante) || "0", bruktV = fmtInt(f.brukt.vidar) || "0", bruktJ = fmtInt(f.brukt["jan-tore"]) || "0";
+  $("detalj-caminante").textContent = laanTekst(f.caminante, "Vidar og Jan-Tore", true) + (f.inngCaminante !== null
+    ? `Inn 31.12.2026: ${fmtInt(f.inngCaminante)}${f.opptjentCaminante !== null ? ` · opptjent siden: ${fmtSigned(f.opptjentCaminante)}` : ""} · brukt ${bruktC}`
+    : `Inngående saldo er ikke satt · brukt ${bruktC}`);
+  $("detalj-vidar").textContent = laanTekst(f.vidar, "Caminante", false) + (f.inngVidar !== null
+    ? `Inn 31.12.2026: ${fmtInt(f.inngVidar)} · brukt ${bruktV}`
+    : `Inngående saldo er ikke satt · brukt ${bruktV}`);
+  $("detalj-jan-tore").textContent = laanTekst(f.janTore, "Caminante", false) + (f.inngJanTore !== null
+    ? `Inn 31.12.2026: ${fmtInt(f.inngJanTore)} · brukt ${bruktJ}`
+    : `Inngående saldo er ikke satt · brukt ${bruktJ}`);
+
+  const hint = [];
+  const mangler = [];
+  if(f.inngVidar === null) mangler.push("Vidar");
+  if(f.inngJanTore === null) mangler.push("Jan-Tore");
+  if(f.inngCaminante === null) mangler.push("Caminante");
+  if(mangler.length)
+    hint.push(`<p class="eb-hint">Legg inn inngående saldo 31.12.2026 for ${escapeHtml(mangler.join(", "))} nederst på siden${(f.inngVidar === null || f.inngJanTore === null) ? ", så regnes fordelingen ut automatisk" : ""}.</p>`);
+  if(f.saldo === null)
+    hint.push(`<p class="eb-hint">Legg inn saldoen på kontoen (til høyre) for å få regnet ut Caminantes poeng.</p>`);
+  const etter = reiserEtterSaldodato();
+  if(etter > 0)
+    hint.push(`<p class="eb-hint varsel">${etter} ${etter === 1 ? "reise er registrert" : "reiser er registrert"} etter saldodatoen ${escapeHtml(fmtDatoLang(samlet.saldo_dato))}. Oppdater saldoen på kontoen så fordelingen stemmer.</p>`);
+  $("saldoHint").innerHTML = hint.join("");
+}
+function oppdaterBrukt(){ oppdaterFordeling(); }
+function blinkLagret(id){
+  const el = $("lagret-" + id);
+  if(!el) return;
+  el.classList.add("vis");
+  setTimeout(() => el.classList.remove("vis"), 1400);
+}
+async function lagreSaldo(){
+  const tall = $("saldo-samlet"), dato = $("saldodato-samlet");
+  const saldo = parseInt0(tall.value);
+  let saldoDato = dato.value || null;
+  if(saldo !== null && !saldoDato){ saldoDato = iDag(); dato.value = saldoDato; }
+  tall.value = saldo === null ? "" : fmtInt(saldo);
+  if((samlet.saldo ?? null) === saldo && (samlet.saldo_dato ?? null) === saldoDato) return;
+  const felter = { saldo, saldo_dato: saldoDato, sist_endret: new Date().toISOString() };
+  const { error } = await window.sb.from("eurobonus_saldo").update(felter).eq("id", 1);
+  if(error){ visFeil("Kunne ikke lagre saldoen. Prøv igjen."); console.error(error); return; }
+  visFeil("");
+  samlet = { ...samlet, id:1, ...felter };
+  blinkLagret("samlet");
+  oppdaterFordeling();
+}
+
+/* ---------- Inngående saldo ---------- */
+const INNG_KONTOER = KONTOER;
+function renderInng(){
+  $("inngGrid").innerHTML = INNG_KONTOER.map(k => {
+    const row = kontoer[k.id] || {};
+    return `<div class="eb-felt">
+      <label for="inng-${k.id}">${escapeHtml(k.navn)} (poeng per 31.12.2026)</label>
+      <input type="text" class="tall" id="inng-${k.id}" inputmode="numeric" autocomplete="off" placeholder="Ikke satt"
+             value="${escapeHtml(fmtInt(row.inngaaende_saldo))}">
+    </div>`;
+  }).join("");
+  INNG_KONTOER.forEach(k => {
+    const inp = $("inng-" + k.id);
+    inp.addEventListener("focus", () => { const v = parseInt0(inp.value); inp.value = v === null ? "" : String(v); inp.select(); });
+    inp.addEventListener("blur", async () => {
+      const v = parseInt0(inp.value);
+      inp.value = v === null ? "" : fmtInt(v);
+      const gammel = kontoer[k.id] || {};
+      if((gammel.inngaaende_saldo ?? null) === v) return;
+      const felter = { inngaaende_saldo: v, sist_endret: new Date().toISOString() };
+      const { error } = await window.sb.from("eurobonus_kontoer").update(felter).eq("konto", k.id);
+      if(error){ visFeil("Kunne ikke lagre inngående saldo. Prøv igjen."); console.error(error); return; }
+      visFeil("");
+      kontoer[k.id] = { ...gammel, konto:k.id, ...felter };
+      oppdaterFordeling();
+    });
+    inp.addEventListener("keydown", e => { if(e.key === "Enter") inp.blur(); });
+  });
+}
+
+/* ---------- Skjema: etapper ---------- */
+function etappeHtml(nr, navn, v, medStrekning, medDato){
+  return `<div class="eb-etappe" data-etappe="${nr}">
+    <div class="eb-etappe-navn">${escapeHtml(navn)}</div>
+    ${medStrekning ? `
+      <div class="eb-felt bred"><label for="fFra${nr}">Fra</label><input type="text" id="fFra${nr}" value="${escapeHtml(v.fra||"")}" placeholder="F.eks. Bergen" autocomplete="off"></div>
+      <div class="eb-felt bred"><label for="fTil${nr}">Til</label><input type="text" id="fTil${nr}" value="${escapeHtml(v.til||"")}" placeholder="F.eks. Krakow" autocomplete="off"></div>` : ""}
+    ${medDato ? `<div class="eb-felt smal"><label for="fDato${nr}">${escapeHtml(v.datoLabel || "Dato")}</label><input type="date" id="fDato${nr}" value="${escapeHtml(v.dato||"")}"></div>` : ""}
+  </div>`;
+}
+function lesEtapper(){
+  const g = id => { const el = $(id); return el ? el.value : ""; };
+  return { fra1:g("fFra1"), til1:g("fTil1"), dato1:g("fDato1"), fra2:g("fFra2"), til2:g("fTil2"), dato2:g("fDato2") };
+}
+function renderEtapper(verdier){
+  const v = verdier || lesEtapper();
+  let html = "";
+  if(skjemaType === "enkel"){
+    html = etappeHtml(1, "Reise", { fra:v.fra1, til:v.til1, dato:v.dato1, datoLabel:"Reisedato" }, true, true);
+  } else if(skjemaType === "tur_retur"){
+    html = `<div class="eb-etappe" data-etappe="1">
+      <div class="eb-etappe-navn">Reise</div>
+      <div class="eb-felt bred"><label for="fFra1">Fra</label><input type="text" id="fFra1" value="${escapeHtml(v.fra1||"")}" placeholder="F.eks. Bergen" autocomplete="off"></div>
+      <div class="eb-felt bred"><label for="fTil1">Til</label><input type="text" id="fTil1" value="${escapeHtml(v.til1||"")}" placeholder="F.eks. Krakow" autocomplete="off"></div>
+      <div class="eb-felt smal"><label for="fDato1">Utreise</label><input type="date" id="fDato1" value="${escapeHtml(v.dato1||"")}"></div>
+      <div class="eb-felt smal"><label for="fDato2">Hjemreise</label><input type="date" id="fDato2" value="${escapeHtml(v.dato2||"")}"></div>
+    </div>`;
+  } else {
+    html = etappeHtml(1, "Utreise", { fra:v.fra1, til:v.til1, dato:v.dato1, datoLabel:"Dato" }, true, true)
+         + etappeHtml(2, "Hjemreise", { fra:v.fra2, til:v.til2, dato:v.dato2, datoLabel:"Dato" }, true, true);
+  }
+  $("etapper").innerHTML = html;
+}
+function settType(type){
+  const v = lesEtapper();
+  skjemaType = type;
+  $("typeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("aktiv", b.dataset.type === type));
+  renderEtapper(v);
+}
+$("typeSeg").addEventListener("click", e => {
+  const b = e.target.closest("button[data-type]");
+  if(b) settType(b.dataset.type);
+});
+
+/* ---------- Skjema: reisende ---------- */
+function forvalgPerson(i){
+  const annen = minNavn === "Vidar" ? "Jan-Tore" : "Vidar";
+  if(i === 0) return minNavn;
+  if(i === 1) return annen;
+  return "Annen";
+}
+function lesReisende(){
+  return Array.from($("reisende").querySelectorAll(".eb-person")).map(row => {
+    const valg = row.querySelector("select").value;
+    const fritekst = row.querySelector("input").value.trim();
+    return { valg, fritekst };
+  });
+}
+function renderReisende(eksisterende){
+  const antall = Math.max(1, Math.min(20, parseInt($("fAntall").value, 10) || 1));
+  const naa = eksisterende || lesReisende();
+  let html = "";
+  for(let i = 0; i < antall; i++){
+    const p = naa[i] || { valg: forvalgPerson(i), fritekst: "" };
+    html += `<div class="eb-person" data-i="${i}">
+      <span class="nr">${i+1}.</span>
+      <select aria-label="Reisende ${i+1}">
+        <option value="Jan-Tore"${p.valg==="Jan-Tore"?" selected":""}>Jan-Tore</option>
+        <option value="Vidar"${p.valg==="Vidar"?" selected":""}>Vidar</option>
+        <option value="Annen"${p.valg==="Annen"?" selected":""}>Annen</option>
+      </select>
+      <input type="text" placeholder="Navn på reisende" value="${escapeHtml(p.fritekst)}" autocomplete="off" style="${p.valg==="Annen"?"":"display:none;"}">
+    </div>`;
+  }
+  $("reisende").innerHTML = html;
+}
+$("fAntall").addEventListener("input", () => renderReisende());
+$("reisende").addEventListener("change", e => {
+  if(e.target.tagName !== "SELECT") return;
+  const row = e.target.closest(".eb-person");
+  const inp = row.querySelector("input");
+  inp.style.display = e.target.value === "Annen" ? "" : "none";
+  if(e.target.value === "Annen") inp.focus();
+});
+function reisendeSomNavn(){
+  return lesReisende().map(p => p.valg === "Annen" ? (p.fritekst || "Annen") : p.valg);
+}
+
+/* ---------- Skjema: lagre ---------- */
+function nullstillSkjema(){
+  redigererId = null;
+  $("skjemaTittel").textContent = "Registrer bonusreise";
+  $("redigererMsg").style.display = "none";
+  $("lagreBtn").textContent = "Legg til";
+  $("avbrytBtn").style.display = "none";
+  $("skjemaFeil").textContent = "";
+  $("fPoeng").value = ""; $("fSkatter").value = ""; $("fNotat").value = ""; $("fAntall").value = "1";
+  $("fKonto").value = "caminante";
+  skjemaType = "enkel";
+  $("typeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("aktiv", b.dataset.type === "enkel"));
+  renderEtapper({});
+  renderReisende([]);
+}
+function lesSkjema(){
+  const v = lesEtapper();
+  const feil = (m) => ({ feil: m });
+  const fra1 = v.fra1.trim(), til1 = v.til1.trim();
+  if(!fra1 || !til1) return feil("Fyll ut fra og til.");
+  if(!v.dato1) return feil(skjemaType === "enkel" ? "Velg reisedato." : "Velg utreisedato.");
+  let rad = { reisetype: skjemaType, fra: fra1, til: til1, dato: v.dato1, retur_fra:null, retur_til:null, retur_dato:null };
+  if(skjemaType === "tur_retur"){
+    if(!v.dato2) return feil("Velg hjemreisedato.");
+    rad.retur_fra = til1; rad.retur_til = fra1; rad.retur_dato = v.dato2;
+  } else if(skjemaType === "open_jaw"){
+    const fra2 = v.fra2.trim(), til2 = v.til2.trim();
+    if(!fra2 || !til2) return feil("Fyll ut fra og til for hjemreisen.");
+    if(!v.dato2) return feil("Velg dato for hjemreisen.");
+    rad.retur_fra = fra2; rad.retur_til = til2; rad.retur_dato = v.dato2;
+  }
+  if(rad.retur_dato && rad.retur_dato < rad.dato) return feil("Hjemreisen kan ikke være før utreisen.");
+  const poeng = parseInt0($("fPoeng").value);
+  if(poeng === null) return feil("Skriv inn antall poeng (totalt for hele reisen).");
+  const skatter = parseKr($("fSkatter").value);
+  if(skatter === null || skatter < 0) return feil("Skatter og avgifter må være et tall.");
+  const antall = Math.max(1, Math.min(20, parseInt($("fAntall").value, 10) || 1));
+  rad.konto = $("fKonto").value;
+  rad.poeng = poeng;
+  rad.skatter = skatter;
+  rad.antall_personer = antall;
+  rad.reisende = reisendeSomNavn();
+  rad.notat = $("fNotat").value.trim() || null;
+  return { rad };
+}
+$("lagreBtn").addEventListener("click", async () => {
+  const res = lesSkjema();
+  if(res.feil){ $("skjemaFeil").textContent = res.feil; return; }
+  $("skjemaFeil").textContent = "";
+  const btn = $("lagreBtn");
+  btn.disabled = true;
+  if(redigererId){
+    const { error } = await window.sb.from("eurobonus_reiser").update(res.rad).eq("id", redigererId);
+    btn.disabled = false;
+    if(error){ $("skjemaFeil").textContent = "Kunne ikke lagre endringene. Prøv igjen."; console.error(error); return; }
+    const i = reiser.findIndex(r => r.id === redigererId);
+    if(i !== -1) reiser[i] = { ...reiser[i], ...res.rad };
+  } else {
+    const { data, error } = await window.sb.from("eurobonus_reiser")
+      .insert({ ...res.rad, opprettet_av: session.user.id }).select().single();
+    btn.disabled = false;
+    if(error){ $("skjemaFeil").textContent = "Kunne ikke lagre reisen. Prøv igjen."; console.error(error); return; }
+    reiser.unshift(data);
+  }
+  nullstillSkjema();
+  renderListe();
+  oppdaterBrukt();
+});
+$("avbrytBtn").addEventListener("click", nullstillSkjema);
+
+function startRediger(id){
+  const r = reiser.find(x => x.id === id);
+  if(!r) return;
+  redigererId = id;
+  skjemaType = r.reisetype;
+  $("typeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("aktiv", b.dataset.type === r.reisetype));
+  renderEtapper({ fra1:r.fra, til1:r.til, dato1:r.dato, fra2:r.retur_fra, til2:r.retur_til, dato2:r.retur_dato });
+  $("fKonto").value = r.konto;
+  $("fPoeng").value = fmtInt(r.poeng);
+  $("fSkatter").value = Number(r.skatter) ? fmtKr(r.skatter) : "";
+  $("fAntall").value = r.antall_personer || 1;
+  $("fNotat").value = r.notat || "";
+  const antall = r.antall_personer || 1;
+  const personer = [];
+  for(let i = 0; i < antall; i++){
+    const navn = (r.reisende || [])[i];
+    if(!navn) personer.push({ valg:"Annen", fritekst:"" });
+    else if(navn === "Jan-Tore" || navn === "Vidar") personer.push({ valg:navn, fritekst:"" });
+    else personer.push({ valg:"Annen", fritekst: navn === "Annen" ? "" : navn });
+  }
+  renderReisende(personer);
+  $("skjemaTittel").textContent = "Rediger bonusreise";
+  $("redigererMsg").style.display = "block";
+  $("lagreBtn").textContent = "Lagre endringer";
+  $("avbrytBtn").style.display = "";
+  $("skjemaFeil").textContent = "";
+  $("skjemaKort").scrollIntoView({ behavior:"smooth", block:"start" });
+}
+
+/* ---------- Liste ---------- */
+function reiseHtml(r){
+  if(r.reisetype === "enkel"){
+    return `<div class="eb-rute">${escapeHtml(r.fra)} → ${escapeHtml(r.til)}</div>
+            <div class="eb-dato">${escapeHtml(fmtDato(r.dato))} · Enkeltreise</div>`;
+  }
+  if(r.reisetype === "tur_retur"){
+    return `<div class="eb-rute">${escapeHtml(r.fra)} ⇄ ${escapeHtml(r.til)}</div>
+            <div class="eb-dato">${escapeHtml(fmtPeriode(r.dato, r.retur_dato))} · Tur/retur</div>`;
+  }
+  return `<div class="eb-rute">${escapeHtml(r.fra)} → ${escapeHtml(r.til)} <span class="eb-dato">· ${escapeHtml(fmtDato(r.dato))}</span></div>
+          <div class="eb-rute">${escapeHtml(r.retur_fra)} → ${escapeHtml(r.retur_til)} <span class="eb-dato">· ${escapeHtml(fmtDato(r.retur_dato))}</span></div>
+          <div class="eb-dato">Open jaw</div>`;
+}
+function renderListe(){
+  $("listeTittel").textContent = `Bestilte bonusreiser (${reiser.length})`;
+  const body = $("listBody");
+  if(!reiser.length){
+    body.innerHTML = `<tr><td colspan="6" class="eb-tom">Ingen bonusreiser er registrert ennå.</td></tr>`;
+    return;
+  }
+  let sumPoeng = 0, sumSkatter = 0;
+  const rader = reiser.map(r => {
+    sumPoeng += Number(r.poeng || 0);
+    sumSkatter += Number(r.skatter || 0);
+    const navn = (r.reisende && r.reisende.length) ? r.reisende.join(", ") : `${r.antall_personer} pers.`;
+    return `<tr data-id="${r.id}">
+      <td>${reiseHtml(r)}${r.notat ? `<div class="eb-notat">${escapeHtml(r.notat)}</div>` : ""}</td>
+      <td>${escapeHtml(navn)}${r.antall_personer > 1 ? `<div class="eb-dato">${r.antall_personer} personer</div>` : ""}</td>
+      <td><span class="eb-chip ${escapeHtml(r.konto)}">${escapeHtml(KONTO_NAVN[r.konto] || r.konto)}</span></td>
+      <td class="tall">${fmtInt(r.poeng)}</td>
+      <td class="tall">kr ${fmtKr(r.skatter)}</td>
+      <td class="eb-handl">
+        <button class="eb-link" data-act="rediger" data-id="${r.id}">Rediger</button>
+        <button class="eb-link fare" data-act="slett" data-id="${r.id}">Slett</button>
+      </td>
+    </tr>`;
+  }).join("");
+  body.innerHTML = rader + `<tr class="sum"><td colspan="3">Sum</td><td class="tall">${fmtInt(sumPoeng)}</td><td class="tall">kr ${fmtKr(sumSkatter)}</td><td></td></tr>`;
+}
+$("listBody").addEventListener("click", async e => {
+  const el = e.target.closest("[data-act]");
+  if(!el) return;
+  const id = el.dataset.id;
+  if(el.dataset.act === "rediger"){ startRediger(id); return; }
+  if(el.dataset.act === "slett"){
+    const r = reiser.find(x => x.id === id);
+    if(!r) return;
+    if(!confirm(`Slette bonusreisen ${r.fra} – ${r.til}?`)) return;
+    const { error } = await window.sb.from("eurobonus_reiser").delete().eq("id", id);
+    if(error){ visFeil("Kunne ikke slette reisen. Prøv igjen."); console.error(error); return; }
+    visFeil("");
+    reiser = reiser.filter(x => x.id !== id);
+    if(redigererId === id) nullstillSkjema();
+    renderListe();
+    oppdaterBrukt();
+  }
+});
+
+/* ---------- Oppstart ---------- */
+(async () => {
+  session = await requireLogin();
+  if(!session) return;
+  const ok = await lastData();
+  $("loadMsg").style.display = "none";
+  $("mainArea").style.display = "block";
+  if(!ok) return;
+  renderSaldo();
+  renderInng();
+  nullstillSkjema();
+  renderListe();
+})();
+</script>
+</body>
+</html>
