@@ -15,7 +15,6 @@
      (se sql/eurobonus_v1.sql). */
   .eb-wrap{ max-width:1040px; margin:0 auto; padding:28px 24px 56px; }
   .eb-head h1{ font-size:20px; margin:0 0 4px; }
-  .eb-sub{ font-size:13.5px; color:var(--ink-secondary); margin:0 0 20px; }
   .load-msg{ padding:40px 24px; color:var(--ink-muted); font-size:13px; }
   .eb-error{ color:#c0392b; font-size:13px; margin:0 0 12px; }
 
@@ -35,7 +34,6 @@
   }
   .eb-saldo-beregnet.ukjent{ color:var(--ink-muted); font-size:22px; font-weight:500; }
   .eb-saldo-beregnet.negativ{ color:#8a6a1d; }
-  .eb-saldo-detalj{ font-size:11.5px; color:var(--ink-muted); margin-top:8px; padding-top:8px; border-top:1px solid var(--hairline); line-height:1.5; }
   .eb-ct-rad{ display:flex; flex-wrap:wrap; align-items:center; gap:2px 7px; font-size:12.5px; color:var(--ink-secondary); margin-top:6px; }
   .eb-ct-rad .eb-ct-lbl{ white-space:nowrap; }
   .eb-ct-rad input{
@@ -48,7 +46,6 @@
   .eb-saldo.eb-konto-inn .eb-ct-rad input:hover{ border-color:#b7d6f7; }
   .eb-ct-rad .eb-ct-tall{ font-size:14px; font-weight:650; color:var(--ink-primary); font-variant-numeric:tabular-nums; min-width:24px; text-align:right; }
   .eb-ct-rad .eb-ct-tall.negativ{ color:#8a6a1d; }
-  .eb-ct-rad .eb-ct-info{ font-size:11px; color:var(--ink-muted); white-space:nowrap; }
   .eb-hint{ font-size:12.5px; color:var(--ink-secondary); margin:0 0 6px; }
   .eb-hint.varsel{ color:#8a6a1d; }
   .eb-hintwrap{ margin-bottom:18px; }
@@ -189,7 +186,6 @@
 <div class="eb-wrap" id="mainArea" style="display:none;">
   <div class="eb-head">
     <h1>EuroBonus</h1>
-    <p class="eb-sub">Saldoen på EuroBonus-kontoen føres manuelt. Fordelingen på Caminante, Vidar og Jan-Tore regnes ut automatisk: alt som tjenes opp etter 01.01.2027 er Caminantes. En konto kan gå i minus – da lånes det av de andre. Caminantes minus jevnes ut etter hvert som nye poeng kommer inn; et privat minus gjøres opp ved å dekke Caminante-reiser fra en annen konto.</p>
   </div>
   <p class="eb-error" id="errMsg" style="display:none;"></p>
 
@@ -219,7 +215,7 @@
           <option value="jan-tore">Jan-Tore</option>
         </select>
       </div>
-      <div class="eb-felt smal">
+      <div class="eb-felt" style="flex:0 0 250px;">
         <label for="fBetalt">Poengene betalt fra</label>
         <select id="fBetalt">
           <option value="felles">EuroBonus-kontoen</option>
@@ -301,10 +297,8 @@
   <!-- ===== Inngående saldo ===== -->
   <div class="eb-kort">
     <h2>Inngående saldo 31.12.2026</h2>
-    <p class="eb-note">Engangsregistrering av hvordan saldoen var fordelt per 31.12.2026: poengene Vidar og Jan-Tore tar med inn, og det Caminante allerede har tjent opp. Et tall kan være negativt (skriv f.eks. -20000) hvis en konto allerede har lånt av de andre. Dette er grunnlaget for fordelingen øverst: Vidar og Jan-Tore har inngående saldo minus det de har brukt, og resten av saldoen på kontoen er Caminantes. Alt som tjenes opp etter 01.01.2027 er Caminantes og brukes på tjenestereiser (inkl. kartlegging).</p>
     <div class="eb-inng-grid" id="inngGrid"></div>
     <h2 style="margin-top:20px;">Companion tickets per 31.12.2026</h2>
-    <p class="eb-note">Dokumentasjon av antall companion tickets hver konto tok med inn. Gjeldende antall føres på kortene øverst (samlet på kontoen, og Vidars og Jan-Tores egne – Caminantes er resten). Bruk registreres på den enkelte bonusreisen («Companion tickets brukt») og vises som informasjon på kortene.</p>
     <div class="eb-inng-grid" id="companionGrid"></div>
   </div>
 </div>
@@ -431,25 +425,13 @@ function dekketPrivatPerPerson(){
   const sum = { vidar:0, "jan-tore":0 };
   reiser.forEach(r => { if(r.dekket_av && sum[r.dekket_av] !== undefined) sum[r.dekket_av] += Number(r.poeng || 0); });
   return sum;
-}
-function companionPerKonto(){
-  const res = {};
-  KONTOER.forEach(k => {
-    const inn = Number((kontoer[k.id] && kontoer[k.id].inngaaende_companion) || 0);
-    const brukt = reiser.filter(r => r.konto === k.id).reduce((s, r) => s + Number(r.companion_brukt || 0), 0);
-    res[k.id] = { inn, brukt, igjen: inn - brukt };
-  });
-  return res;
-}
-/* Companion tickets (CT): samlet CT-saldo føres manuelt på det blå kortet, Vidars og
+}/* Companion tickets (CT): samlet CT-saldo føres manuelt på det blå kortet, Vidars og
    Jan-Tores CT-saldo føres manuelt på deres kort, og Caminantes CT = samlet - Vidar - Jan-Tore. */
 function ctSaldo(id){ return Number((kontoer[id] && kontoer[id].companion_saldo) || 0); }
 function ctCaminante(){
   if(samlet.companion == null) return null;
   return Number(samlet.companion) - ctSaldo("vidar") - ctSaldo("jan-tore");
 }
-function ctInfo(c){ return (c.inn || c.brukt) ? `(inn ${c.inn} · brukt ${c.brukt})` : ""; }
-
 /* ---------- Fordeling av saldoen ----------
    Vidar/Jan-Tore: inngående 31.12.2026 minus poeng brukt fra egen konto.
    Caminante: samlet saldo minus Vidar og Jan-Tore (alt opptjent etter 01.01.2027,
@@ -472,12 +454,7 @@ function beregnFordeling(){
     saldo: S,
   };
 }
-function fmtSigned(n){ return (n < 0 ? "−" : "") + fmtInt(Math.abs(n)); }
-function laanTekst(verdi, hvem, jevnesUt){
-  if(verdi === null || verdi >= 0) return "";
-  return `Låner ${fmtInt(-verdi)} poeng av ${hvem}${jevnesUt ? " – jevnes ut etter hvert som nye poeng kommer inn" : ""}. `;
-}
-function reiserEtterSaldodato(){
+function fmtSigned(n){ return (n < 0 ? "−" : "") + fmtInt(Math.abs(n)); }function reiserEtterSaldodato(){
   if(!samlet.saldo_dato) return 0;
   // Reiser dekket fra en annen konto rører ikke fellekontoen og teller ikke her.
   return reiser.filter(r => !r.dekket_av && (r.opprettet_ved || "").slice(0,10) > samlet.saldo_dato).length;
@@ -493,22 +470,19 @@ function renderSaldo(){
     <div class="eb-saldo" data-konto="caminante">
       <div class="eb-saldo-navn">Caminante</div>
       <div id="beregnet-caminante"></div>
-      <div class="eb-ct-rad"><span class="eb-ct-lbl">Companion tickets</span><span class="eb-ct-tall" id="ct-caminante">–</span><span class="eb-ct-info" id="ctinfo-caminante"></span></div>
-      <div class="eb-saldo-detalj" id="detalj-caminante"></div>
+      <div class="eb-ct-rad"><span class="eb-ct-lbl">Companion tickets</span><span class="eb-ct-tall" id="ct-caminante">–</span></div>
     </div>
     <div class="eb-saldo" data-konto="vidar">
       <span class="eb-lagret" id="lagret-vidar">Lagret</span>
       <div class="eb-saldo-navn">Vidar</div>
       <div id="beregnet-vidar"></div>
-      <div class="eb-ct-rad"><label class="eb-ct-lbl" for="ct-vidar">Companion tickets</label><input type="number" id="ct-vidar" min="0" max="50" step="1" value="${ctSaldo("vidar")}"><span class="eb-ct-info" id="ctinfo-vidar"></span></div>
-      <div class="eb-saldo-detalj" id="detalj-vidar"></div>
+      <div class="eb-ct-rad"><label class="eb-ct-lbl" for="ct-vidar">Companion tickets</label><input type="number" id="ct-vidar" min="0" max="50" step="1" value="${ctSaldo("vidar")}"></div>
     </div>
     <div class="eb-saldo" data-konto="jan-tore">
       <span class="eb-lagret" id="lagret-jan-tore">Lagret</span>
       <div class="eb-saldo-navn">Jan-Tore</div>
       <div id="beregnet-jan-tore"></div>
-      <div class="eb-ct-rad"><label class="eb-ct-lbl" for="ct-jan-tore">Companion tickets</label><input type="number" id="ct-jan-tore" min="0" max="50" step="1" value="${ctSaldo("jan-tore")}"><span class="eb-ct-info" id="ctinfo-jan-tore"></span></div>
-      <div class="eb-saldo-detalj" id="detalj-jan-tore"></div>
+      <div class="eb-ct-rad"><label class="eb-ct-lbl" for="ct-jan-tore">Companion tickets</label><input type="number" id="ct-jan-tore" min="0" max="50" step="1" value="${ctSaldo("jan-tore")}"></div>
     </div>
     <div class="eb-saldo eb-konto-inn">
       <span class="eb-lagret" id="lagret-samlet">Lagret</span>
@@ -520,7 +494,6 @@ function renderSaldo(){
         <input type="date" id="saldodato-samlet" value="${escapeHtml(samlet.saldo_dato || "")}" aria-label="Saldodato">
       </div>
       <div class="eb-ct-rad"><label class="eb-ct-lbl" for="ct-samlet">Companion tickets</label><input type="number" id="ct-samlet" min="0" max="50" step="1" value="${samlet.companion == null ? "" : Number(samlet.companion)}" placeholder="–" aria-label="Companion tickets på kontoen"></div>
-      <div class="eb-saldo-detalj">Skriv inn saldo og companion tickets fra EuroBonus-kontoen. Fordelingen til venstre regnes ut automatisk.</div>
     </div>`;
 
   // Companion tickets: samlet (blått kort) og private (Vidar/Jan-Tore) føres manuelt
@@ -570,28 +543,10 @@ function oppdaterFordeling(){
   $("beregnet-caminante").innerHTML = beregnetHtml(f.caminante);
   $("beregnet-vidar").innerHTML = beregnetHtml(f.vidar);
   $("beregnet-jan-tore").innerHTML = beregnetHtml(f.janTore);
-  const bruktC = fmtInt(f.brukt.caminante) || "0", bruktV = fmtInt(f.brukt.vidar) || "0", bruktJ = fmtInt(f.brukt["jan-tore"]) || "0";
-  $("detalj-caminante").textContent = laanTekst(f.caminante, "Vidar og Jan-Tore", true) + (f.inngCaminante !== null
-    ? `Inn 31.12.2026: ${fmtSigned(f.inngCaminante)}${f.opptjentCaminante !== null ? ` · opptjent siden: ${fmtSigned(f.opptjentCaminante)}` : ""} · brukt ${bruktC}`
-    : `Inngående saldo er ikke satt · brukt ${bruktC}`);
-  const dekketV = f.dekket.vidar ? ` · dekket privat +${fmtInt(f.dekket.vidar)}` : "";
-  const dekketJ = f.dekket["jan-tore"] ? ` · dekket privat +${fmtInt(f.dekket["jan-tore"])}` : "";
-  $("detalj-vidar").textContent = laanTekst(f.vidar, "Caminante", false) + (f.inngVidar !== null
-    ? `Inn 31.12.2026: ${fmtSigned(f.inngVidar)} · brukt ${bruktV}${dekketV}`
-    : `Inngående saldo er ikke satt · brukt ${bruktV}${dekketV}`);
-  $("detalj-jan-tore").textContent = laanTekst(f.janTore, "Caminante", false) + (f.inngJanTore !== null
-    ? `Inn 31.12.2026: ${fmtSigned(f.inngJanTore)} · brukt ${bruktJ}${dekketJ}`
-    : `Inngående saldo er ikke satt · brukt ${bruktJ}${dekketJ}`);
-
-  // Companion tickets
-  const comp = companionPerKonto();
   const ctC = ctCaminante();
   const ctCEl = $("ct-caminante");
   ctCEl.textContent = ctC === null ? "–" : String(ctC);
   ctCEl.classList.toggle("negativ", ctC !== null && ctC < 0);
-  $("ctinfo-caminante").textContent = ctC === null ? "(legg inn antall på kontoen)" : ctInfo(comp.caminante);
-  $("ctinfo-vidar").textContent = ctInfo(comp.vidar);
-  $("ctinfo-jan-tore").textContent = ctInfo(comp["jan-tore"]);
 
   const hint = [];
   const mangler = [];
