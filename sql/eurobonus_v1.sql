@@ -76,3 +76,12 @@ update public.eurobonus_kontoer set inngaaende_companion = 2 where konto = 'jan-
 
 alter table public.eurobonus_reiser
   add column if not exists companion_brukt integer not null default 0 check (companion_brukt >= 0);
+
+-- v5 (migrasjon eurobonus_companion_saldo): companion tickets (CT) - samlet CT-saldo på
+-- kontoen føres manuelt, og Vidars/Jan-Tores CT-saldo føres manuelt per konto.
+-- Caminantes CT = samlet - Vidar - Jan-Tore.
+alter table public.eurobonus_saldo
+  add column if not exists companion integer check (companion is null or companion >= 0);
+alter table public.eurobonus_kontoer
+  add column if not exists companion_saldo integer not null default 0;
+update public.eurobonus_kontoer set companion_saldo = 2 where konto = 'jan-tore';
