@@ -189,7 +189,7 @@
 <div class="eb-wrap" id="mainArea" style="display:none;">
   <div class="eb-head">
     <h1>EuroBonus</h1>
-    <p class="eb-sub">Saldoen på EuroBonus-kontoen føres manuelt. Fordelingen på Caminante, Vidar og Jan-Tore regnes ut automatisk: alt som tjenes opp etter 01.01.2027 er Caminantes. En konto kan gå i minus – da lånes det av de andre. Caminantes minus jevnes ut etter hvert som nye poeng kommer inn.</p>
+    <p class="eb-sub">Saldoen på EuroBonus-kontoen føres manuelt. Fordelingen på Caminante, Vidar og Jan-Tore regnes ut automatisk: alt som tjenes opp etter 01.01.2027 er Caminantes. En konto kan gå i minus – da lånes det av de andre. Caminantes minus jevnes ut etter hvert som nye poeng kommer inn; et privat minus gjøres opp ved å dekke Caminante-reiser fra en annen konto.</p>
   </div>
   <p class="eb-error" id="errMsg" style="display:none;"></p>
 
@@ -212,14 +212,33 @@
         </div>
       </div>
       <div class="eb-felt smal">
-        <label for="fKonto">Poeng trekkes fra</label>
+        <label for="fKonto">Reisen føres på</label>
         <select id="fKonto">
           <option value="caminante">Caminante</option>
           <option value="vidar">Vidar</option>
           <option value="jan-tore">Jan-Tore</option>
         </select>
       </div>
+      <div class="eb-felt smal">
+        <label for="fBetalt">Poengene betalt fra</label>
+        <select id="fBetalt">
+          <option value="felles">EuroBonus-kontoen</option>
+          <option value="privat">Annen konto (dekket privat)</option>
+        </select>
+      </div>
+      <div class="eb-felt mini" id="fDekketAvWrap" style="display:none;">
+        <label for="fDekketAv">Dekket av</label>
+        <select id="fDekketAv">
+          <option value="vidar">Vidar</option>
+          <option value="jan-tore">Jan-Tore</option>
+        </select>
+      </div>
+      <div class="eb-felt smal" id="fDekketKildeWrap" style="display:none;">
+        <label for="fDekketKilde">Fra hvilken konto</label>
+        <input type="text" id="fDekketKilde" maxlength="80" placeholder="F.eks. Bodils konto" autocomplete="off">
+      </div>
     </div>
+    <p class="eb-note" id="dekketForklaring" style="display:none;">Poengene tas ikke fra fellekontoen. Den som dekker reisen krediteres poengene, og kontoen reisen føres på belastes som vanlig – et privat innskudd.</p>
 
     <div class="eb-etapper" id="etapper"></div>
 
@@ -407,6 +426,12 @@ function bruktPerKonto(){
   reiser.forEach(r => { if(sum[r.konto] !== undefined) sum[r.konto] += Number(r.poeng || 0); });
   return sum;
 }
+// Reiser dekket fra en annen konto: poengene krediteres den som dekket dem.
+function dekketPrivatPerPerson(){
+  const sum = { vidar:0, "jan-tore":0 };
+  reiser.forEach(r => { if(r.dekket_av && sum[r.dekket_av] !== undefined) sum[r.dekket_av] += Number(r.poeng || 0); });
+  return sum;
+}
 function companionPerKonto(){
   const res = {};
   KONTOER.forEach(k => {
@@ -431,14 +456,15 @@ function ctInfo(c){ return (c.inn || c.brukt) ? `(inn ${c.inn} · brukt ${c.bruk
    minus det Caminante selv har brukt - det ligger allerede inne i saldoen). */
 function beregnFordeling(){
   const brukt = bruktPerKonto();
+  const dekket = dekketPrivatPerPerson();
   const inn = id => (kontoer[id] && kontoer[id].inngaaende_saldo != null) ? Number(kontoer[id].inngaaende_saldo) : null;
-  const vidar = inn("vidar") !== null ? inn("vidar") - brukt.vidar : null;
-  const janTore = inn("jan-tore") !== null ? inn("jan-tore") - brukt["jan-tore"] : null;
+  const vidar = inn("vidar") !== null ? inn("vidar") - brukt.vidar + dekket.vidar : null;
+  const janTore = inn("jan-tore") !== null ? inn("jan-tore") - brukt["jan-tore"] + dekket["jan-tore"] : null;
   const S = samlet.saldo != null ? Number(samlet.saldo) : null;
   const caminante = (S !== null && vidar !== null && janTore !== null) ? S - vidar - janTore : null;
   const inngC = inn("caminante");
   return {
-    brukt,
+    brukt, dekket,
     caminante, vidar, janTore,
     inngVidar: inn("vidar"), inngJanTore: inn("jan-tore"), inngCaminante: inngC,
     // Opptjent etter 01.01.2027 = det Caminante har nå + det Caminante har brukt - det Caminante hadde ved start
@@ -453,7 +479,8 @@ function laanTekst(verdi, hvem, jevnesUt){
 }
 function reiserEtterSaldodato(){
   if(!samlet.saldo_dato) return 0;
-  return reiser.filter(r => (r.opprettet_ved || "").slice(0,10) > samlet.saldo_dato).length;
+  // Reiser dekket fra en annen konto rører ikke fellekontoen og teller ikke her.
+  return reiser.filter(r => !r.dekket_av && (r.opprettet_ved || "").slice(0,10) > samlet.saldo_dato).length;
 }
 function beregnetHtml(verdi){
   if(verdi === null) return `<span class="eb-saldo-beregnet ukjent">–</span>`;
@@ -547,12 +574,14 @@ function oppdaterFordeling(){
   $("detalj-caminante").textContent = laanTekst(f.caminante, "Vidar og Jan-Tore", true) + (f.inngCaminante !== null
     ? `Inn 31.12.2026: ${fmtSigned(f.inngCaminante)}${f.opptjentCaminante !== null ? ` · opptjent siden: ${fmtSigned(f.opptjentCaminante)}` : ""} · brukt ${bruktC}`
     : `Inngående saldo er ikke satt · brukt ${bruktC}`);
+  const dekketV = f.dekket.vidar ? ` · dekket privat +${fmtInt(f.dekket.vidar)}` : "";
+  const dekketJ = f.dekket["jan-tore"] ? ` · dekket privat +${fmtInt(f.dekket["jan-tore"])}` : "";
   $("detalj-vidar").textContent = laanTekst(f.vidar, "Caminante", false) + (f.inngVidar !== null
-    ? `Inn 31.12.2026: ${fmtSigned(f.inngVidar)} · brukt ${bruktV}`
-    : `Inngående saldo er ikke satt · brukt ${bruktV}`);
+    ? `Inn 31.12.2026: ${fmtSigned(f.inngVidar)} · brukt ${bruktV}${dekketV}`
+    : `Inngående saldo er ikke satt · brukt ${bruktV}${dekketV}`);
   $("detalj-jan-tore").textContent = laanTekst(f.janTore, "Caminante", false) + (f.inngJanTore !== null
-    ? `Inn 31.12.2026: ${fmtSigned(f.inngJanTore)} · brukt ${bruktJ}`
-    : `Inngående saldo er ikke satt · brukt ${bruktJ}`);
+    ? `Inn 31.12.2026: ${fmtSigned(f.inngJanTore)} · brukt ${bruktJ}${dekketJ}`
+    : `Inngående saldo er ikke satt · brukt ${bruktJ}${dekketJ}`);
 
   // Companion tickets
   const comp = companionPerKonto();
@@ -744,6 +773,20 @@ function reisendeSomNavn(){
   return lesReisende().map(p => p.valg === "Annen" ? (p.fritekst || "Annen") : p.valg);
 }
 
+/* ---------- Skjema: betalt fra annen konto ---------- */
+function oppdaterBetaltFelter(){
+  const privat = $("fBetalt").value === "privat";
+  $("fDekketAvWrap").style.display = privat ? "" : "none";
+  $("fDekketKildeWrap").style.display = privat ? "" : "none";
+  $("dekketForklaring").style.display = privat ? "" : "none";
+}
+$("fBetalt").addEventListener("change", () => {
+  if($("fBetalt").value === "privat" && !$("fDekketKilde").value){
+    $("fDekketAv").value = minNavn === "Jan-Tore" ? "jan-tore" : "vidar";
+  }
+  oppdaterBetaltFelter();
+});
+
 /* ---------- Skjema: lagre ---------- */
 function nullstillSkjema(){
   redigererId = null;
@@ -754,6 +797,9 @@ function nullstillSkjema(){
   $("skjemaFeil").textContent = "";
   $("fPoeng").value = ""; $("fSkatter").value = ""; $("fNotat").value = ""; $("fAntall").value = "1"; $("fCompanion").value = "0";
   $("fKonto").value = "caminante";
+  $("fBetalt").value = "felles"; $("fDekketKilde").value = "";
+  $("fDekketAv").value = minNavn === "Jan-Tore" ? "jan-tore" : "vidar";
+  oppdaterBetaltFelter();
   skjemaType = "enkel";
   $("typeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("aktiv", b.dataset.type === "enkel"));
   renderEtapper({});
@@ -786,6 +832,13 @@ function lesSkjema(){
   rad.skatter = skatter;
   rad.antall_personer = antall;
   rad.companion_brukt = Math.max(0, Math.min(10, parseInt($("fCompanion").value, 10) || 0));
+  if($("fBetalt").value === "privat"){
+    rad.dekket_av = $("fDekketAv").value;
+    rad.dekket_kilde = $("fDekketKilde").value.trim() || null;
+  } else {
+    rad.dekket_av = null;
+    rad.dekket_kilde = null;
+  }
   rad.reisende = reisendeSomNavn();
   rad.notat = $("fNotat").value.trim() || null;
   return { rad };
@@ -827,6 +880,10 @@ function startRediger(id){
   $("fSkatter").value = Number(r.skatter) ? fmtKr(r.skatter) : "";
   $("fAntall").value = r.antall_personer || 1;
   $("fCompanion").value = r.companion_brukt || 0;
+  $("fBetalt").value = r.dekket_av ? "privat" : "felles";
+  $("fDekketAv").value = r.dekket_av || (minNavn === "Jan-Tore" ? "jan-tore" : "vidar");
+  $("fDekketKilde").value = r.dekket_kilde || "";
+  oppdaterBetaltFelter();
   $("fNotat").value = r.notat || "";
   const antall = r.antall_personer || 1;
   const personer = [];
@@ -871,7 +928,7 @@ function renderListe(){
     return `<tr data-id="${r.id}">
       <td>${reiseHtml(r)}${r.companion_brukt > 0 ? `<div class="eb-dato">${r.companion_brukt === 1 ? "1 companion ticket" : r.companion_brukt + " companion tickets"}</div>` : ""}${r.notat ? `<div class="eb-notat">${escapeHtml(r.notat)}</div>` : ""}</td>
       <td>${escapeHtml(navn)}${r.antall_personer > 1 ? `<div class="eb-dato">${r.antall_personer} personer</div>` : ""}</td>
-      <td><span class="eb-chip ${escapeHtml(r.konto)}">${escapeHtml(KONTO_NAVN[r.konto] || r.konto)}</span></td>
+      <td><span class="eb-chip ${escapeHtml(r.konto)}">${escapeHtml(KONTO_NAVN[r.konto] || r.konto)}</span>${r.dekket_av ? `<div class="eb-dato" style="margin-top:4px;">Dekket privat av ${escapeHtml(KONTO_NAVN[r.dekket_av] || r.dekket_av)}${r.dekket_kilde ? ` (${escapeHtml(r.dekket_kilde)})` : ""}</div>` : ""}</td>
       <td class="tall">${fmtInt(r.poeng)}</td>
       <td class="tall">kr ${fmtKr(r.skatter)}</td>
       <td class="eb-handl">

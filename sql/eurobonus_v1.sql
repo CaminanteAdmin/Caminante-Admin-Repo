@@ -85,3 +85,10 @@ alter table public.eurobonus_saldo
 alter table public.eurobonus_kontoer
   add column if not exists companion_saldo integer not null default 0;
 update public.eurobonus_kontoer set companion_saldo = 2 where konto = 'jan-tore';
+
+-- v6 (migrasjon eurobonus_reiser_dekket_privat): bonusreise dekket fra en annen konto
+-- (privat innskudd). Poengene tas ikke fra fellekontoen, men krediteres den som
+-- dekket reisen (dekket_av). Kontoen reisen er ført på belastes som vanlig.
+alter table public.eurobonus_reiser
+  add column if not exists dekket_av text check (dekket_av is null or dekket_av in ('vidar','jan-tore')),
+  add column if not exists dekket_kilde text;
