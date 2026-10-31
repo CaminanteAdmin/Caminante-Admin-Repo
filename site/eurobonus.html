@@ -134,7 +134,6 @@
   }
   .eb-kort thead th.tall, .eb-kort td.tall{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
   .eb-kort tbody td{ padding:10px 8px; border-bottom:1px solid var(--hairline); vertical-align:top; }
-  .eb-kort tbody tr.sum td{ border-bottom:none; font-weight:650; background:var(--page); }
   .eb-rute{ font-weight:600; }
   .eb-dato{ font-size:12px; color:var(--ink-secondary); }
   .eb-notat{ font-size:12px; color:var(--ink-muted); margin-top:2px; }
@@ -224,6 +223,10 @@
         <label for="fAntall">Antall personer</label>
         <input type="number" id="fAntall" min="1" max="20" step="1" value="1">
       </div>
+      <div class="eb-felt mini">
+        <label for="fCompanion">Companion tickets brukt</label>
+        <input type="number" id="fCompanion" min="0" max="10" step="1" value="0">
+      </div>
     </div>
 
     <div class="eb-felt" style="margin-bottom:6px;"><span class="eb-lbl">Hvem reiser</span></div>
@@ -268,6 +271,9 @@
     <h2>Inngående saldo 31.12.2026</h2>
     <p class="eb-note">Engangsregistrering av hvordan saldoen var fordelt per 31.12.2026: poengene Vidar og Jan-Tore tar med inn, og det Caminante allerede har tjent opp. Et tall kan være negativt (skriv f.eks. -20000) hvis en konto allerede har lånt av de andre. Dette er grunnlaget for fordelingen øverst: Vidar og Jan-Tore har inngående saldo minus det de har brukt, og resten av saldoen på kontoen er Caminantes. Alt som tjenes opp etter 01.01.2027 er Caminantes og brukes på tjenestereiser (inkl. kartlegging).</p>
     <div class="eb-inng-grid" id="inngGrid"></div>
+    <h2 style="margin-top:20px;">Companion tickets per 31.12.2026</h2>
+    <p class="eb-note">Antall companion tickets hver konto tar med inn. Bruk registreres på den enkelte bonusreisen («Companion tickets brukt»), og kortene øverst viser hvor mange som er igjen.</p>
+    <div class="eb-inng-grid" id="companionGrid"></div>
   </div>
 </div>
 
@@ -388,6 +394,19 @@ function bruktPerKonto(){
   reiser.forEach(r => { if(sum[r.konto] !== undefined) sum[r.konto] += Number(r.poeng || 0); });
   return sum;
 }
+function companionPerKonto(){
+  const res = {};
+  KONTOER.forEach(k => {
+    const inn = Number((kontoer[k.id] && kontoer[k.id].inngaaende_companion) || 0);
+    const brukt = reiser.filter(r => r.konto === k.id).reduce((s, r) => s + Number(r.companion_brukt || 0), 0);
+    res[k.id] = { inn, brukt, igjen: inn - brukt };
+  });
+  return res;
+}
+function companionTekst(c){
+  if(!c.inn && !c.brukt) return "";
+  return ` · Companion tickets: ${c.igjen} igjen (inn ${c.inn} · brukt ${c.brukt})`;
+}
 
 /* ---------- Fordeling av saldoen ----------
    Vidar/Jan-Tore: inngående 31.12.2026 minus poeng brukt fra egen konto.
@@ -471,15 +490,16 @@ function oppdaterFordeling(){
   $("beregnet-vidar").innerHTML = beregnetHtml(f.vidar);
   $("beregnet-jan-tore").innerHTML = beregnetHtml(f.janTore);
   const bruktC = fmtInt(f.brukt.caminante) || "0", bruktV = fmtInt(f.brukt.vidar) || "0", bruktJ = fmtInt(f.brukt["jan-tore"]) || "0";
+  const comp = companionPerKonto();
   $("detalj-caminante").textContent = laanTekst(f.caminante, "Vidar og Jan-Tore", true) + (f.inngCaminante !== null
     ? `Inn 31.12.2026: ${fmtSigned(f.inngCaminante)}${f.opptjentCaminante !== null ? ` · opptjent siden: ${fmtSigned(f.opptjentCaminante)}` : ""} · brukt ${bruktC}`
-    : `Inngående saldo er ikke satt · brukt ${bruktC}`);
+    : `Inngående saldo er ikke satt · brukt ${bruktC}`) + companionTekst(comp.caminante);
   $("detalj-vidar").textContent = laanTekst(f.vidar, "Caminante", false) + (f.inngVidar !== null
     ? `Inn 31.12.2026: ${fmtSigned(f.inngVidar)} · brukt ${bruktV}`
-    : `Inngående saldo er ikke satt · brukt ${bruktV}`);
+    : `Inngående saldo er ikke satt · brukt ${bruktV}`) + companionTekst(comp.vidar);
   $("detalj-jan-tore").textContent = laanTekst(f.janTore, "Caminante", false) + (f.inngJanTore !== null
     ? `Inn 31.12.2026: ${fmtSigned(f.inngJanTore)} · brukt ${bruktJ}`
-    : `Inngående saldo er ikke satt · brukt ${bruktJ}`);
+    : `Inngående saldo er ikke satt · brukt ${bruktJ}`) + companionTekst(comp["jan-tore"]);
 
   const hint = [];
   const mangler = [];
@@ -546,6 +566,30 @@ function renderInng(){
       oppdaterFordeling();
     });
     inp.addEventListener("keydown", e => { if(e.key === "Enter") inp.blur(); });
+  });
+
+  // Companion tickets per konto
+  $("companionGrid").innerHTML = KONTOER.map(k => {
+    const row = kontoer[k.id] || {};
+    return `<div class="eb-felt">
+      <label for="comp-${k.id}">${escapeHtml(k.navn)} (antall per 31.12.2026)</label>
+      <input type="number" id="comp-${k.id}" min="0" max="20" step="1" value="${Number(row.inngaaende_companion || 0)}">
+    </div>`;
+  }).join("");
+  KONTOER.forEach(k => {
+    const inp = $("comp-" + k.id);
+    inp.addEventListener("change", async () => {
+      const v = Math.max(0, parseInt(inp.value, 10) || 0);
+      inp.value = v;
+      const gammel = kontoer[k.id] || {};
+      if(Number(gammel.inngaaende_companion || 0) === v) return;
+      const felter = { inngaaende_companion: v, sist_endret: new Date().toISOString() };
+      const { error } = await window.sb.from("eurobonus_kontoer").update(felter).eq("konto", k.id);
+      if(error){ visFeil("Kunne ikke lagre companion tickets. Prøv igjen."); console.error(error); return; }
+      visFeil("");
+      kontoer[k.id] = { ...gammel, konto:k.id, ...felter };
+      oppdaterFordeling();
+    });
   });
 }
 
@@ -645,7 +689,7 @@ function nullstillSkjema(){
   $("lagreBtn").textContent = "Legg til";
   $("avbrytBtn").style.display = "none";
   $("skjemaFeil").textContent = "";
-  $("fPoeng").value = ""; $("fSkatter").value = ""; $("fNotat").value = ""; $("fAntall").value = "1";
+  $("fPoeng").value = ""; $("fSkatter").value = ""; $("fNotat").value = ""; $("fAntall").value = "1"; $("fCompanion").value = "0";
   $("fKonto").value = "caminante";
   skjemaType = "enkel";
   $("typeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("aktiv", b.dataset.type === "enkel"));
@@ -678,6 +722,7 @@ function lesSkjema(){
   rad.poeng = poeng;
   rad.skatter = skatter;
   rad.antall_personer = antall;
+  rad.companion_brukt = Math.max(0, Math.min(10, parseInt($("fCompanion").value, 10) || 0));
   rad.reisende = reisendeSomNavn();
   rad.notat = $("fNotat").value.trim() || null;
   return { rad };
@@ -718,6 +763,7 @@ function startRediger(id){
   $("fPoeng").value = fmtInt(r.poeng);
   $("fSkatter").value = Number(r.skatter) ? fmtKr(r.skatter) : "";
   $("fAntall").value = r.antall_personer || 1;
+  $("fCompanion").value = r.companion_brukt || 0;
   $("fNotat").value = r.notat || "";
   const antall = r.antall_personer || 1;
   const personer = [];
@@ -757,13 +803,10 @@ function renderListe(){
     body.innerHTML = `<tr><td colspan="6" class="eb-tom">Ingen bonusreiser er registrert ennå.</td></tr>`;
     return;
   }
-  let sumPoeng = 0, sumSkatter = 0;
   const rader = reiser.map(r => {
-    sumPoeng += Number(r.poeng || 0);
-    sumSkatter += Number(r.skatter || 0);
     const navn = (r.reisende && r.reisende.length) ? r.reisende.join(", ") : `${r.antall_personer} pers.`;
     return `<tr data-id="${r.id}">
-      <td>${reiseHtml(r)}${r.notat ? `<div class="eb-notat">${escapeHtml(r.notat)}</div>` : ""}</td>
+      <td>${reiseHtml(r)}${r.companion_brukt > 0 ? `<div class="eb-dato">${r.companion_brukt === 1 ? "1 companion ticket" : r.companion_brukt + " companion tickets"}</div>` : ""}${r.notat ? `<div class="eb-notat">${escapeHtml(r.notat)}</div>` : ""}</td>
       <td>${escapeHtml(navn)}${r.antall_personer > 1 ? `<div class="eb-dato">${r.antall_personer} personer</div>` : ""}</td>
       <td><span class="eb-chip ${escapeHtml(r.konto)}">${escapeHtml(KONTO_NAVN[r.konto] || r.konto)}</span></td>
       <td class="tall">${fmtInt(r.poeng)}</td>
@@ -774,7 +817,7 @@ function renderListe(){
       </td>
     </tr>`;
   }).join("");
-  body.innerHTML = rader + `<tr class="sum"><td colspan="3">Sum</td><td class="tall">${fmtInt(sumPoeng)}</td><td class="tall">kr ${fmtKr(sumSkatter)}</td><td></td></tr>`;
+  body.innerHTML = rader;
 }
 $("listBody").addEventListener("click", async e => {
   const el = e.target.closest("[data-act]");

@@ -67,3 +67,12 @@ create policy "Innloggede har full tilgang" on public.eurobonus_saldo
 -- v3 (migrasjon eurobonus_inngaaende_kan_vaere_negativ): inngående saldo kan være
 -- negativ (en konto kan ha lånt av de andre allerede ved oppstart).
 alter table public.eurobonus_kontoer drop constraint if exists eurobonus_kontoer_inngaaende_saldo_check;
+
+-- v4 (migrasjon eurobonus_companion_tickets): companion tickets - inngående antall
+-- per konto (31.12.2026) og antall brukt per bonusreise.
+alter table public.eurobonus_kontoer
+  add column if not exists inngaaende_companion integer not null default 0 check (inngaaende_companion >= 0);
+update public.eurobonus_kontoer set inngaaende_companion = 2 where konto = 'jan-tore';
+
+alter table public.eurobonus_reiser
+  add column if not exists companion_brukt integer not null default 0 check (companion_brukt >= 0);
