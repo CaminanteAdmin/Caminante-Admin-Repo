@@ -266,7 +266,7 @@
   <!-- ===== Inngående saldo ===== -->
   <div class="eb-kort">
     <h2>Inngående saldo 31.12.2026</h2>
-    <p class="eb-note">Engangsregistrering av hvordan saldoen var fordelt per 31.12.2026: poengene Vidar og Jan-Tore tar med inn, og det Caminante allerede har tjent opp. Dette er grunnlaget for fordelingen øverst: Vidar og Jan-Tore har inngående saldo minus det de har brukt, og resten av saldoen på kontoen er Caminantes. Alt som tjenes opp etter 01.01.2027 er Caminantes og brukes på tjenestereiser (inkl. kartlegging).</p>
+    <p class="eb-note">Engangsregistrering av hvordan saldoen var fordelt per 31.12.2026: poengene Vidar og Jan-Tore tar med inn, og det Caminante allerede har tjent opp. Et tall kan være negativt (skriv f.eks. -20000) hvis en konto allerede har lånt av de andre. Dette er grunnlaget for fordelingen øverst: Vidar og Jan-Tore har inngående saldo minus det de har brukt, og resten av saldoen på kontoen er Caminantes. Alt som tjenes opp etter 01.01.2027 er Caminantes og brukes på tjenestereiser (inkl. kartlegging).</p>
     <div class="eb-inng-grid" id="inngGrid"></div>
   </div>
 </div>
@@ -311,6 +311,13 @@ function fmtKr(n){
 function parseInt0(s){
   const d = String(s ?? "").replace(/\D/g, "");
   return d === "" ? null : parseInt(d, 10);
+}
+// Som parseInt0, men godtar minus (brukes for inngående saldo, som kan være negativ).
+function parseIntSigned(s){
+  const t = String(s ?? "").trim();
+  const neg = /^[-−–]/.test(t);
+  const v = parseInt0(t);
+  return v === null ? null : (neg ? -v : v);
 }
 function parseKr(s){
   const t = String(s ?? "").trim().replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
@@ -465,13 +472,13 @@ function oppdaterFordeling(){
   $("beregnet-jan-tore").innerHTML = beregnetHtml(f.janTore);
   const bruktC = fmtInt(f.brukt.caminante) || "0", bruktV = fmtInt(f.brukt.vidar) || "0", bruktJ = fmtInt(f.brukt["jan-tore"]) || "0";
   $("detalj-caminante").textContent = laanTekst(f.caminante, "Vidar og Jan-Tore", true) + (f.inngCaminante !== null
-    ? `Inn 31.12.2026: ${fmtInt(f.inngCaminante)}${f.opptjentCaminante !== null ? ` · opptjent siden: ${fmtSigned(f.opptjentCaminante)}` : ""} · brukt ${bruktC}`
+    ? `Inn 31.12.2026: ${fmtSigned(f.inngCaminante)}${f.opptjentCaminante !== null ? ` · opptjent siden: ${fmtSigned(f.opptjentCaminante)}` : ""} · brukt ${bruktC}`
     : `Inngående saldo er ikke satt · brukt ${bruktC}`);
   $("detalj-vidar").textContent = laanTekst(f.vidar, "Caminante", false) + (f.inngVidar !== null
-    ? `Inn 31.12.2026: ${fmtInt(f.inngVidar)} · brukt ${bruktV}`
+    ? `Inn 31.12.2026: ${fmtSigned(f.inngVidar)} · brukt ${bruktV}`
     : `Inngående saldo er ikke satt · brukt ${bruktV}`);
   $("detalj-jan-tore").textContent = laanTekst(f.janTore, "Caminante", false) + (f.inngJanTore !== null
-    ? `Inn 31.12.2026: ${fmtInt(f.inngJanTore)} · brukt ${bruktJ}`
+    ? `Inn 31.12.2026: ${fmtSigned(f.inngJanTore)} · brukt ${bruktJ}`
     : `Inngående saldo er ikke satt · brukt ${bruktJ}`);
 
   const hint = [];
@@ -516,18 +523,19 @@ const INNG_KONTOER = KONTOER;
 function renderInng(){
   $("inngGrid").innerHTML = INNG_KONTOER.map(k => {
     const row = kontoer[k.id] || {};
+    const v = row.inngaaende_saldo;
     return `<div class="eb-felt">
       <label for="inng-${k.id}">${escapeHtml(k.navn)} (poeng per 31.12.2026)</label>
-      <input type="text" class="tall" id="inng-${k.id}" inputmode="numeric" autocomplete="off" placeholder="Ikke satt"
-             value="${escapeHtml(fmtInt(row.inngaaende_saldo))}">
+      <input type="text" class="tall" id="inng-${k.id}" inputmode="text" autocomplete="off" placeholder="Ikke satt"
+             value="${v == null ? "" : escapeHtml(fmtSigned(Number(v)))}">
     </div>`;
   }).join("");
   INNG_KONTOER.forEach(k => {
     const inp = $("inng-" + k.id);
-    inp.addEventListener("focus", () => { const v = parseInt0(inp.value); inp.value = v === null ? "" : String(v); inp.select(); });
+    inp.addEventListener("focus", () => { const v = parseIntSigned(inp.value); inp.value = v === null ? "" : String(v); inp.select(); });
     inp.addEventListener("blur", async () => {
-      const v = parseInt0(inp.value);
-      inp.value = v === null ? "" : fmtInt(v);
+      const v = parseIntSigned(inp.value);
+      inp.value = v === null ? "" : fmtSigned(v);
       const gammel = kontoer[k.id] || {};
       if((gammel.inngaaende_saldo ?? null) === v) return;
       const felter = { inngaaende_saldo: v, sist_endret: new Date().toISOString() };

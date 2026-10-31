@@ -63,3 +63,7 @@ create policy "Innloggede har full tilgang" on public.eurobonus_saldo
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
 -- Kolonnene saldo/saldo_dato på eurobonus_kontoer brukes ikke lenger (beholdes inntil videre).
+
+-- v3 (migrasjon eurobonus_inngaaende_kan_vaere_negativ): inngående saldo kan være
+-- negativ (en konto kan ha lånt av de andre allerede ved oppstart).
+alter table public.eurobonus_kontoer drop constraint if exists eurobonus_kontoer_inngaaende_saldo_check;
