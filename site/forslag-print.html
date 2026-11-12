@@ -210,12 +210,13 @@
      Alle bildene brukeren har valgt vises - editoren stopper oddetall. */
   .hotell-galleri-stor{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
   .hotell-galleri-stor img{ width:100%; aspect-ratio:3/1; object-fit:cover; border-radius:0; display:block; background:var(--tint); }
-  /* 12.11.2026: opptil tre bilder i én rad (1-2 bilder fyller bare deler
-     av raden, samme rutestørrelse). Hver rute er ca. 217 px bred; 1:1 gir
-     ca. 217 px høyde - omtrent som de to radene i 2x2-oppsettet (2 x 109 +
-     8 px mellom). */
-  .hotell-galleri-stor.tre{ grid-template-columns:1fr 1fr 1fr; }
-  .hotell-galleri-stor.tre img{ aspect-ratio:1/1; }
+  /* 12.11.2026: opptil tre bilder i én rad, samme oppsett som
+     programbildene (.program-bilder): bildene deler hele radbredden likt
+     (1 bilde = full bredde, 2 = halvparten hver, 3 = en tredjedel), fast
+     høyde og utsnitt (cover). Høyden 220 px tilsvarer omtrent de to
+     radene i det gamle 2x2-oppsettet (2 x 109 + 8 px). */
+  .hotell-galleri-stor.tre{ display:flex; gap:8px; }
+  .hotell-galleri-stor.tre img{ flex:1 1 0; min-width:0; width:0; height:220px; aspect-ratio:auto; }
 
 
   /* Program - dag for dag. Kompakt uttrykk i dokumentets eget språk: hver
