@@ -1253,6 +1253,8 @@
       <div class="field-grid" style="grid-template-columns:160px 1fr; max-width:520px;">
         <label for="vk-frist">Tilbudsfrist</label>
         <input type="date" id="vk-frist">
+        <label for="vk-frist-tid">Klokkeslett</label>
+        <div><input type="time" id="vk-frist-tid" style="width:110px;"> <span style="font-size:12px;color:var(--ink-muted,#8a8478);">Valgfritt. Står i PDF-en hvis fylt ut.</span></div>
       </div>
     </div>
 
@@ -3704,6 +3706,7 @@ el("hpNyttBtn").addEventListener("click", opprettHoydepunktInline);
 function renderVilkaar(){
   const f = state.forslag;
   el("vk-frist").value = f.tilbudsfrist || "";
+  el("vk-frist-tid").value = f.tilbudsfrist_klokkeslett || "";
   el("vk-forbehold").value = f.tilbud_forbehold_tekst || "";
   el("vk-betaling").value = f.betalingsbetingelser || "";
   el("vk-navneliste").value = f.navneliste_tekst || "";
@@ -4488,6 +4491,7 @@ function collectForslagFields(){
     forbehold_tekst: f.forbehold_tekst || "",
     veien_videre_tekst: f.veien_videre_tekst || "",
     tilbudsfrist: f.tilbudsfrist || null,
+    tilbudsfrist_klokkeslett: f.tilbudsfrist_klokkeslett || null,
     tilbud_forbehold_tekst: f.tilbud_forbehold_tekst || null,
     betalingsbetingelser: f.betalingsbetingelser || null,
     navneliste_tekst: f.navneliste_tekst || null,
@@ -4528,6 +4532,7 @@ function collectFieldsFromForm(){
   f.om_reisemalet = el("pres-reisemal").value;
 
   f.tilbudsfrist = el("vk-frist").value || null;
+  f.tilbudsfrist_klokkeslett = el("vk-frist-tid").value || null;
   f.tilbud_forbehold_tekst = el("vk-forbehold").value;
   f.betalingsbetingelser = el("vk-betaling").value;
   f.navneliste_tekst = el("vk-navneliste").value;

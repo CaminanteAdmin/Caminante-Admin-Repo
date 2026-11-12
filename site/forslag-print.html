@@ -101,7 +101,7 @@
   .side-innhold{ flex:1 1 auto; display:flex; flex-direction:column; min-height:0; }
   .mellomfooter{
     flex:0 0 auto; height:14mm; background:var(--night);
-    display:flex; align-items:center; justify-content:space-between; gap:24px; padding:0 64px;
+    display:flex; align-items:center; justify-content:flex-end; gap:24px; padding:0 64px;
   }
   /* Merkevarestripe, ikke administrativ footer. Venstre: en liten
      merkevaresignatur i to linjer - CAMINANTE TRAVEL som primærlinje og
@@ -1406,7 +1406,7 @@ async function main(){
     // tilbudsfrist før et Tilbud genereres.
     avslutningBlokker.push(`<section class="blokk veien-videre">
       <h2>Tilbudsfrist</h2>
-      ${f.tilbudsfrist ? `<div class="tilbudsfrist-linje">Tilbudet er gyldig til og med ${esc(formatDato(f.tilbudsfrist))}.</div>` : ""}
+      ${f.tilbudsfrist ? `<div class="tilbudsfrist-linje">Tilbudet er gyldig til og med ${esc(formatDato(f.tilbudsfrist))}${f.tilbudsfrist_klokkeslett ? ` kl. ${esc(String(f.tilbudsfrist_klokkeslett).slice(0,5))}` : ""}.</div>` : ""}
       <p>Har dere spørsmål til tilbudet, eller ønsker å gå videre? Ta kontakt innen fristen over, så hjelper vi dere videre – enten det er for å bekrefte reisen eller gjøre justeringer i innholdet.</p>
       <div class="kontakt-blokk">
         ${ansvarligNavn ? `<div class="navn">${esc(ansvarligNavn)}</div>` : ""}
@@ -1419,10 +1419,6 @@ async function main(){
   // ingen adresse/org.nr./kontaktinfo (det hører til avslutningsfooteren).
   function mellomfooterHtml(){
     return `<div class="mellomfooter">
-      <div class="signatur">
-        <div class="merke">Caminante Travel</div>
-        <div class="slagord">Reiser som setter spor</div>
-      </div>
       <img class="logo" src="${LOGO_DATAURI}" alt="Caminante">
     </div>`;
   }
@@ -1431,7 +1427,6 @@ async function main(){
     return `<div class="footer">
       <div class="venstre">
         ${forbehold ? `<div class="liten"><span class="liten-stjerne">*</span> ${nl2br(forbehold)}</div>` : ""}
-        <div class="selskapsinfo">${esc(selskapsinfoDeler.join(" · "))}</div>
       </div>
       <div class="hoyre">
         ${RGF_LOGO_DATAURI ? `<img class="rgf-logo" src="${RGF_LOGO_DATAURI}" alt="Reisegarantifondet">` : ""}
