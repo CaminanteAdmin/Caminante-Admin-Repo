@@ -2856,13 +2856,29 @@ function erstattAutoLinjerIArray(arr, gamle, nye){
   return resultat;
 }
 
+// Første gang en auto-blokk opprettes: flylinjene øverst, hotelllinjene rett
+// etter flylinjene (hvis de ligger øverst), ellers øverst.
+function settInnNyeAutoLinjer(f, nyeKey, nye){
+  const arr = [...f.inkludert];
+  let pos = 0;
+  if(nyeKey === "auto_hotell_linjer"){
+    const fly = [...(f.auto_fly_linjer || [])];
+    while(pos < arr.length && fly.includes(arr[pos])){ fly.splice(fly.indexOf(arr[pos]), 1); pos++; }
+  }
+  arr.splice(pos, 0, ...nye);
+  return arr;
+}
+
 function syncAutoInkludertBlokk(f, nyeKey, overstyrtKey, beregnFn){
   if(f[overstyrtKey]) return;
   const nye = beregnFn();
   const gamle = f[nyeKey] || [];
   if(alleLinjerFortsattTilstede(gamle, f.inkludert)){
     if(JSON.stringify(nye) !== JSON.stringify(gamle)){
-      f.inkludert = gamle.length ? erstattAutoLinjerIArray(f.inkludert, gamle, nye) : [...f.inkludert, ...nye];
+      // 12.11.2026: eksisterende auto-linjer erstattes på samme sted (brukerens
+      // rekkefølge bevares). Er det første gang linjene opprettes, settes de
+      // inn øverst - fly først, deretter hotell - men flyttes aldri igjen.
+      f.inkludert = gamle.length ? erstattAutoLinjerIArray(f.inkludert, gamle, nye) : settInnNyeAutoLinjer(f, nyeKey, nye);
       f[nyeKey] = nye;
     }
   } else {
@@ -2897,7 +2913,10 @@ function syncAutoInkludertLinjer(){
   f.inkludert = f.inkludert || [];
   syncAutoInkludertBlokk(f, "auto_hotell_linjer", "hotell_linje_overstyrt", beregnAutoHotellLinjer);
   syncAutoInkludertBlokk(f, "auto_fly_linjer", "fly_linje_overstyrt", beregnAutoFlyLinjer);
-  flyttFlyOgHotellLinjerTilTopp(f);
+  // 12.11.2026: flyttFlyOgHotellLinjerTilTopp(f) kalles ikke lenger her. Den
+  // trakk fly-/hotelllinjene tilbake øverst ved hver synkronisering (også
+  // ved innlasting og ved hver endring av hotell/fly), slik at punkter
+  // brukeren hadde flyttet «hoppet tilbake».
 }
 
 function syncOgRenderInkludert(){

@@ -1496,7 +1496,13 @@ async function main(){
   // Med ekte data (Egypt, 8 dager) målte dag 1-3 268,5 mm - 2,5 mm over
   // det gamle budsjettet på 266 mm - og fordelingen falt til 2+3+3 selv om
   // 3+3+2 er ønsket. Kortene er uendret; bare hvor mye av siden som brukes.
-  const PROGRAM_MAKS = (INNHOLD_MM - 12) * MM;
+  // 12.11.2026: budsjettet økt til 7 mm bunnluft (var 12). Tre programdager
+  // à fire tekstlinjer og tre bilder måler ca. 273 mm med «Program»-
+  // overskriften (målt i PDF-en for Berlin & Krakow) - 2 mm over 271 mm, så
+  // dag 5 havnet alene på egen side. Fortsatt under sikkerhetsnettet
+  // (INNHOLD_MM - 6 = 277 mm), og dager med lengre tekst faller som før
+  // tilbake til færre per side.
+  const PROGRAM_MAKS = (INNHOLD_MM - 7) * MM;
   const A4 = 297 * MM;
 
   // Måler blokkene med ekte bredde og stil. Alle bildehøyder i dokumentet er
