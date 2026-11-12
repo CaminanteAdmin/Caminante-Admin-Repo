@@ -828,9 +828,15 @@ async function hentData(){
   if(e0 || !f){ el("loadMsg").textContent = "Fant ikke dette forslaget."; return; }
 
   let ansvarligNavn = null;
+  // Kontaktinfo for reiserådgiveren hentes fra profilen (pdf_navn, telefon,
+  // kontakt_epost). Mangler noe, brukes tidligere faste verdier (Vidar).
+  let ansvarligTelefon = "41 57 24 72";
+  let ansvarligEpost = "vidar@okreiser.no";
   if(f.ansvarlig){
-    const { data: p } = await window.sb.from("profiles").select("navn").eq("id", f.ansvarlig).single();
-    ansvarligNavn = p && p.navn;
+    const { data: p } = await window.sb.from("profiles").select("navn, pdf_navn, telefon, kontakt_epost").eq("id", f.ansvarlig).single();
+    ansvarligNavn = p && (p.pdf_navn || p.navn);
+    if(p && p.telefon) ansvarligTelefon = p.telefon;
+    if(p && p.kontakt_epost) ansvarligEpost = p.kontakt_epost;
   }
 
   // Høydepunkter - hentes fra reisemålets høydepunktbank (referanse, ikke
@@ -846,7 +852,7 @@ async function hentData(){
     hoydepunktBildeBank = rmBildeRows || [];
     reisemaalLand = rmRow && rmRow.land;
   }
-  return { f, transportRows, hotellRows, bildeRows, hpRows, dagRows, ansvarligNavn,
+  return { f, transportRows, hotellRows, bildeRows, hpRows, dagRows, ansvarligNavn, ansvarligTelefon, ansvarligEpost,
            hoydepunktBank, hoydepunktBildeBank, reisemaalLand, erTilbud: params.get("type") === "tilbud" };
 }
 
@@ -854,7 +860,7 @@ async function main(){
   pdfSteg("data");
   const data = await hentData();
   if(!data) return;
-  const { f, transportRows, hotellRows, bildeRows, hpRows, dagRows, ansvarligNavn,
+  const { f, transportRows, hotellRows, bildeRows, hpRows, dagRows, ansvarligNavn, ansvarligTelefon, ansvarligEpost,
           hoydepunktBank, hoydepunktBildeBank, reisemaalLand } = data;
 
   const transport = transportRows || [];
@@ -921,7 +927,7 @@ async function main(){
       <img class="logo" src="${LOGO_DATAURI}" alt="Caminante">
       <div class="brandbar-kontakt">
         ${ansvarligNavn ? `<div class="rolle">Reiserådgiver</div><div class="navn">${esc(ansvarligNavn)}</div>` : ""}
-        <div class="info">41 57 24 72 · vidar@okreiser.no</div>
+        <div class="info">${esc(ansvarligTelefon)} · ${esc(ansvarligEpost)}</div>
       </div>
     </div>`;
 
@@ -1389,7 +1395,7 @@ async function main(){
       ${f.veien_videre_tekst ? `<p>${nl2br(f.veien_videre_tekst)}</p>` : ""}
       <div class="kontakt-blokk">
         ${ansvarligNavn ? `<div class="navn">${esc(ansvarligNavn)}</div>` : ""}
-        <div>41 57 24 72 · vidar@okreiser.no · Caminante Travel AS</div>
+        <div>${esc(ansvarligTelefon)} · ${esc(ansvarligEpost)} · Caminante Travel AS</div>
       </div>
     </section>`);
   } else {
@@ -1404,7 +1410,7 @@ async function main(){
       <p>Har dere spørsmål til tilbudet, eller ønsker å gå videre? Ta kontakt innen fristen over, så hjelper vi dere videre – enten det er for å bekrefte reisen eller gjøre justeringer i innholdet.</p>
       <div class="kontakt-blokk">
         ${ansvarligNavn ? `<div class="navn">${esc(ansvarligNavn)}</div>` : ""}
-        <div>41 57 24 72 · vidar@okreiser.no · Caminante Travel AS</div>
+        <div>${esc(ansvarligTelefon)} · ${esc(ansvarligEpost)} · Caminante Travel AS</div>
       </div>
     </section>`);
   }
