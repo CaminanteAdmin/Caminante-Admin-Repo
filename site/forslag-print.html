@@ -210,6 +210,12 @@
      Alle bildene brukeren har valgt vises - editoren stopper oddetall. */
   .hotell-galleri-stor{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
   .hotell-galleri-stor img{ width:100%; aspect-ratio:3/1; object-fit:cover; border-radius:0; display:block; background:var(--tint); }
+  /* 12.11.2026: opptil tre bilder i én rad (1-2 bilder fyller bare deler
+     av raden, samme rutestørrelse). Hver rute er ca. 217 px bred; 1:1 gir
+     ca. 217 px høyde - omtrent som de to radene i 2x2-oppsettet (2 x 109 +
+     8 px mellom). */
+  .hotell-galleri-stor.tre{ grid-template-columns:1fr 1fr 1fr; }
+  .hotell-galleri-stor.tre img{ aspect-ratio:1/1; }
 
 
   /* Program - dag for dag. Kompakt uttrykk i dokumentets eget språk: hver
@@ -1093,7 +1099,7 @@ async function main(){
         ${h.maltider ? `<span class="badge">${esc(h.maltider)}</span>` : ""}
         ${egenskaper.map(eg=>`<span class="badge">${esc(eg)}</span>`).join("")}
       </div>` : ""}
-      ${bilderHotell.length ? `<div class="hotell-galleri-stor">${bilderHotell.map(b=>`<img src="${esc(pdfBilde(b.bilde_url, "hotell"))}" alt="${esc(b.alt_tekst||"")}">`).join("")}</div>` : ""}
+      ${bilderHotell.length ? `<div class="hotell-galleri-stor${bilderHotell.length>=1 && bilderHotell.length<=3 ? " tre" : ""}">${bilderHotell.map(b=>`<img src="${esc(pdfBilde(b.bilde_url, "hotell"))}" alt="${esc(b.alt_tekst||"")}">`).join("")}</div>` : ""}
     </section>`;
   });
 
@@ -1379,7 +1385,7 @@ async function main(){
         </div>
         <div class="pris-detalj">
           ${[
-            f.pris_antall_personer ? `Basert på ${f.pris_antall_personer} betalende deltakere` : null,
+            f.pris_antall_personer ? `Basert på min. ${f.pris_antall_personer} betalende deltakere` : null,
             f.enkeltromstillegg ? `Enkeltromstillegg kr ${formatKr(f.enkeltromstillegg)},-` : null,
             f.kursgrunnlag || null,
           ].filter(Boolean).join("<br>")}
@@ -1410,7 +1416,7 @@ async function main(){
       <p>Har dere spørsmål til tilbudet, eller ønsker å gå videre? Ta kontakt innen fristen over, så hjelper vi dere videre – enten det er for å bekrefte reisen eller gjøre justeringer i innholdet.</p>
       <div class="kontakt-blokk">
         ${ansvarligNavn ? `<div class="navn">${esc(ansvarligNavn)}</div>` : ""}
-        <div>${esc(ansvarligTelefon)} · ${esc(ansvarligEpost)} · Caminante Travel AS</div>
+        <div>${esc(ansvarligTelefon)} · ${esc(ansvarligEpost)}</div>
       </div>
     </section>`);
   }
@@ -1458,7 +1464,7 @@ async function main(){
       vilkaarSide = `<section class="blokk vilkaar-side side-start">
         <h2>Vilkår og frister</h2>
         ${felt.map(([navn, v])=>`<div class="vilkaar-seksjon"><div class="vilkaar-label">${esc(navn)}</div><p>${nl2br(v)}</p></div>`).join("")}
-        <div class="vilkaar-seksjon vilkaar-generelt"><div class="vilkaar-label">Generelle reisevilkår</div><p>For reisen gjelder Caminante Travel AS' generelle reisevilkår i tillegg til betingelsene i dette tilbudet. Se caminante.no/reisevilkar.</p></div>
+        <div class="vilkaar-seksjon vilkaar-generelt"><div class="vilkaar-label">Generelle reisevilkår</div><p>For reisen gjelder Caminantes generelle reisevilkår i tillegg til betingelsene i dette tilbudet. Se caminante.no/reisevilkar.</p></div>
       </section>`;
     }
   }

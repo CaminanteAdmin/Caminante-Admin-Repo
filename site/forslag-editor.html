@@ -3377,8 +3377,7 @@ function oppdaterPdfVarsler(erTilbud){
   state.hotellopphold.forEach((h, idx)=>{
     const n = state.bilder.filter(b=> b.fields.kategori==="Hotell" && b.hotellopphold_client_key===h.clientKey).length;
     const navn = h.fields.hotellnavn || "Hotell " + (idx+1);
-    if(n > HOTELL_BILDER_MAKS) varsler.push(`${navn} har ${n} bilder - PDF-en tar 0, 2 eller 4 per hotell. Fjern ${n - HOTELL_BILDER_MAKS}.`);
-    else if(n % 2 === 1) varsler.push(`${navn} har ${n} bilde${n===1?"":"r"} - PDF-en tar 0, 2 eller 4 per hotell. Legg til eller fjern ett bilde (Bilder-fanen).`);
+    if(n > HOTELL_BILDER_MAKS) varsler.push(`${navn} har ${n} bilder - PDF-en tar maks ${HOTELL_BILDER_MAKS} per hotell. Fjern ${n - HOTELL_BILDER_MAKS}.`);
   });
   // Programdager: 0-4 bilder i én rad (ingen partallskrav). Kun flere enn
   // fire stoppes.
@@ -4350,9 +4349,10 @@ function hotellBankInfo(hotellopphold){
 // bredden. Hotellbildene er to per hotell - fire sprengte halvsiden når to
 // hoteller deler side (målt 285 mm mot 232 mm).
 const REISEMAAL_GALLERI_MAKS = 6;
-// 06.09.2026: 0/2/4 bilder per hotell (fire blir 2x2, hotellet får da
-// normalt egen side). 1 og 3 er ugyldig - varsles, aldri kappet.
-const HOTELL_BILDER_MAKS = 4;
+// 12.11.2026: 0-3 bilder per hotell (opptil tre i én rad, omtrent samme
+// høyde som de to radene i 2x2-oppsettet hadde til sammen; færre enn tre
+// fyller bare deler av raden). Flere enn tre varsles, aldri kappet.
+const HOTELL_BILDER_MAKS = 3;
 
 function renderBilder(){
   // v22: Hovedbilde/Avslutningsbilde/hvert Høydepunkt tegnes nå som
@@ -4402,12 +4402,10 @@ function renderBilder(){
       // Et hotell fra før grensen ble senket kan ha flere bilder enn PDF-en
       // viser - si fra her, slik at ingen bilder forsvinner i det stille.
       const antall = state.bilder.filter(b=> b.fields.kategori==="Hotell" && b.hotellopphold_client_key===h.clientKey).length;
-      if(antall > HOTELL_BILDER_MAKS || antall % 2 === 1){
+      if(antall > HOTELL_BILDER_MAKS){
         const varsel = document.createElement("div");
         varsel.className = "pdf-varsel vis";
-        varsel.textContent = antall > HOTELL_BILDER_MAKS
-          ? `Hotellet har ${antall} bilder - PDF-en tar 0, 2 eller 4. Fjern ${antall - HOTELL_BILDER_MAKS} bilde${antall - HOTELL_BILDER_MAKS === 1 ? "" : "r"}.`
-          : `Hotellet har ${antall} bilde${antall === 1 ? "" : "r"} - PDF-en tar 0, 2 eller 4. Legg til eller fjern ett bilde.`;
+        varsel.textContent = `Hotellet har ${antall} bilder - PDF-en tar maks ${HOTELL_BILDER_MAKS}. Fjern ${antall - HOTELL_BILDER_MAKS} bilde${antall - HOTELL_BILDER_MAKS === 1 ? "" : "r"}.`;
         sub.appendChild(varsel);
       }
     });
