@@ -170,6 +170,7 @@ const PDF_VARIANTER = {
   "program-2":            [990, 396],
   "program-3":            [650, 396],
   "program-4":            [480, 396],
+  "program-5":            [390, 396],   // 12.11.2026: hotellbilder, 5 i raden (127 x 132)
 };
 const PDF_BILDE_KVALITET = 85;
 // Kun bildebankens egne rasterfiler kan hentes gjennom bilderuten - aldri
@@ -298,9 +299,17 @@ function pdfBildeVarianter(data, erTilbud, env) {
     if (b.kategori === "Destinasjon") {
       if (b.er_avslutningsbilde) legg(erTilbud ? "closing-tilbud" : "closing-reiseforslag", b.bilde_url);
       else if (!b.er_hovedbilde) legg("om-reisen", b.bilde_url);
-    } else if (b.kategori === "Hotell") {
-      legg("hotell", b.bilde_url);
     }
+  });
+  // 12.11.2026: hotellbildene bruker programbilde-modulen: variant etter
+  // antall bilder på hotellet (maks 5 i raden).
+  const perHotell = new Map();
+  bilder.filter((b) => b.kategori === "Hotell").forEach((b) => {
+    perHotell.set(b.hotellopphold_id, (perHotell.get(b.hotellopphold_id) || []).concat([b]));
+  });
+  perHotell.forEach((liste) => {
+    const n = Math.min(5, Math.max(1, liste.length));
+    liste.forEach((b) => legg(`program-${n}`, b.bilde_url));
   });
   const perDag = new Map();
   bilder.filter((b) => b.kategori === "Program").forEach((b) => {

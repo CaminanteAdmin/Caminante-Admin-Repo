@@ -206,17 +206,12 @@
   .badge-rad{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 0; }
   .badge{ display:inline-block; font-size:11.5px; font-weight:600; color:var(--accent-dark); background:var(--tint); border:1px solid var(--hairline); border-radius:20px; padding:4px 11px; }
 
-  /* 0/2/4 bilder per hotell (06.09.2026): to i bredden, fire blir 2x2.
-     Alle bildene brukeren har valgt vises - editoren stopper oddetall. */
+  /* 12.11.2026: hotellbildene bruker samme modul som programbildene
+     (.program-bilder): 2-5 bilder i én rad som deler bredden likt, 132 px
+     høye. Editoren håndhever 2-5. (.hotell-galleri-stor under brukes ikke
+     lenger.) */
   .hotell-galleri-stor{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
   .hotell-galleri-stor img{ width:100%; aspect-ratio:3/1; object-fit:cover; border-radius:0; display:block; background:var(--tint); }
-  /* 12.11.2026: opptil tre bilder i én rad, samme oppsett som
-     programbildene (.program-bilder): bildene deler hele radbredden likt
-     (1 bilde = full bredde, 2 = halvparten hver, 3 = en tredjedel), fast
-     høyde og utsnitt (cover). Høyden 220 px tilsvarer omtrent de to
-     radene i det gamle 2x2-oppsettet (2 x 109 + 8 px). */
-  .hotell-galleri-stor.tre{ display:flex; gap:8px; }
-  .hotell-galleri-stor.tre img{ flex:1 1 0; min-width:0; width:0; height:220px; aspect-ratio:auto; }
 
 
   /* Program - dag for dag. Kompakt uttrykk i dokumentets eget språk: hver
@@ -1100,7 +1095,7 @@ async function main(){
         ${h.maltider ? `<span class="badge">${esc(h.maltider)}</span>` : ""}
         ${egenskaper.map(eg=>`<span class="badge">${esc(eg)}</span>`).join("")}
       </div>` : ""}
-      ${bilderHotell.length ? `<div class="hotell-galleri-stor${bilderHotell.length>=1 && bilderHotell.length<=3 ? " tre" : ""}">${bilderHotell.map(b=>`<img src="${esc(pdfBilde(b.bilde_url, "hotell"))}" alt="${esc(b.alt_tekst||"")}">`).join("")}</div>` : ""}
+      ${bilderHotell.length ? `<div class="program-bilder">${bilderHotell.map(b=>`<img src="${esc(pdfBilde(b.bilde_url, "program-" + Math.min(5, bilderHotell.length)))}" alt="${esc(b.alt_tekst||"")}">`).join("")}</div>` : ""}
     </section>`;
   });
 

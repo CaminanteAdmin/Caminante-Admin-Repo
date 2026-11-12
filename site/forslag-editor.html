@@ -3378,6 +3378,7 @@ function oppdaterPdfVarsler(erTilbud){
     const n = state.bilder.filter(b=> b.fields.kategori==="Hotell" && b.hotellopphold_client_key===h.clientKey).length;
     const navn = h.fields.hotellnavn || "Hotell " + (idx+1);
     if(n > HOTELL_BILDER_MAKS) varsler.push(`${navn} har ${n} bilder - PDF-en tar maks ${HOTELL_BILDER_MAKS} per hotell. Fjern ${n - HOTELL_BILDER_MAKS}.`);
+    else if(n > 0 && n < HOTELL_BILDER_MIN) varsler.push(`${navn} har ${n} bilde - hotell trenger minst ${HOTELL_BILDER_MIN} bilder. Legg til ett til (Bilder-fanen), eller fjern det.`);
   });
   // Programdager: 0-4 bilder i én rad (ingen partallskrav). Kun flere enn
   // fire stoppes.
@@ -4349,10 +4350,11 @@ function hotellBankInfo(hotellopphold){
 // bredden. Hotellbildene er to per hotell - fire sprengte halvsiden når to
 // hoteller deler side (målt 285 mm mot 232 mm).
 const REISEMAAL_GALLERI_MAKS = 6;
-// 12.11.2026: 0-3 bilder per hotell (opptil tre i én rad, omtrent samme
-// høyde som de to radene i 2x2-oppsettet hadde til sammen; færre enn tre
-// fyller bare deler av raden). Flere enn tre varsles, aldri kappet.
-const HOTELL_BILDER_MAKS = 3;
+// 12.11.2026: hotellbildene bruker samme modul som programbildene: 2-5
+// bilder per hotell i én rad (ingen bilder er også lov). Ett bilde, eller
+// flere enn fem, varsles - aldri kappet.
+const HOTELL_BILDER_MIN = 2;
+const HOTELL_BILDER_MAKS = 5;
 
 function renderBilder(){
   // v22: Hovedbilde/Avslutningsbilde/hvert Høydepunkt tegnes nå som
@@ -4402,10 +4404,12 @@ function renderBilder(){
       // Et hotell fra før grensen ble senket kan ha flere bilder enn PDF-en
       // viser - si fra her, slik at ingen bilder forsvinner i det stille.
       const antall = state.bilder.filter(b=> b.fields.kategori==="Hotell" && b.hotellopphold_client_key===h.clientKey).length;
-      if(antall > HOTELL_BILDER_MAKS){
+      if(antall > HOTELL_BILDER_MAKS || (antall > 0 && antall < HOTELL_BILDER_MIN)){
         const varsel = document.createElement("div");
         varsel.className = "pdf-varsel vis";
-        varsel.textContent = `Hotellet har ${antall} bilder - PDF-en tar maks ${HOTELL_BILDER_MAKS}. Fjern ${antall - HOTELL_BILDER_MAKS} bilde${antall - HOTELL_BILDER_MAKS === 1 ? "" : "r"}.`;
+        varsel.textContent = antall > HOTELL_BILDER_MAKS
+          ? `Hotellet har ${antall} bilder - PDF-en tar maks ${HOTELL_BILDER_MAKS}. Fjern ${antall - HOTELL_BILDER_MAKS} bilde${antall - HOTELL_BILDER_MAKS === 1 ? "" : "r"}.`
+          : `Hotellet har ${antall} bilde - minst ${HOTELL_BILDER_MIN} trengs. Legg til ett til, eller fjern det.`;
         sub.appendChild(varsel);
       }
     });
