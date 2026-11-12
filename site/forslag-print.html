@@ -1375,7 +1375,7 @@ async function main(){
       <div class="pris-boks">
         <div class="venstre">
           <div class="pris-tall">${f.er_fra_pris ? "Fra " : ""}kr ${formatKr(f.pris_per_person)},-${forbeholdIFooter ? `<span class="pris-stjerne">*</span>` : ""}</div>
-          <div class="label">Per person i delt dobbeltrom</div>
+          <div class="label">${{ trippelrom:"Per person i delt trippelrom", firemannsrom:"Per person i delt firemannsrom", ingen:"Per person" }[f.pris_romtype] || "Per person i delt dobbeltrom"}</div>
         </div>
         <div class="pris-detalj">
           ${[

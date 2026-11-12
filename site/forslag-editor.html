@@ -1150,6 +1150,13 @@
             <label for="pr-per-person">Pris per person</label><input type="number" id="pr-per-person" step="1">
             <label for="pr-antall">Antall personer</label><input type="number" id="pr-antall" min="0">
             <label for="pr-enkeltrom">Enkeltromstillegg</label><input type="number" id="pr-enkeltrom" step="1">
+            <label for="pr-romtype">Prisen gjelder</label>
+            <select id="pr-romtype">
+              <option value="">Per person i delt dobbeltrom</option>
+              <option value="trippelrom">Per person i delt trippelrom</option>
+              <option value="firemannsrom">Per person i delt firemannsrom</option>
+              <option value="ingen">Per person (uten romtype)</option>
+            </select>
             <label for="pr-fra-pris">Fra-pris</label>
             <label class="pr-fra-pris-check"><input type="checkbox" id="pr-fra-pris"> Legg til «fra-pris»</label>
             <label for="pr-forklaring" class="span-full">Kommentar angående priser</label><textarea id="pr-forklaring" class="span-full"></textarea>
@@ -2727,6 +2734,7 @@ function renderPris(){
   el("pr-per-person").value = f.pris_per_person ?? "";
   el("pr-antall").value = f.pris_antall_personer ?? "";
   el("pr-enkeltrom").value = f.enkeltromstillegg ?? "";
+  el("pr-romtype").value = f.pris_romtype || "";
   el("pr-fra-pris").checked = !!f.er_fra_pris;
   el("pr-forklaring").value = f.prisgrunnlag_forklaring || "";
   el("pr-intern").value = f.pris_intern_kommentar || "";
@@ -4461,6 +4469,7 @@ function collectForslagFields(){
     pris_per_person: f.pris_per_person ?? null,
     pris_antall_personer: f.pris_antall_personer ?? null,
     enkeltromstillegg: f.enkeltromstillegg ?? null,
+    pris_romtype: f.pris_romtype || null,
     prisgrunnlag_forklaring: f.prisgrunnlag_forklaring || null,
     pris_intern_kommentar: f.pris_intern_kommentar || null,
     inkludert: f.inkludert || [],
@@ -4509,6 +4518,7 @@ function collectFieldsFromForm(){
   f.pris_per_person = numOrNull(el("pr-per-person").value);
   f.pris_antall_personer = numOrNull(el("pr-antall").value);
   f.enkeltromstillegg = numOrNull(el("pr-enkeltrom").value);
+  f.pris_romtype = el("pr-romtype").value || null;
   f.er_fra_pris = el("pr-fra-pris").checked;
   f.prisgrunnlag_forklaring = el("pr-forklaring").value;
   f.pris_intern_kommentar = el("pr-intern").value;
