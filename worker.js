@@ -382,9 +382,15 @@ async function hentForslagData(env, token, id) {
   if (!f) return null;
 
   let ansvarligNavn = null;
+  // Samme felt og fallback som i forslag-print.html (pdf_navn, telefon, kontakt_epost).
+  let ansvarligTelefon = "41 57 24 72";
+  let ansvarligEpost = "vidar@okreiser.no";
   if (f.ansvarlig) {
-    const p = await sbHent(env, token, `profiles?id=eq.${encodeURIComponent(f.ansvarlig)}&select=navn`);
-    ansvarligNavn = (p[0] && p[0].navn) || null;
+    const p = await sbHent(env, token, `profiles?id=eq.${encodeURIComponent(f.ansvarlig)}&select=navn,pdf_navn,telefon,kontakt_epost`);
+    const pr = p[0] || null;
+    ansvarligNavn = (pr && (pr.pdf_navn || pr.navn)) || null;
+    if (pr && pr.telefon) ansvarligTelefon = pr.telefon;
+    if (pr && pr.kontakt_epost) ansvarligEpost = pr.kontakt_epost;
   }
   let hoydepunktBank = [], hoydepunktBildeBank = [], reisemaalLand = null;
   if (f.reisemaal_id) {
@@ -398,7 +404,7 @@ async function hentForslagData(env, token, id) {
     hoydepunktBildeBank = rmBilder;
     reisemaalLand = (rm[0] && rm[0].land) || null;
   }
-  return { f, transportRows, hotellRows, bildeRows, hpRows, dagRows, ansvarligNavn, hoydepunktBank, hoydepunktBildeBank, reisemaalLand };
+  return { f, transportRows, hotellRows, bildeRows, hpRows, dagRows, ansvarligNavn, ansvarligTelefon, ansvarligEpost, hoydepunktBank, hoydepunktBildeBank, reisemaalLand };
 }
 
 // Statiske filer leses fra ASSETS. Med standard html_handling kan
