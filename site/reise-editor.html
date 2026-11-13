@@ -525,6 +525,16 @@
       <div id="flyAndre"></div>
 
       <div class="card">
+        <div class="card-title"><span>Bagasje</span></div>
+        <div class="field-grid kompakt">
+          <div class="field" style="width:min(100%, 520px);">
+            <label for="fl-bagasje">Bagasje</label>
+            <input type="text" id="fl-bagasje" data-f="luggage_info" maxlength="200" placeholder="F.eks. Innsjekket bagasje à 23 kg er inkludert.">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="card-title"><span>Om flyreisen</span></div>
         <div class="field-grid">
           <div class="field full">
@@ -2051,6 +2061,7 @@ function isoFraEtikett(label, start, end){
   const d = new Date(iso + "T00:00:00Z");
   return (isNaN(d) || d.getUTCDate() !== dag) ? "" : iso;
 }
+const BAGASJE_STANDARD = "Innsjekket bagasje à 23 kg er inkludert.";
 function flyStandardDato(gruppe){
   return gruppe === "utreise" ? (state.trip.start_date || "")
        : gruppe === "hjemreise" ? (state.trip.end_date || "") : "";
@@ -3026,6 +3037,7 @@ function renderGrunnfelter(){
   el("ri-deltakere").value = state.internal.antall_deltakere ?? "";
   el("i-notater").value = state.internal.interne_notater || "";
   el("fl-info").value = t.flight_info || "";
+  el("fl-bagasje").value = t.luggage_info || "";
   el("pk-maltider").value = t.meals_info || "";
   el("pk-fysisk").value = t.physical_level || "";
   el("pk-innreise").value = t.entry_requirements || "";
@@ -3170,6 +3182,8 @@ async function lastReise(id){
     f.foelger = std !== null && (f.date_label ? f.dato_iso === std : true);
   });
   originalIds.flights = new Set(state.flights.map(f=>f.id));
+  // Standard bagasje for en reise uten lagrede flyvninger (lagres ved neste lagring).
+  if(!(state.trip.luggage_info || "").trim() && !state.flights.length) state.trip.luggage_info = BAGASJE_STANDARD;
   // Hoteller-modulen er kun til plukking (som personregisteret): feiler den,
   // er editoren fortsatt trygg å bruke, men plukking og bildebank sperres.
   hotellRegisterFeilet = !!(rHotellReg.error || rHotellBilder.error);
