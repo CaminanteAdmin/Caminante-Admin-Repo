@@ -886,9 +886,10 @@ function tripPayload(){
     currency: t.currency || "NOK",
     single_room_supplement: t.single_room_supplement ?? null,
     capacity: t.capacity ?? null,
-    few_spots_threshold: t.few_spots_threshold ?? null,
-    included_items: renseListe(t.included_items),
-    not_included_items: renseListe(t.not_included_items),
+    few_spots_threshold: t.few_spots_threshold ?? 5,   // standard 5 (som Web); aldri null
+    // Kolonnene er NOT NULL i basen: en tom liste lagres som [] (aldri null).
+    included_items: renseListe(t.included_items) || [],
+    not_included_items: renseListe(t.not_included_items) || [],
     status: t.status || "kladd",
     updated_at: new Date().toISOString(),
   };
