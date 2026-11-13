@@ -3005,12 +3005,17 @@ el("btnSlett").addEventListener("click", async ()=>{
     return;
   }
   if(antall > 0){
-    alert("Denne reisen har " + antall + " påmelding(er) og kan ikke slettes.\n\n" +
-      "Sletting ville også slettet påmeldingene permanent, med navn og persondata. " +
-      "Sett reisen til Under arbeid i stedet dersom den ikke lenger skal vises.");
-    return;
-  }
-  if(!confirm("Slette " + typeOrd().en + " permanent, inkludert program og bilder?")) return;
+    // Sletting er mulig, men bare med bevisst bekreftelse: påmeldingene (navn og
+    // persondata) slettes permanent sammen med reisen. Må skrive reisens navn.
+    const navn = ((state.trip && state.trip.title) || "").trim() || "SLETT";
+    const svar = prompt(
+      "Denne reisen har " + antall + " påmelding(er)/bestilling(er). Sletter du reisen, slettes de også permanent, " +
+      "med navn og persondata, og det kan ikke angres.\n\n" +
+      "Er dette en testreise, skriv «" + navn + "» for å bekrefte sletting. " +
+      "Skal en ekte reise bare skjules, sett den til Under arbeid i stedet.");
+    if(svar === null) return;
+    if(svar.trim() !== navn){ alert("Teksten stemte ikke med navnet. Reisen er ikke slettet."); return; }
+  } else if(!confirm("Slette " + typeOrd().en + " permanent, inkludert program og bilder?")) return;
   const { error } = await window.sb.from("trips").delete().eq("id", tripId);
   if(error){ alert("Kunne ikke slette: " + error.message); return; }
   window.location.href = typeOrd().liste;   // tilbake til listen for reisens type
