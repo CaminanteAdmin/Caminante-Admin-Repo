@@ -529,17 +529,7 @@
         <div class="field-grid kompakt">
           <div class="field" style="width:min(100%, 520px);">
             <label for="fl-bagasje">Bagasje</label>
-            <input type="text" id="fl-bagasje" data-f="luggage_info" maxlength="200" placeholder="F.eks. Innsjekket bagasje à 23 kg er inkludert.">
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title"><span>Om flyreisen</span></div>
-        <div class="field-grid">
-          <div class="field full">
-            <label for="fl-info">Fritekst</label>
-            <textarea id="fl-info" data-f="flight_info" placeholder="F.eks. Direktefly Oslo–Marrakech t/r med Norwegian. Eller: flybillett er ikke inkludert."></textarea>
+            <input type="text" id="fl-bagasje" data-f="luggage_info" maxlength="200" placeholder="F.eks. 1 stk. innsjekket bagasje (23 kg) + håndbagasje inkludert.">
           </div>
         </div>
       </div>
@@ -2061,7 +2051,7 @@ function isoFraEtikett(label, start, end){
   const d = new Date(iso + "T00:00:00Z");
   return (isNaN(d) || d.getUTCDate() !== dag) ? "" : iso;
 }
-const BAGASJE_STANDARD = "Innsjekket bagasje à 23 kg er inkludert.";
+const BAGASJE_STANDARD = "1 stk. innsjekket bagasje (23 kg) + håndbagasje inkludert.";
 function flyStandardDato(gruppe){
   return gruppe === "utreise" ? (state.trip.start_date || "")
        : gruppe === "hjemreise" ? (state.trip.end_date || "") : "";
@@ -2670,9 +2660,9 @@ function publiseringsPunkter(){
   add("bor", "omreisen", "Bilder under Om reisen", state.omBilder.length > 0);
   add("bor", "omreisen", "Minst én person (reiseleder)", state.personer.length > 0);
   add("bor", "program", "Innhold på alle dagene", dager !== null && dagerMedInnhold === dager, dager ? dagerMedInnhold + " av " + dager + " dager har innhold" : "");
-  add("bor", "fly", "Flytider eller flyinformasjon", state.flights.some(flyHarInnhold) || fylt(t.flight_info), "Hopp over hvis reisen ikke har fly");
+  add("bor", "fly", "Flytider", state.flights.some(flyHarInnhold), "Hopp over hvis reisen ikke har fly");
   if(!bibel) add("bor", "hotell", "Minst ett hotell", hoteller > 0);
-  add("bor", "priser", "Inkludert i prisen", renseListe(t.included_items) !== null);
+  add("bor", "priser", "Inkludert i prisen", (renseListe(t.included_items) || []).some(x=> x !== "Innsjekket bagasje à 23 kg."), "Standardlinjen om bagasje er lagt inn - legg til hva ellers prisen dekker");
   add("bor", "praktisk", "Måltider", fylt(t.meals_info));
   add("bor", "praktisk", "Pass og innreise", fylt(t.entry_requirements), "Hopp over hvis det ikke er noe særskilt");
   add("bor", "vilkar", "Forbehold", fylt(t.terms_reservations));
@@ -3036,7 +3026,6 @@ function renderGrunnfelter(){
   el("ri-avreisested").value = t.departure_airport || "";
   el("ri-deltakere").value = state.internal.antall_deltakere ?? "";
   el("i-notater").value = state.internal.interne_notater || "";
-  el("fl-info").value = t.flight_info || "";
   el("fl-bagasje").value = t.luggage_info || "";
   el("pk-maltider").value = t.meals_info || "";
   el("pk-fysisk").value = t.physical_level || "";
@@ -3122,6 +3111,8 @@ async function lastReise(id){
     included_items: Array.isArray(trip.included_items) ? trip.included_items.slice() : [],
     not_included_items: Array.isArray(trip.not_included_items) ? trip.not_included_items.slice() : [],
   };
+  // Standardlinje under Inkludert (kan redigeres eller fjernes) når listen er tom.
+  if(!(state.trip.included_items || []).length) state.trip.included_items = ["Innsjekket bagasje à 23 kg."];
   if(state.trip.deposit_amount == null) state.trip.deposit_amount = standardDepositum(state.trip.trip_type);
   if(state.trip.trip_type !== "bibelcamp" && !(state.trip.terms_payment || "").trim())
     state.trip.terms_payment = standardBetalingstekst(state.trip.deposit_amount);
@@ -3182,8 +3173,9 @@ async function lastReise(id){
     f.foelger = std !== null && (f.date_label ? f.dato_iso === std : true);
   });
   originalIds.flights = new Set(state.flights.map(f=>f.id));
-  // Standard bagasje for en reise uten lagrede flyvninger (lagres ved neste lagring).
-  if(!(state.trip.luggage_info || "").trim() && !state.flights.length) state.trip.luggage_info = BAGASJE_STANDARD;
+  // Standard bagasje når feltet er tomt (lagres ved neste lagring). Skal en reise ha
+  // en annen tekst, skriver man den i feltet, f.eks. «Kun håndbagasje».
+  if(!(state.trip.luggage_info || "").trim()) state.trip.luggage_info = BAGASJE_STANDARD;
   // Hoteller-modulen er kun til plukking (som personregisteret): feiler den,
   // er editoren fortsatt trygg å bruke, men plukking og bildebank sperres.
   hotellRegisterFeilet = !!(rHotellReg.error || rHotellBilder.error);
