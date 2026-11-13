@@ -168,7 +168,8 @@
     text-transform:uppercase; letter-spacing:0.03em; margin-bottom:6px;
   }
   /* ---- Om reisen ---- */
-  .field textarea.om-tekst{ min-height:220px; line-height:1.5; }
+  .field textarea.om-tekst{ min-height:440px; line-height:1.5; }
+  .field textarea.om-ingress{ min-height:130px; line-height:1.5; }
   .person-kort{
     display:flex; gap:14px; align-items:flex-start; background:var(--surface-1);
     border:1px solid var(--hairline); border-radius:10px; padding:12px; margin-bottom:10px;
@@ -478,7 +479,7 @@
           </div>
           <div class="field full">
             <label for="om-ingress">Ingress</label>
-            <textarea id="om-ingress" data-f="intro_text" placeholder="En til to setninger. Vises i kursiv øverst, og også på reisekortet i oversikten."></textarea>
+            <textarea id="om-ingress" data-f="intro_text" class="om-ingress" placeholder="En til to setninger. Vises i kursiv øverst, og også på reisekortet i oversikten."></textarea>
           </div>
           <div class="field full">
             <label for="om-tekst">Hovedtekst</label>
