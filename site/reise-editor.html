@@ -115,6 +115,8 @@
   }
   .field textarea{ resize:vertical; min-height:64px; }
   .field .hint{ font-size:11px; color:var(--ink-muted); margin-top:3px; }
+  /* Hjelpetekster og tomme-meldinger utenfor felt: samme små skrift */
+  .card > .hint, .priser-to-kol .hint, .tab-panel .hint:not(.field .hint){ font-size:12px; color:var(--ink-muted); line-height:1.5; }
   .full{ grid-column:1 / -1; }
 
   /* Reisenavn skal være det første og mest fremtredende feltet. */
@@ -239,6 +241,11 @@
     background:var(--surface-1); cursor:pointer; font-size:12.5px; color:var(--blue-dark); font-family:inherit;
   }
   .legg-til-knapp:hover{ background:var(--page); }
+  .field-grid.kompakt{ display:flex; flex-wrap:wrap; gap:12px 18px; }
+  .field-grid.kompakt .field{ width:170px; flex:none; }
+  .field-grid.kompakt .field.smal{ width:130px; }
+  .field-grid.kompakt .field.bred{ width:330px; }
+  .tillegg-bilder-etikett{ font-size:12px; color:var(--ink-secondary); margin:6px 0 6px; }
   .priser-to-kol{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
   @media (max-width:820px){ .priser-to-kol{ grid-template-columns:1fr; } }
   .tillegg-kort{
@@ -264,26 +271,26 @@
   }
 
   /* ---- Fly ---- */
-  .fly-rad{
-    display:grid; grid-template-columns:120px 90px minmax(160px,1fr) 100px 100px 140px auto;
-    gap:8px; align-items:end; margin-bottom:8px;
-  }
-  .fly-rad label.etikett{ display:block; font-size:11.5px; color:var(--ink-secondary); margin:0 0 3px; }
-  .fly-rad input, .fly-rad select{
+  .fly-kolonner{ display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
+  @media (max-width:900px){ .fly-kolonner{ grid-template-columns:1fr; } }
+  .fly-kort{ border:1px solid var(--hairline); border-radius:8px; padding:10px 12px; margin-bottom:10px; background:var(--surface-1); }
+  .fly-kort-hode{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-weight:600; font-size:13px; }
+  .fly-felt{ display:grid; grid-template-columns:84px 1fr; gap:8px; align-items:center; margin-bottom:6px; }
+  .fly-felt label{ font-size:12px; color:var(--ink-secondary); }
+  .fly-felt input{
     width:100%; box-sizing:border-box; padding:7px 9px; border:1px solid var(--hairline); border-radius:7px;
-    font-size:13px; background:var(--surface-1); color:var(--ink-primary); font-family:inherit;
+    font-size:13px; background:var(--page); color:var(--ink-primary); font-family:inherit;
   }
-  .fly-rad .fly-knapper{ display:flex; gap:4px; padding-bottom:1px; }
-  @media (max-width:980px){
-    .fly-rad{ grid-template-columns:1fr 1fr 1fr; padding-bottom:10px; border-bottom:1px solid var(--hairline); }
-  }
+  .fly-felt .fly-dato-rad{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .fly-felt .fly-dato-rad input{ width:auto; min-width:150px; }
+  .fly-dato-notis{ font-size:11.5px; color:var(--ink-secondary); }
 
   /* ---- Hotell ---- */
-  .hotell-legg-til{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:4px; }
-  .hotell-legg-til select{
-    flex:1 1 260px; min-width:0; padding:7px 9px; border:1px solid var(--hairline); border-radius:7px;
-    font-size:13px; background:var(--surface-1); color:var(--ink-primary); font-family:inherit;
+  .hotell-legg-til-lenke{
+    background:none; border:none; padding:4px 0; margin-top:2px; font-size:12.5px; font-weight:600;
+    color:var(--accent, #2a5db0); cursor:pointer; font-family:inherit;
   }
+  .hotell-legg-til-lenke:hover{ text-decoration:underline; }
   .hotell-kort{
     background:var(--surface-1); border:1px solid var(--hairline); border-radius:10px;
     padding:14px; margin-bottom:12px;
@@ -368,7 +375,7 @@
       <select id="f-status">
         <option value="kladd">Under arbeid</option>
         <option value="publisert">Publisert</option>
-        <option value="utsolgt">Utsolgt</option>
+        <option value="utsolgt">Fulltegnet</option>
         <option value="kommer_snart">Kommer snart</option>
       </select>
       <button class="danger" id="btnSlett">Slett påmeldingstur</button>
@@ -459,7 +466,6 @@
 
       <div class="card">
         <div class="card-title"><span>Om reisen</span></div>
-        <div class="hint" style="margin-bottom:10px;">Den redaksjonelle presentasjonen av reisen - det kunden leser først.</div>
         <div class="field-grid">
           <div class="field full">
             <label for="om-overskrift">Overskrift</label>
@@ -504,22 +510,19 @@
     <!-- ============ FLY ============ -->
     <div class="tab-panel" data-panel="fly">
 
-      <div class="card">
-        <div class="card-title"><span>Flytider</span></div>
-        <div class="hint" style="margin-bottom:10px;">Én rad per flyvning. Dato skrives slik den skal stå, f.eks. «24. nov.». Ved mellomlanding legger du til én rad per flyvning, med samme gruppe.</div>
-        <div id="flyHolder"></div>
-        <button type="button" class="legg-til-knapp" id="flyLeggTil">+ Legg til flyvning</button>
-      </div>
-
-      <div class="card">
-        <div class="card-title"><span>Bagasje</span></div>
-        <div class="field-grid">
-          <div class="field full">
-            <label for="fl-bagasje">Bagasje</label>
-            <input type="text" id="fl-bagasje" data-f="luggage_info" placeholder="F.eks. 1 kolli bagasje (23 kg) + håndbagasje inkludert.">
-          </div>
+      <div class="fly-kolonner">
+        <div class="card">
+          <div class="card-title"><span>Utreise</span></div>
+          <div id="flyUtreise"></div>
+          <button type="button" class="legg-til-knapp" id="flyLeggTilUtreise">+ Legg til flight</button>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>Hjemreise</span></div>
+          <div id="flyHjemreise"></div>
+          <button type="button" class="legg-til-knapp" id="flyLeggTilHjemreise">+ Legg til flight</button>
         </div>
       </div>
+      <div id="flyAndre"></div>
 
       <div class="card">
         <div class="card-title"><span>Om flyreisen</span></div>
@@ -527,7 +530,6 @@
           <div class="field full">
             <label for="fl-info">Fritekst</label>
             <textarea id="fl-info" data-f="flight_info" placeholder="F.eks. Direktefly Oslo–Marrakech t/r med Norwegian. Eller: flybillett er ikke inkludert."></textarea>
-            <div class="hint">Avreisested settes under Reiseinfo.</div>
           </div>
         </div>
       </div>
@@ -538,14 +540,9 @@
     <div class="tab-panel" data-panel="hotell">
       <div class="card">
         <div class="card-title"><span>Overnatting</span></div>
-        <div class="hint" style="margin-bottom:10px;">Hotellene reisen overnatter på, i rekkefølge. Velg et hotell fra Hoteller-modulen for å hente navn, sted, stjerner, nettside og beskrivelse (kopieres, og kan justeres her uten at Hoteller-modulen endres), eller legg til et hotell uten kobling. Bilder velges alltid selv, fra hotellets bildebank eller lastes opp kun til dette oppholdet.</div>
         <div class="hotell-sum" id="hotellSum"></div>
         <div id="hotellHolder"></div>
-        <div class="hotell-legg-til">
-          <select id="hotellVelg"></select>
-          <button type="button" class="legg-til-knapp" id="hotellLeggTilRegister">+ Legg til valgt hotell</button>
-          <button type="button" class="legg-til-knapp" id="hotellLeggTilTomt">+ Nytt hotell uten kobling</button>
-        </div>
+        <button type="button" class="hotell-legg-til-lenke" id="hotellLeggTil">+ Legg til nytt hotell</button>
       </div>
     </div>
 
@@ -553,7 +550,6 @@
     <div class="tab-panel" data-panel="praktisk">
       <div class="card">
         <div class="card-title"><span>Praktisk informasjon</span></div>
-        <div class="hint" style="margin-bottom:10px;">Tekstene vises under «Praktisk informasjon» på reisesiden. Skriv kort og konkret. Hotellene vises fra Hotell-fanen, og flytider og bagasje fra Fly-fanen.</div>
         <div class="field-grid">
           <div class="field full">
             <label for="pk-maltider">Måltider</label>
@@ -588,15 +584,6 @@
             <input type="number" id="vk-depositum" min="0" step="1" placeholder="2000">
             <div class="hint" id="vk-depositum-hint"></div>
           </div>
-          <div class="field">
-            <label for="vk-frist">Påmeldingsfrist</label>
-            <input type="date" id="vk-frist" data-f="registration_deadline">
-            <div class="hint">La stå tom hvis det ikke er noen frist.</div>
-          </div>
-          <div class="field full">
-            <label for="vk-depinfo">Informasjon om depositum ved påmelding</label>
-            <textarea id="vk-depinfo" data-f="deposit_info" placeholder="F.eks. Depositum kr 2.000,- pr. person faktureres ved påmelding. Du betaler ingenting nå — vi sender betalingsinformasjon etter at påmeldingen er mottatt."></textarea>
-          </div>
           <div class="field full">
             <label for="vk-betaling">Påmelding og betaling (vises under Reisebetingelser)</label>
             <textarea id="vk-betaling" data-f="terms_payment" placeholder="F.eks. Depositum på kr 2.000,- pr. person faktureres ved påmelding. Restbeløpet forfaller 60 dager før avreise."></textarea>
@@ -606,7 +593,6 @@
 
       <div class="card">
         <div class="card-title"><span>Avbestilling</span></div>
-        <div class="hint" style="margin-bottom:10px;">Én rad per tidsrom. Tabellen vises slik på reisesiden. <span id="avbestStatus"></span></div>
         <div id="avbestHolder"></div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button type="button" class="legg-til-knapp" id="avbestLeggTil">+ Legg til rad</button>
@@ -618,17 +604,13 @@
         <div class="card-title"><span>Forbehold og vilkår</span></div>
         <div class="field-grid">
           <div class="field">
-            <label for="vk-min">Minimum antall deltakere</label>
-            <input type="number" id="vk-min" min="0" step="1" placeholder="15">
-            <div class="hint">Selve teksten om minimum skriver du i Forbehold under.</div>
-          </div>
-          <div class="field">
             <label for="vk-lenke">Lenke til fullstendige reisevilkår</label>
             <input type="text" id="vk-lenke" data-f="terms_link" placeholder="/reisevilkar">
           </div>
           <div class="field full">
             <label for="vk-forbehold">Forbehold</label>
             <textarea id="vk-forbehold" data-f="terms_reservations" placeholder="F.eks. Turen forutsetter minimum 15 påmeldte deltakere. Prisen er beregnet ut fra en eurokurs på 11,50 og kan bli justert ved fakturering dersom kursen endrer seg vesentlig."></textarea>
+            <div class="hint">Skriv minimum antall deltakere og eventuelle andre forbehold her. Nettsiden viser bare denne teksten.</div>
           </div>
         </div>
       </div>
@@ -656,40 +638,39 @@
 
       <div class="card">
         <div class="card-title"><span>Pris</span></div>
-        <div class="field-grid">
+        <div class="field-grid kompakt">
           <div class="field">
             <label for="pr-pris">Reispris per person</label>
             <input type="number" id="pr-pris" min="0" step="1">
             <div class="hint">Vises som «per person i delt dobbeltrom».</div>
           </div>
           <div class="field">
+            <label for="pr-enkeltrom">Enkeltromstillegg</label>
+            <input type="number" id="pr-enkeltrom" min="0" step="1">
+          </div>
+          <div class="field smal">
             <label for="pr-valuta">Valuta</label>
             <select id="pr-valuta">
               <option value="NOK">NOK (kr)</option>
               <option value="EUR">EUR (€)</option>
             </select>
           </div>
-          <div class="field">
-            <label for="pr-enkeltrom">Enkeltromstillegg</label>
-            <input type="number" id="pr-enkeltrom" min="0" step="1">
-          </div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-title"><span>Plasser</span></div>
-        <div class="field-grid">
+        <div class="field-grid kompakt">
           <div class="field">
             <label for="pr-plasser">Antall plasser</label>
             <input type="number" id="pr-plasser" min="0" step="1" placeholder="Ikke satt">
           </div>
-          <div class="field">
-            <label for="pr-faa">«Få plasser igjen» når det er så mange ledige, eller færre</label>
+          <div class="field bred">
+            <label for="pr-faa">«Få plasser igjen» ved så mange ledige, eller færre</label>
             <input type="number" id="pr-faa" min="0" step="1" placeholder="F.eks. 5">
           </div>
         </div>
         <div class="tilgjeng-visning" id="tilgjengVisning"></div>
-        <div class="hint" style="margin-top:6px;">Står reisen som «Utsolgt» i statusvalget øverst, vises den alltid som utsolgt. «Antall deltakere» under Reiseinfo er et eget, internt tall.</div>
       </div>
 
       <div class="priser-to-kol">
@@ -707,7 +688,6 @@
 
       <div class="card">
         <div class="card-title"><span>Valgfrie utflukter</span></div>
-        <div class="hint" style="margin-bottom:10px;">Tilleggene kunden kan velge ved påmelding. «Gjennomføres ved tilstrekkelig antall påmeldte» vises som en merknad under utflukten.</div>
         <div id="tilleggHolder"></div>
         <button type="button" class="legg-til-knapp" id="tilleggLeggTil">+ Legg til utflukt</button>
       </div>
@@ -745,7 +725,7 @@ let state = {
   omBilder: [], omBilderEndret:false,
   personer: [], personerEndret:false,
   // Valgfrie utflukter (trip_addons):
-  //   {id, clientKey, name, description, price, currency, requires_min, sort_order, endret}
+  //   {id, clientKey, name, description, price, currency, requires_min, images:[{clientKey,url,alt,bank_id}], sort_order, endret}
   addons: [], addonsEndret:false,
   // Flytider (trip_flight_legs):
   //   {id, clientKey, leg_group, date_label, route, departure_time, arrival_time, airline, sort_order, endret}
@@ -881,12 +861,9 @@ function tripPayload(){
     // Reisebetingelser-fanen (13.11.2026). Tomme felt lagres som null.
     // cancellation_rows: null = Caminantes standardtabell, [] = ingen tabell.
     deposit_amount: t.deposit_amount ?? null,
-    registration_deadline: t.registration_deadline || null,
-    deposit_info: (t.deposit_info || "").trim() || null,
     terms_payment: (t.terms_payment || "").trim() || null,
     terms_reservations: (t.terms_reservations || "").trim() || null,
     terms_link: (t.terms_link || "").trim() || null,
-    min_participants: t.min_participants ?? null,
     cancellation_rows: Array.isArray(t.cancellation_rows)
       ? t.cancellation_rows.map(r=>({ when:(r.when || "").trim(), refund:(r.refund || "").trim() })).filter(r=> r.when || r.refund)
       : null,
@@ -1128,7 +1105,12 @@ async function utforLagring(){
   if(state.flightsEndret){
     state.flightsEndret = false;
     try{
-      const naa = state.flights.slice();
+      // Tomme flighter lagres ikke (og slettes hvis de fantes fra før).
+      const rekkefolge = FLY_GRUPPER.map(g=> g[0]);
+      const rang = f=>{ const k = rekkefolge.indexOf(f.leg_group); return k < 0 ? rekkefolge.length : k; };
+      const naa = state.flights.map((f, k)=>[f, k]).sort((x, y)=> rang(x[0]) - rang(y[0]) || x[1] - y[1])
+        .map(x=> x[0]).filter(flyHarInnhold);
+      state.flights.forEach(f=>{ if(!flyHarInnhold(f) && f.id){ f.id = null; f.endret = true; } });
       const keep = new Set(naa.map(f=>f.id).filter(Boolean));
       const slett = [...originalIds.flights].filter(id => id && !keep.has(id));
       if(slett.length){
@@ -1188,6 +1170,7 @@ async function utforLagring(){
           price: a.price ?? null,
           currency: a.currency || state.trip.currency || "NOK",
           requires_min_participants: !!a.requires_min,
+          images: (a.images || []).map(b=>b.url),
           sort_order: i,
         };
         if(a.id){
@@ -1200,7 +1183,7 @@ async function utforLagring(){
         } else {
           a.endret = false;
           const { data, error } = await window.sb.from("trip_addons")
-            .insert({ trip_id: tripId, images: [], ...felt }).select("id").single();
+            .insert({ trip_id: tripId, ...felt }).select("id").single();
           if(error){ a.endret = true; throw new Error("utflukt: " + error.message); }
           a.id = data.id; a.sort_order = i;
           originalIds.addons.add(a.id);   // straks, som for personene
@@ -1285,7 +1268,11 @@ document.addEventListener("change", (e)=>{
   if(!f) return;
   state.trip[f] = e.target.value || null;
   markDirty();
-  if((f === "start_date" || f === "end_date") && autosaveKlar) renderProgram();
+  if(f === "start_date" || f === "end_date"){
+    flyFolgReiseDatoer();
+    hotellFolgReiseDatoer();
+    if(autosaveKlar) renderProgram();
+  }
 });
 el("i-notater").addEventListener("input", (e)=>{
   state.internal.interne_notater = e.target.value;
@@ -2042,61 +2029,128 @@ function datoEtikett(iso){
 }
 const FLY_GRUPPER = [["utreise","Utreise"],["hjemreise","Hjemreise"]];
 
-function renderFly(){
-  const holder = el("flyHolder");
-  holder.innerHTML = "";
-  if(!state.flights.length) holder.innerHTML = '<div class="hint" style="margin-bottom:8px;">Ingen flyvninger lagt til ennå.</div>';
-  state.flights.forEach((f, i)=>{
-    const rad = document.createElement("div");
-    rad.className = "fly-rad";
-    const grupper = FLY_GRUPPER.some(g=> g[0] === f.leg_group) ? FLY_GRUPPER : FLY_GRUPPER.concat([[f.leg_group, f.leg_group]]);
-    rad.innerHTML = `
-      <div><label class="etikett">Gruppe</label>
-        <select class="f-gruppe">${grupper.map(g=>`<option value="${escapeHtml(g[0])}"${g[0] === f.leg_group ? " selected" : ""}>${escapeHtml(g[1])}</option>`).join("")}</select></div>
-      <div><label class="etikett">Dato</label>
-        <input type="text" class="f-dato" maxlength="20" placeholder="24. nov." value="${escapeHtml(f.date_label||"")}"></div>
-      <div><label class="etikett">Flyreise</label>
-        <input type="text" class="f-rute" maxlength="80" placeholder="Oslo – Marrakech" value="${escapeHtml(f.route||"")}"></div>
-      <div><label class="etikett">Avgang</label>
-        <input type="time" class="f-avg" value="${escapeHtml(f.departure_time||"")}"></div>
-      <div><label class="etikett">Ankomst</label>
-        <input type="time" class="f-ank" value="${escapeHtml(f.arrival_time||"")}"></div>
-      <div><label class="etikett">Flyselskap</label>
-        <input type="text" class="f-selskap" maxlength="60" placeholder="Norwegian" value="${escapeHtml(f.airline||"")}"></div>
-      <div class="fly-knapper">
-        <button type="button" class="mini-knapp opp" title="Flytt opp"${i === 0 ? " disabled" : ""}>↑</button>
-        <button type="button" class="mini-knapp ned" title="Flytt ned"${i === state.flights.length-1 ? " disabled" : ""}>↓</button>
-        <button type="button" class="mini-knapp danger fjern" title="Fjern flyvningen">✕</button>
-      </div>`;
-    const endret = ()=>{ f.endret = true; state.flightsEndret = true; markDirty(); };
-    rad.querySelector(".f-gruppe").addEventListener("change", e=>{ f.leg_group = e.target.value; endret(); });
-    rad.querySelector(".f-dato").addEventListener("input", e=>{ f.date_label = e.target.value; endret(); });
-    rad.querySelector(".f-rute").addEventListener("input", e=>{ f.route = e.target.value; endret(); });
-    rad.querySelector(".f-avg").addEventListener("input", e=>{ f.departure_time = e.target.value; endret(); });
-    rad.querySelector(".f-ank").addEventListener("input", e=>{ f.arrival_time = e.target.value; endret(); });
-    rad.querySelector(".f-selskap").addEventListener("input", e=>{ f.airline = e.target.value; endret(); });
-    rad.querySelector(".opp").addEventListener("click", ()=>{ state.flights.splice(i-1, 0, state.flights.splice(i,1)[0]); state.flightsEndret = true; markDirty(); renderFly(); });
-    rad.querySelector(".ned").addEventListener("click", ()=>{ state.flights.splice(i+1, 0, state.flights.splice(i,1)[0]); state.flightsEndret = true; markDirty(); renderFly(); });
-    rad.querySelector(".fjern").addEventListener("click", ()=>{
-      if(!confirm("Fjerne denne flyvningen?")) return;
-      state.flights = state.flights.filter(x=> x !== f);
-      state.flightsEndret = true; markDirty(); renderFly();
-    });
-    holder.appendChild(rad);
+// Dato lagres som tekst («24. nov.») i date_label, siden det er det nettsiden
+// viser. I editoren holdes datoen som ISO (dato_iso) så den kan velges i en
+// datovelger og følge Reiseinfo. Gamle etiketter tolkes mot reisens år.
+function isoFraEtikett(label, start, end){
+  const m = /^\s*(\d{1,2})\.\s*([A-Za-zæøåÆØÅ]+)\.?\s*$/.exec(label || "");
+  if(!m) return "";
+  const mnd = MAANEDER_KORT.findIndex(x=> x.replace(".","").slice(0,3) === m[2].toLowerCase().slice(0,3));
+  if(mnd < 0) return "";
+  const dag = Number(m[1]);
+  let aar = null;
+  if(start && /^\d{4}/.test(start)){
+    aar = Number(start.slice(0,4));
+    const startMnd = Number(start.slice(5,7)) - 1;
+    if(mnd < startMnd) aar = end && /^\d{4}/.test(end) ? Number(end.slice(0,4)) : aar + 1;
+  } else if(end && /^\d{4}/.test(end)){
+    aar = Number(end.slice(0,4));
+  }
+  if(aar === null) return "";
+  const iso = aar + "-" + String(mnd+1).padStart(2,"0") + "-" + String(dag).padStart(2,"0");
+  const d = new Date(iso + "T00:00:00Z");
+  return (isNaN(d) || d.getUTCDate() !== dag) ? "" : iso;
+}
+function flyStandardDato(gruppe){
+  return gruppe === "utreise" ? (state.trip.start_date || "")
+       : gruppe === "hjemreise" ? (state.trip.end_date || "") : "";
+}
+function flyHarInnhold(f){
+  return !!((f.route||"").trim() || (f.departure_time||"").trim() || (f.arrival_time||"").trim() || (f.airline||"").trim());
+}
+function nyFlyRad(gruppe){
+  const iso = flyStandardDato(gruppe);
+  return { id:null, clientKey:newClientKey(), leg_group:gruppe, dato_iso:iso, date_label:datoEtikett(iso),
+    foelger:true, route:"", departure_time:"", arrival_time:"", airline:"", sort_order:state.flights.length, endret:false };
+}
+// Reisen skal alltid ha én utreise- og én hjemreiseflight klar (kun i
+// minnet - en tom flight lagres aldri).
+function sikreFlyRader(){
+  FLY_GRUPPER.forEach(g=>{
+    if(!state.flights.some(f=> f.leg_group === g[0])) state.flights.push(nyFlyRad(g[0]));
   });
 }
-el("flyLeggTil").addEventListener("click", ()=>{
-  // Første flyvning foreslås som utreise på startdatoen, neste som hjemreise
-  // på sluttdatoen. Alt kan overskrives.
-  const harUtreise = state.flights.some(f=> f.leg_group === "utreise");
-  const gruppe = harUtreise ? "hjemreise" : "utreise";
-  const dato = datoEtikett(gruppe === "utreise" ? state.trip.start_date : state.trip.end_date);
-  state.flights.push({ id:null, clientKey:newClientKey(), leg_group:gruppe, date_label:dato, route:"",
-    departure_time:"", arrival_time:"", airline:"", sort_order:state.flights.length, endret:true });
+// Reiseinfo-datoene endret: kun flighter som fortsatt følger reisens dato
+// flyttes. Datoer som er overskrevet for hånd røres ikke.
+function flyFolgReiseDatoer(){
+  let endret = false;
+  state.flights.forEach(f=>{
+    if(!f.foelger) return;
+    const iso = flyStandardDato(f.leg_group);
+    if(iso === (f.dato_iso || "")) return;
+    f.dato_iso = iso; f.date_label = datoEtikett(iso);
+    f.endret = true; endret = true;
+  });
+  if(endret){ state.flightsEndret = true; renderFly(); }
+}
+
+function flyKort(f, nr, antallIGruppe){
+  const kort = document.createElement("div");
+  kort.className = "fly-kort";
+  const standard = flyStandardDato(f.leg_group);
+  let notis = "";
+  if(f.date_label && !f.dato_iso) notis = "Lagret som «" + f.date_label + "». Velg dato for å erstatte.";
+  else if(f.foelger && standard) notis = "Følger Reiseinfo";
+  else if(f.dato_iso && standard && f.dato_iso !== standard) notis = "Egen dato (Reiseinfo: " + datoEtikett(standard) + ")";
+  kort.innerHTML = `
+    <div class="fly-kort-hode"><span>Flight ${nr}</span>${antallIGruppe > 1 ? '<button type="button" class="mini-knapp danger fjern">Fjern</button>' : ""}</div>
+    <div class="fly-felt"><label>Strekning</label><input type="text" class="f-rute" maxlength="80" placeholder="Oslo – Marrakech" value="${escapeHtml(f.route||"")}"></div>
+    <div class="fly-felt"><label>Dato</label><div class="fly-dato-rad"><input type="date" class="f-dato" value="${escapeHtml(f.dato_iso||"")}"><span class="fly-dato-notis">${escapeHtml(notis)}</span></div></div>
+    <div class="fly-felt"><label>Avgang</label><input type="time" class="f-avg" value="${escapeHtml(f.departure_time||"")}"></div>
+    <div class="fly-felt"><label>Ankomst</label><input type="time" class="f-ank" value="${escapeHtml(f.arrival_time||"")}"></div>
+    <div class="fly-felt"><label>Flyselskap</label><input type="text" class="f-selskap" maxlength="60" placeholder="Norwegian" value="${escapeHtml(f.airline||"")}"></div>`;
+  const endret = ()=>{ f.endret = true; state.flightsEndret = true; markDirty(); };
+  kort.querySelector(".f-rute").addEventListener("input", e=>{ f.route = e.target.value; endret(); });
+  kort.querySelector(".f-dato").addEventListener("change", e=>{
+    f.dato_iso = e.target.value || "";
+    f.date_label = f.dato_iso ? datoEtikett(f.dato_iso) : "";
+    f.foelger = false;
+    endret(); renderFly();
+  });
+  kort.querySelector(".f-avg").addEventListener("input", e=>{ f.departure_time = e.target.value; endret(); });
+  kort.querySelector(".f-ank").addEventListener("input", e=>{ f.arrival_time = e.target.value; endret(); });
+  kort.querySelector(".f-selskap").addEventListener("input", e=>{ f.airline = e.target.value; endret(); });
+  const fjern = kort.querySelector(".fjern");
+  if(fjern) fjern.addEventListener("click", ()=>{
+    if(flyHarInnhold(f) && !confirm("Fjerne denne flighten?")) return;
+    state.flights = state.flights.filter(x=> x !== f);
+    state.flightsEndret = true; markDirty(); renderFly();
+  });
+  return kort;
+}
+
+function renderFly(){
+  sikreFlyRader();
+  const bruk = (holderId, gruppe)=>{
+    const holder = el(holderId);
+    holder.innerHTML = "";
+    const rader = state.flights.filter(f=> f.leg_group === gruppe);
+    rader.forEach((f, i)=> holder.appendChild(flyKort(f, i+1, rader.length)));
+  };
+  bruk("flyUtreise", "utreise");
+  bruk("flyHjemreise", "hjemreise");
+  // Gamle rader med en annen gruppe enn utreise/hjemreise vises samlet, så de ikke forsvinner.
+  const andre = el("flyAndre");
+  andre.innerHTML = "";
+  const ukjente = state.flights.filter(f=> !FLY_GRUPPER.some(g=> g[0] === f.leg_group));
+  if(ukjente.length){
+    const kort = document.createElement("div");
+    kort.className = "card";
+    kort.innerHTML = '<div class="card-title"><span>Andre flyvninger</span></div>';
+    ukjente.forEach((f, i)=> kort.appendChild(flyKort(f, i+1, ukjente.length)));
+    andre.appendChild(kort);
+  }
+}
+function flyLeggTil(gruppe){
+  const rad = nyFlyRad(gruppe);
+  rad.endret = true;
+  state.flights.push(rad);
   state.flightsEndret = true; markDirty(); renderFly();
-  const rute = el("flyHolder").querySelectorAll(".f-rute");
+  const rute = el(gruppe === "utreise" ? "flyUtreise" : "flyHjemreise").querySelectorAll(".f-rute");
   if(rute.length) rute[rute.length-1].focus();
-});
+}
+el("flyLeggTilUtreise").addEventListener("click", ()=> flyLeggTil("utreise"));
+el("flyLeggTilHjemreise").addEventListener("click", ()=> flyLeggTil("hjemreise"));
 
 /* ---------- Hotell ----------
    Overnattingslisten som vises på reisesiden. Hotellene KOPIERES fra
@@ -2131,22 +2185,87 @@ function formaterDatospenn(innIso, utIso){
   return `${a.d}.–${b.d}. ${MAANEDER_LANG[b.m-1]}`;
 }
 
+// Omvendt av formaterDatospenn: «24.–29. november», «30. november–2. desember»,
+// «28. desember 2026–2. januar 2027». Tolkes mot reisens år, og forkastes hvis
+// antall netter ikke stemmer med det som er lagret.
+function parseDatospenn(tekst, start, slutt, netter){
+  const t = (tekst || "").trim().toLowerCase();
+  if(!t) return null;
+  const mnd = n=> MAANEDER_LANG.indexOf(n) + 1;
+  const MN = "(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)";
+  const SKILLE = "\\s*[–-]\\s*";
+  let m, d1, m1, y1 = null, d2, m2, y2 = null;
+  if((m = new RegExp("^(\\d{1,2})\\.\\s*" + MN + "\\s+(\\d{4})" + SKILLE + "(\\d{1,2})\\.\\s*" + MN + "\\s+(\\d{4})$").exec(t))){
+    d1=+m[1]; m1=mnd(m[2]); y1=+m[3]; d2=+m[4]; m2=mnd(m[5]); y2=+m[6];
+  } else if((m = new RegExp("^(\\d{1,2})\\.\\s*" + MN + SKILLE + "(\\d{1,2})\\.\\s*" + MN + "$").exec(t))){
+    d1=+m[1]; m1=mnd(m[2]); d2=+m[3]; m2=mnd(m[4]);
+  } else if((m = new RegExp("^(\\d{1,2})\\.\\s*" + SKILLE.replace("\\s*","") + "(\\d{1,2})\\.\\s*" + MN + "$").exec(t))){
+    d1=+m[1]; m1=mnd(m[3]); d2=+m[2]; m2=m1;
+  } else return null;
+  if(y1 === null){
+    const ref = isoDelerHotell(start) || isoDelerHotell(slutt);
+    if(!ref) return null;
+    y1 = ref.y;
+    const st = isoDelerHotell(start);
+    if(st && m1 < st.m) y1 += 1;
+    y2 = m2 < m1 ? y1 + 1 : y1;
+  }
+  const iso = (y,mm,d)=> y + "-" + String(mm).padStart(2,"0") + "-" + String(d).padStart(2,"0");
+  const ok = (y,mm,d)=>{ const x = new Date(Date.UTC(y,mm-1,d)); return x.getUTCMonth() === mm-1 && x.getUTCDate() === d; };
+  if(!ok(y1,m1,d1) || !ok(y2,m2,d2)) return null;
+  const inn = iso(y1,m1,d1), ut = iso(y2,m2,d2);
+  const dg = dagerMellom(inn, ut);
+  if(dg === null || dg <= 0) return null;
+  if(netter != null && dg !== netter) return null;
+  return { inn, ut };
+}
+
 function hotellFraRegister(id){ return hotellRegister.find(r=>r.id === id) || null; }
 function hotellSted(r){ return [r.by, r.land].map(x=>(x||"").trim()).filter(Boolean).join(", "); }
 
 function nyttHotell(felt){
   return Object.assign({
     id:null, clientKey:newClientKey(), hotel_id:null, name:"", location:"", description:"", website_url:"",
-    stars:null, date_range_text:"", nights:null, images:[], inn:"", ut:"", sort_order:state.hotels.length, endret:true,
+    stars:null, date_range_text:"", nights:null, images:[], inn:"", ut:"", innFoelger:false, utFoelger:false,
+    sort_order:state.hotels.length, endret:true,
   }, felt || {});
+}
+// Inn-/utsjekk -> «Datoer slik de vises» og netter (bare når begge er satt og gyldige).
+function settHotellDatoer(h){
+  const d = dagerMellom(h.inn, h.ut);
+  if(d !== null && d > 0){ h.date_range_text = formaterDatospenn(h.inn, h.ut); h.nights = d; }
+}
+// Nytt hotell: det første får reisens fra- og til-dato. Senere hoteller får
+// utsjekk = reisens til-dato, og innsjekk = forrige hotells utsjekk når det er
+// satt til noe annet enn reisens slutt (ellers står innsjekk tom).
+function nyttHotellMedDatoer(){
+  const i = state.hotels.length;
+  const prev = state.hotels[i-1];
+  const start = state.trip.start_date || "", slutt = state.trip.end_date || "";
+  const inn = i === 0 ? start : (prev && prev.ut && prev.ut !== slutt ? prev.ut : "");
+  if(prev) prev.utFoelger = false;
+  const h = nyttHotell({ inn, ut:slutt, innFoelger: i === 0, utFoelger:true });
+  settHotellDatoer(h);
+  return h;
+}
+// Reiseinfo-datoene endret: bare hoteller hvis dato fortsatt følger reisen flyttes.
+function hotellFolgReiseDatoer(){
+  const start = state.trip.start_date || "", slutt = state.trip.end_date || "";
+  let endret = false;
+  state.hotels.forEach(h=>{
+    if(h.innFoelger && h.inn !== start){ h.inn = start; settHotellDatoer(h); h.endret = true; endret = true; }
+    if(h.utFoelger && h.ut !== slutt){ h.ut = slutt; settHotellDatoer(h); h.endret = true; endret = true; }
+  });
+  if(endret){ state.hotelsEndret = true; renderHotell(); }
 }
 
 function oppdaterHotellSum(){
   const holder = el("hotellSum");
   if(!holder) return;
-  const sum = state.hotels.reduce((x,h)=> x + (h.nights || 0), 0);
+  const navngitte = state.hotels.filter(h=> (h.name || "").trim());
+  const sum = navngitte.reduce((x,h)=> x + (h.nights || 0), 0);
   const reise = dagerMellom(state.trip.start_date, state.trip.end_date);
-  if(!state.hotels.length || !sum){ holder.textContent = ""; holder.classList.remove("avvik"); return; }
+  if(!navngitte.length || !sum){ holder.textContent = ""; holder.classList.remove("avvik"); return; }
   if(reise !== null && reise > 0){
     holder.textContent = `Overnattingene dekker ${sum} av reisens ${reise} netter.`;
     holder.classList.toggle("avvik", sum !== reise);
@@ -2159,7 +2278,7 @@ function oppdaterHotellSum(){
 function hotellKoblingValg(valgtId){
   const rader = hotellRegister.slice().sort((a,b)=> (a.navn||"").localeCompare(b.navn||"", "nb"));
   const ukjent = valgtId && !hotellFraRegister(valgtId);
-  return `<option value="">Ikke koblet</option>`
+  return `<option value="">Velg et hotell</option>`
     + (ukjent ? `<option value="${escapeHtml(valgtId)}" selected>(Hotell finnes ikke lenger i Hoteller-modulen)</option>` : "")
     + rader.map(r=>`<option value="${escapeHtml(r.id)}"${r.id === valgtId ? " selected" : ""}>${escapeHtml(r.navn)}${r.by ? " (" + escapeHtml(r.by) + ")" : ""}</option>`).join("");
 }
@@ -2168,16 +2287,7 @@ function renderHotell(){
   const holder = el("hotellHolder");
   if(!holder) return;
   holder.innerHTML = "";
-  if(!state.hotels.length) holder.innerHTML = '<div class="hint" style="margin-bottom:10px;">Ingen hoteller lagt til ennå.</div>';
-
-  // Nedtrekket for å legge til fra registeret
-  const velg = el("hotellVelg");
-  const forrigeValg = velg.value;
-  velg.innerHTML = `<option value="">${hotellRegisterFeilet ? "Hoteller-modulen kunne ikke lastes" : "Velg et hotell fra Hoteller-modulen …"}</option>`
-    + hotellRegister.slice().sort((a,b)=> (a.navn||"").localeCompare(b.navn||"", "nb"))
-        .map(r=>`<option value="${escapeHtml(r.id)}">${escapeHtml(r.navn)}${hotellSted(r) ? " – " + escapeHtml(hotellSted(r)) : ""}</option>`).join("");
-  velg.disabled = hotellRegisterFeilet || !hotellRegister.length;
-  if(forrigeValg && hotellFraRegister(forrigeValg)) velg.value = forrigeValg;
+  if(!state.hotels.length) state.hotels.push(nyttHotellMedDatoer());   // Hotell 1 er alltid klart; lagres først når det har navn
 
   state.hotels.forEach((h, i)=>{
     const kort = document.createElement("div");
@@ -2193,6 +2303,8 @@ function renderHotell(){
         </div>
       </div>
       <div class="field-grid">
+        <div class="field full"><label>Koble til hotell</label>
+          <select class="h-kobling"${hotellRegisterFeilet ? " disabled" : ""}>${hotellKoblingValg(h.hotel_id)}</select></div>
         <div class="field full"><label>Navn</label>
           <input type="text" class="h-navn" maxlength="120" placeholder="F.eks. Hotel Grand Plaza Marrakech" value="${escapeHtml(h.name)}"></div>
         <div class="field"><label>Sted</label>
@@ -2204,17 +2316,13 @@ function renderHotell(){
         <div class="field"><label>Utsjekk</label>
           <input type="date" class="h-ut" value="${escapeHtml(h.ut)}"></div>
         <div class="field"><label>Datoer slik de vises</label>
-          <input type="text" class="h-datoer" maxlength="60" placeholder="24.–29. november" value="${escapeHtml(h.date_range_text)}">
-          <div class="hint">Fylles ut når du velger inn- og utsjekk, og kan skrives over.</div></div>
+          <input type="text" class="h-datoer" maxlength="60" placeholder="24.–29. november" value="${escapeHtml(h.date_range_text)}"></div>
         <div class="field"><label>Netter</label>
           <input type="number" class="h-netter" min="0" step="1" value="${h.nights ?? ""}"></div>
         <div class="field full"><label>Nettside</label>
           <input type="text" class="h-web" maxlength="300" placeholder="https://…" value="${escapeHtml(h.website_url)}"></div>
         <div class="field full"><label>Beskrivelse</label>
           <textarea class="h-beskr" placeholder="Et par setninger om hotellet.">${escapeHtml(h.description)}</textarea></div>
-        <div class="field full"><label>Koblet til Hoteller-modulen</label>
-          <select class="h-kobling"${hotellRegisterFeilet ? " disabled" : ""}>${hotellKoblingValg(h.hotel_id)}</select>
-          <div class="hint">Kobling gir tilgang til hotellets bildebank. Endrer ikke teksten over.</div></div>
       </div>
       <div class="hotell-bilder-etikett"></div>
       <div class="hotell-galleri"></div>
@@ -2246,19 +2354,38 @@ function renderHotell(){
       const d = dagerMellom(h.inn, h.ut);
       if(d === null) return;
       if(d <= 0){ alert("Utsjekk må være etter innsjekk."); return; }
-      h.date_range_text = formaterDatospenn(h.inn, h.ut);
-      h.nights = d;
+      settHotellDatoer(h);
       kort.querySelector(".h-datoer").value = h.date_range_text;
-      kort.querySelector(".h-netter").value = String(d);
+      kort.querySelector(".h-netter").value = String(h.nights);
       endret(); oppdaterHotellSum();
     };
-    kort.querySelector(".h-inn").addEventListener("change", e=>{ h.inn = e.target.value; brukDatoer(); });
-    kort.querySelector(".h-ut").addEventListener("change", e=>{ h.ut = e.target.value; brukDatoer(); });
+    kort.querySelector(".h-inn").addEventListener("change", e=>{ h.inn = e.target.value; h.innFoelger = false; brukDatoer(); });
+    kort.querySelector(".h-ut").addEventListener("change", e=>{
+      h.ut = e.target.value; h.utFoelger = false; brukDatoer();
+      // Neste hotell får innsjekk = dette utsjekk, men bare hvis innsjekk er tom.
+      const neste = state.hotels[i+1];
+      if(neste && !neste.inn && h.ut){
+        neste.inn = h.ut; settHotellDatoer(neste); neste.endret = true; endret(); renderHotell();
+      }
+    });
 
+    // Velger man et hotell kopieres navn, sted, stjerner, nettside og
+    // beskrivelse inn i kortet (kan justeres uten at Hoteller-modulen endres).
     kort.querySelector(".h-kobling").addEventListener("change", e=>{
-      h.hotel_id = e.target.value || null;
-      endret();
-      renderHotellBilder(h);   // banken kan ha byttet
+      const id = e.target.value;
+      if(!id){ h.hotel_id = null; endret(); renderHotellBilder(h); return; }
+      const r = hotellFraRegister(id);
+      if(!r){ e.target.value = h.hotel_id || ""; return; }
+      const harInnhold = [h.name, h.location, h.description, h.website_url].some(x=> (x || "").trim());
+      if(harInnhold && !confirm("Hente navn, sted, stjerner, nettside og beskrivelse fra «" + r.navn + "»? Det erstatter det som står i feltene nå.")){
+        e.target.value = h.hotel_id || ""; return;
+      }
+      Object.assign(h, {
+        hotel_id: r.id, name: r.navn || "", location: hotellSted(r),
+        description: r.beskrivelse || "", website_url: r.nettside || "",
+        stars: r.stjerner != null ? Number(r.stjerner) : null,
+      });
+      endret(); renderHotell();
     });
     kort.querySelector(".opp").addEventListener("click", ()=>{ state.hotels.splice(i-1, 0, state.hotels.splice(i,1)[0]); state.hotelsEndret = true; markDirty(); renderHotell(); });
     kort.querySelector(".ned").addEventListener("click", ()=>{ state.hotels.splice(i+1, 0, state.hotels.splice(i,1)[0]); state.hotelsEndret = true; markDirty(); renderHotell(); });
@@ -2334,7 +2461,7 @@ function hotellBank(h){
   return {
     tittel: reg ? ("Bildebank for " + reg.navn) : "Hotellets bildebank",
     erKoblet: ()=> !!h.hotel_id,
-    tomBeskjed: "Koble hotellet til Hoteller-modulen (feltet «Koblet til Hoteller-modulen») for å se bildene i hotellets bildebank. "
+    tomBeskjed: "Velg et hotell under «Koble til hotell» for å se bildene i hotellets bildebank. "
               + "Du kan også laste opp bilder direkte - de blir da liggende kun på dette oppholdet.",
     hentBilder: async ()=>{
       if(hotellRegisterFeilet) throw new Error("Kunne ikke laste hotellenes bildebank. Last siden på nytt.");
@@ -2366,23 +2493,11 @@ async function lastOppHotellBilde(h, file){
   performSave();
 }
 
-el("hotellLeggTilRegister").addEventListener("click", ()=>{
-  const id = el("hotellVelg").value;
-  const r = id ? hotellFraRegister(id) : null;
-  if(!r){ alert("Velg et hotell i listen først."); return; }
-  state.hotels.push(nyttHotell({
-    hotel_id: r.id, name: r.navn || "", location: hotellSted(r),
-    description: r.beskrivelse || "", website_url: r.nettside || "",
-    stars: r.stjerner != null ? Number(r.stjerner) : null,
-  }));
+el("hotellLeggTil").addEventListener("click", ()=>{
+  state.hotels.push(nyttHotellMedDatoer());
   state.hotelsEndret = true; markDirty(); renderHotell();
-  el("hotellVelg").value = "";
-});
-el("hotellLeggTilTomt").addEventListener("click", ()=>{
-  state.hotels.push(nyttHotell());
-  state.hotelsEndret = true; markDirty(); renderHotell();
-  const navn = el("hotellHolder").querySelectorAll(".h-navn");
-  if(navn.length) navn[navn.length-1].focus();
+  const kort = el("hotellHolder").querySelectorAll(".hotell-kort");
+  if(kort.length) kort[kort.length-1].scrollIntoView({ behavior:"smooth", block:"nearest" });
 });
 
 /* ---------- Praktisk info ----------
@@ -2420,8 +2535,6 @@ function renderAvbestilling(){
   if(!holder) return;
   const rader = avbestRader();
   const tilpasset = Array.isArray(state.trip.cancellation_rows);
-  el("avbestStatus").textContent = !tilpasset ? "Dette er Caminantes standardtabell. Endrer du den, gjelder endringen bare denne reisen."
-    : (rader.length ? "Tilpasset for denne reisen." : "Ingen rader: det vises ingen avbestillingstabell på reisen.");
   el("avbestStandard").disabled = !tilpasset;
   holder.innerHTML = "";
   rader.forEach((r, i)=>{
@@ -2462,31 +2575,42 @@ el("avbestStandard").addEventListener("click", ()=>{
   markDirty(); renderAvbestilling();
 });
 
+// Standardverdier: depositum kr 2 000 (kr 1 000 for bibelcamper) og standard
+// betalingstekst for påmeldingsturer. Settes i editoren hvis feltene er tomme,
+// og lagres ved neste lagring.
+function standardDepositum(type){ return type === "bibelcamp" ? 1000 : 2000; }
+function standardBetalingstekst(dep){
+  const d = dep != null ? dep : standardDepositum("reise");
+  const kr = String(d).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return "Depositum på kr " + kr + ",- pr. person faktureres ved påmelding. Restbeløpet forfaller 60 dager før avreise.";
+}
+
 // Myke kontroller - sperrer ingenting.
 function oppdaterVilkarVarsler(){
   const t = state.trip, v = [];
   if(t.deposit_amount != null && t.price_per_person != null && (t.currency || "NOK") === "NOK" && t.deposit_amount > t.price_per_person)
     v.push("Depositumet er høyere enn reisens pris.");
-  if(t.registration_deadline && t.start_date && t.registration_deadline > t.start_date)
-    v.push("Påmeldingsfristen er etter avreisedato.");
-  if(t.min_participants != null && t.capacity != null && t.min_participants > t.capacity)
-    v.push("Minimum antall deltakere (" + t.min_participants + ") er høyere enn antall plasser (" + t.capacity + ").");
   el("vilkarVarsler").innerHTML = v.map(x=>escapeHtml(x)).join("<br>");
 }
 function bindVilkarTall(id, felt){
   el(id).addEventListener("input", e=>{
     let v = numOrNull(e.target.value);
     if(v !== null){ v = Math.round(v); if(v < 0) v = null; }
+    const forrige = state.trip[felt];
     state.trip[felt] = v;
+    // Står betalingsteksten fortsatt på standard, følger den depositumet.
+    if(felt === "deposit_amount" && state.trip.trip_type !== "bibelcamp"){
+      const tekst = (state.trip.terms_payment || "").trim();
+      if(!tekst || tekst === standardBetalingstekst(forrige)){
+        state.trip.terms_payment = standardBetalingstekst(v);
+        el("vk-betaling").value = state.trip.terms_payment;
+      }
+    }
     markDirty();
     oppdaterVilkarVarsler();
   });
 }
 bindVilkarTall("vk-depositum", "deposit_amount");
-bindVilkarTall("vk-min", "min_participants");
-// Registreres etter den generelle data-f-lytteren, så state er oppdatert først.
-document.addEventListener("input", (e)=>{ if(e.target.id === "vk-frist") oppdaterVilkarVarsler(); });
-document.addEventListener("change", (e)=>{ if(e.target.id === "vk-frist") oppdaterVilkarVarsler(); });
 
 function renderVilkar(){
   renderAvbestilling();
@@ -2500,7 +2624,7 @@ function renderVilkar(){
    pris, plasser og hotell sjekkes ikke her for dem. Sjekklisten leser alltid
    det som står i editoren nå, også det som ikke er lagret ennå. */
 
-const STATUS_NAVN = { kladd:"Under arbeid", publisert:"Publisert", utsolgt:"Utsolgt", kommer_snart:"Kommer snart" };
+const STATUS_NAVN = { kladd:"Under arbeid", publisert:"Publisert", utsolgt:"Fulltegnet", kommer_snart:"Kommer snart" };
 const FANE_NAVN = { reiseinfo:"Reiseinfo", omreisen:"Om reisen", program:"Program", fly:"Fly", hotell:"Hotell", priser:"Priser", praktisk:"Praktisk info", vilkar:"Reisebetingelser" };
 
 function publiseringsPunkter(){
@@ -2518,9 +2642,14 @@ function publiseringsPunkter(){
   add("krav", "reiseinfo", "Forsidebilde", !!t.forsidebilde_url);
   add("krav", "omreisen", "Ingress under Om reisen", fylt(t.intro_text));
   add("krav", "program", "Program: minst én dag med innhold", dagerMedInnhold >= 1);
+  // Nettsiden gir reisen detaljside og klikkbart kort bare når den har startdato, pris
+  // og er åpen for påmelding (cta_type «meld_deg_pa» og ikke «pris på forespørsel»).
+  add("krav", "priser", "Pris per person", t.price_per_person != null, t.price_per_person == null ? "Uten pris får reisen ingen detaljside på nettsiden" : "");
+  const apenPaamelding = t.cta_type === "meld_deg_pa" && !t.price_on_request;
+  add("krav", "reiseinfo", "Åpen for påmelding", apenPaamelding,
+      apenPaamelding ? "" : "Reisen er satt til «Be om tilbud» eller «Pris på forespørsel». Det kan ikke endres her, og reisen får da ikke detaljside på nettsiden");
   if(!bibel){
-    add("krav", "priser", "Pris per person", t.price_per_person != null);
-    add("krav", "priser", "Antall plasser", t.capacity != null, t.capacity == null ? "Uten dette kan ikke tilgjengeligheten vises" : "");
+    add("krav", "priser", "Antall plasser", t.capacity != null, t.capacity == null ? "Uten dette viser nettsiden «På forespørsel» på kortet" : "");
   }
   add(bibel ? "bor" : "krav", "vilkar", "Betalingstekst under Reisebetingelser", fylt(t.terms_payment));
 
@@ -2530,12 +2659,11 @@ function publiseringsPunkter(){
   add("bor", "omreisen", "Bilder under Om reisen", state.omBilder.length > 0);
   add("bor", "omreisen", "Minst én person (reiseleder)", state.personer.length > 0);
   add("bor", "program", "Innhold på alle dagene", dager !== null && dagerMedInnhold === dager, dager ? dagerMedInnhold + " av " + dager + " dager har innhold" : "");
-  add("bor", "fly", "Flytider eller flyinformasjon", state.flights.length > 0 || fylt(t.flight_info), "Hopp over hvis reisen ikke har fly");
+  add("bor", "fly", "Flytider eller flyinformasjon", state.flights.some(flyHarInnhold) || fylt(t.flight_info), "Hopp over hvis reisen ikke har fly");
   if(!bibel) add("bor", "hotell", "Minst ett hotell", hoteller > 0);
   add("bor", "priser", "Inkludert i prisen", renseListe(t.included_items) !== null);
   add("bor", "praktisk", "Måltider", fylt(t.meals_info));
   add("bor", "praktisk", "Pass og innreise", fylt(t.entry_requirements), "Hopp over hvis det ikke er noe særskilt");
-  add("bor", "vilkar", "Minimum antall deltakere", t.min_participants != null);
   add("bor", "vilkar", "Forbehold", fylt(t.terms_reservations));
   return p;
 }
@@ -2575,7 +2703,7 @@ function renderPubliser(){
   const publiser = { til:"publisert", tekst:"Publiser reisen", primar:true, deaktivert: kravMangler > 0 };
   if(st === "kladd") knapper.push(publiser, { til:"kommer_snart", tekst:"Sett til Kommer snart" });
   else if(st === "kommer_snart") knapper.push(publiser, { til:"kladd", tekst:"Sett tilbake til Under arbeid" });
-  else if(st === "publisert") knapper.push({ til:"utsolgt", tekst:"Marker som utsolgt" }, { til:"kladd", tekst:"Sett tilbake til Under arbeid" });
+  else if(st === "publisert") knapper.push({ til:"utsolgt", tekst:"Marker som fulltegnet" }, { til:"kladd", tekst:"Sett tilbake til Under arbeid" });
   else if(st === "utsolgt") knapper.push({ til:"publisert", tekst:"Åpne igjen (Publisert)", primar:true, deaktivert: kravMangler > 0 }, { til:"kladd", tekst:"Sett tilbake til Under arbeid" });
   const h = el("pubHandlinger");
   h.innerHTML = "";
@@ -2616,7 +2744,7 @@ function byttStatus(ny){
 /* ---------- Priser ----------
    Pris, valuta, enkeltromstillegg, plasser, inkludert/ikke inkludert og
    valgfrie utflukter. Plassvisningen («Ledige plasser» / «Få plasser igjen»
-   / «Utsolgt») er kun en forhåndsvisning av regelen her - selve merkelappen
+   / «Fulltegnet») er kun en forhåndsvisning av regelen her - selve merkelappen
    på nettsiden tegnes av Caminante Web ut fra kapasitet, antall påmeldte,
    terskelen og status. */
 async function hentAktivePaameldinger(){
@@ -2640,7 +2768,7 @@ function oppdaterTilgjengelighet(){
   }
   const ledige = Math.max(0, t.capacity - aktivePaameldinger);
   let tekst;
-  if(t.status === "utsolgt" || ledige <= 0) tekst = "Utsolgt";
+  if(t.status === "utsolgt" || ledige <= 0) tekst = "Fulltegnet";
   else if(t.few_spots_threshold != null && ledige <= t.few_spots_threshold) tekst = "Få plasser igjen";
   else tekst = "Ledige plasser";
   boks.innerHTML = `Påmeldte (ikke kansellerte): <b>${aktivePaameldinger}</b> av ${t.capacity} · Ledige: <b>${ledige}</b><br>Vises som: <b>${tekst}</b>`;
@@ -2699,6 +2827,7 @@ function renderTillegg(){
   state.addons.forEach((a, i)=>{
     const kort = document.createElement("div");
     kort.className = "tillegg-kort";
+    kort.dataset.key = a.clientKey;
     kort.innerHTML = `
       <div class="tillegg-felt">
         <label class="etikett">Navn</label>
@@ -2712,6 +2841,8 @@ function renderTillegg(){
           </div>
           <label class="tillegg-min"><input type="checkbox" class="t-min"${a.requires_min ? " checked" : ""}> Gjennomføres ved tilstrekkelig antall påmeldte</label>
         </div>
+        <div class="tillegg-bilder-etikett"></div>
+        <div class="tillegg-galleri"></div>
       </div>
       <div class="tillegg-knapper">
         <button type="button" class="mini-knapp opp" title="Flytt opp"${i === 0 ? " disabled" : ""}>↑</button>
@@ -2730,16 +2861,97 @@ function renderTillegg(){
     kort.querySelector(".opp").addEventListener("click", ()=>{ state.addons.splice(i-1, 0, state.addons.splice(i,1)[0]); state.addonsEndret = true; markDirty(); renderTillegg(); });
     kort.querySelector(".ned").addEventListener("click", ()=>{ state.addons.splice(i+1, 0, state.addons.splice(i,1)[0]); state.addonsEndret = true; markDirty(); renderTillegg(); });
     kort.querySelector(".fjern").addEventListener("click", ()=>{
+      if(addonOpptatt.has(a.clientKey)){ alert("Vent til opplastingen er ferdig."); return; }
       if(!confirm("Fjerne «" + ((a.name||"").trim() || "denne utflukten") + "»?")) return;
       state.addons = state.addons.filter(x=> x !== a);
       state.addonsEndret = true; markDirty(); renderTillegg();
     });
     holder.appendChild(kort);
+    renderAddonBilder(a);
   });
+}
+
+// Bilder per utflukt. På nettsiden vises ett bilde om gangen med piler, så
+// første bilde vises først. Velges fra reisemålets bildebank, eller lastes
+// opp - opplastede bilder blir liggende kun på denne reisen.
+const ADDON_BILDER_MAKS = 8;
+const addonOpptatt = new Set();
+function renderAddonBilder(a){
+  const kort = document.querySelector(`.tillegg-kort[data-key="${a.clientKey}"]`);
+  if(!kort) return;
+  const wrap = kort.querySelector(".tillegg-galleri");
+  kort.querySelector(".tillegg-bilder-etikett").textContent = `Bilder (${a.images.length} / ${ADDON_BILDER_MAKS})`;
+  const endret = ()=>{ a.endret = true; state.addonsEndret = true; markDirty(); };
+  try{
+    wrap.innerHTML = "";
+    wrap.appendChild(window.bildevelger.galleri({
+      maksBilder: ADDON_BILDER_MAKS,
+      getBilder: ()=>{
+        const bank = reisemaalBankCache.get(state.trip.reisemaal_id);
+        return a.images.map(b=>({
+          key:b.clientKey, url:b.url, alt:b.alt,
+          erFraBank: !!b.bank_id && (bank ? bank.some(r=>r.id === b.bank_id) : true),
+        }));
+      },
+      bank: ()=> addonBank(a),
+      onVelg: (bilde)=>{
+        a.images.push({ clientKey:newClientKey(), url:bilde.url, alt:bilde.alt_tekst || null, bank_id:bilde.id || null });
+        endret();
+      },
+      onFjern: (key)=>{ a.images = a.images.filter(b=>b.clientKey !== key); endret(); },
+      onFlytt: (key, retning)=>{
+        const i = a.images.findIndex(b=>b.clientKey === key);
+        const j = i + retning;
+        if(i < 0 || j < 0 || j >= a.images.length) return;
+        const [b] = a.images.splice(i,1); a.images.splice(j,0,b);
+        endret();
+      },
+      onLastOpp: (file)=> lastOppAddonBilde(a, file),
+      erOpptatt: ()=> addonOpptatt.has(a.clientKey),
+      settOpptatt: (v)=>{ if(v) addonOpptatt.add(a.clientKey); else addonOpptatt.delete(a.clientKey); },
+      etterEndring: ()=> renderAddonBilder(a),
+    }));
+  } catch(err){
+    console.error("Kunne ikke tegne bildene for utflukten:", err);
+    wrap.innerHTML = '<div class="hint">Kunne ikke vise bildevelgeren. Last siden på nytt.</div>';
+  }
+}
+function addonBank(a){
+  const rid = state.trip.reisemaal_id;
+  const navn = reisemaalNavnFor(rid);
+  return {
+    tittel: navn ? ("Bildebank for " + navn) : "Reisemålets bildebank",
+    erKoblet: ()=> !!state.trip.reisemaal_id,
+    tomBeskjed: "Koble reisen til et reisemål i Reiseinfo for å se bildene i reisemålets bildebank. "
+              + "Du kan også laste opp bilder direkte - de blir da liggende kun på denne utflukten.",
+    hentBilder: async ()=>{
+      const rader = await hentReisemaalBank(state.trip.reisemaal_id);
+      return rader.slice()
+        .sort((x,y)=>(x.sortering??0)-(y.sortering??0))
+        .map(r=>({ id:r.id, url:r.bilde_url, alt_tekst:r.alt_tekst }));
+    },
+    brukteIds: ()=> new Set(a.images.map(b=>b.bank_id).filter(Boolean)),
+    maks: REISEMAAL_BANK_BILDER_MAKS,
+  };
+}
+async function lastOppAddonBilde(a, file){
+  if(file.size > BILDE_MAKS_BYTES) throw new Error("Filen er for stor (maks 15 MB).");
+  const m = file.name.match(/\.([a-z0-9]{1,5})$/i);
+  const ext = m ? m[1].toLowerCase() : "jpg";
+  const path = tripId + "/utflukter/" + newClientKey() + "." + ext;
+  const { error } = await window.sb.storage.from("reise-bilder").upload(path, file, { upsert:false });
+  if(error) throw error;
+  const { data } = window.sb.storage.from("reise-bilder").getPublicUrl(path);
+  a.images.push({ clientKey:newClientKey(), url:data.publicUrl, alt:null, bank_id:null });
+  a.endret = true; state.addonsEndret = true;
+  markDirty();
+  clearTimeout(autosaveTimer);
+  autosaveDirty = false;
+  performSave();
 }
 el("tilleggLeggTil").addEventListener("click", ()=>{
   state.addons.push({ id:null, clientKey:newClientKey(), name:"", description:"", price:null,
-    currency: state.trip.currency || "NOK", requires_min:false, sort_order:state.addons.length, endret:true });
+    currency: state.trip.currency || "NOK", requires_min:false, images:[], sort_order:state.addons.length, endret:true });
   state.addonsEndret = true; markDirty(); renderTillegg();
   const navn = el("tilleggHolder").querySelectorAll(".t-navn");
   if(navn.length) navn[navn.length-1].focus();
@@ -2813,23 +3025,18 @@ function renderGrunnfelter(){
   el("ri-avreisested").value = t.departure_airport || "";
   el("ri-deltakere").value = state.internal.antall_deltakere ?? "";
   el("i-notater").value = state.internal.interne_notater || "";
-  el("fl-bagasje").value = t.luggage_info || "";
   el("fl-info").value = t.flight_info || "";
   el("pk-maltider").value = t.meals_info || "";
   el("pk-fysisk").value = t.physical_level || "";
   el("pk-innreise").value = t.entry_requirements || "";
   el("pk-annet").value = t.other_practical_info || "";
   el("vk-depositum").value = t.deposit_amount ?? "";
-  // Nettsiden bruker en standard når feltet er tomt, og depositumet er alltid i kroner.
-  const stdDep = t.trip_type === "bibelcamp" ? 1000 : 2000;
-  el("vk-depositum").placeholder = String(stdDep);
-  el("vk-depositum-hint").textContent = "Alltid i kroner. Tomt = standard kr " + stdDep.toLocaleString("nb-NO") + ".";
-  el("vk-frist").value = t.registration_deadline || "";
-  el("vk-depinfo").value = t.deposit_info || "";
+  // Standard er satt ved innlasting (2 000, bibelcamp 1 000). Tømmer du feltet, bruker nettsiden samme standard. Alltid kroner.
+  el("vk-depositum").placeholder = String(standardDepositum(t.trip_type));
+  el("vk-depositum-hint").textContent = "Alltid i kroner.";
   el("vk-betaling").value = t.terms_payment || "";
   el("vk-forbehold").value = t.terms_reservations || "";
   el("vk-lenke").value = t.terms_link || "";
-  el("vk-min").value = t.min_participants ?? "";
   oppdaterDagerVisning();
   renderReisemaalKobling();
   renderForsidebilde();
@@ -2883,12 +3090,9 @@ async function lastReise(id){
     luggage_info: trip.luggage_info || null,
     hotel_info: trip.hotel_info || null,
     deposit_amount: trip.deposit_amount != null ? Number(trip.deposit_amount) : null,
-    registration_deadline: trip.registration_deadline || null,
-    deposit_info: trip.deposit_info || null,
     terms_payment: trip.terms_payment || null,
     terms_reservations: trip.terms_reservations || null,
     terms_link: trip.terms_link || null,
-    min_participants: trip.min_participants != null ? Number(trip.min_participants) : null,
     cancellation_rows: Array.isArray(trip.cancellation_rows)
       ? trip.cancellation_rows.map(r=>({ when:(r && r.when) || "", refund:(r && r.refund) || "" }))
       : null,
@@ -2896,6 +3100,8 @@ async function lastReise(id){
     physical_level: trip.physical_level || null,
     entry_requirements: trip.entry_requirements || null,
     other_practical_info: trip.other_practical_info || null,
+    cta_type: trip.cta_type || "meld_deg_pa",
+    price_on_request: !!trip.price_on_request,
     price_per_person: trip.price_per_person != null ? Number(trip.price_per_person) : null,
     currency: trip.currency || "NOK",
     single_room_supplement: trip.single_room_supplement != null ? Number(trip.single_room_supplement) : null,
@@ -2904,6 +3110,9 @@ async function lastReise(id){
     included_items: Array.isArray(trip.included_items) ? trip.included_items.slice() : [],
     not_included_items: Array.isArray(trip.not_included_items) ? trip.not_included_items.slice() : [],
   };
+  if(state.trip.deposit_amount == null) state.trip.deposit_amount = standardDepositum(state.trip.trip_type);
+  if(state.trip.trip_type !== "bibelcamp" && !(state.trip.terms_payment || "").trim())
+    state.trip.terms_payment = standardBetalingstekst(state.trip.deposit_amount);
   state.sisteLagredeTittel = trip.title || "";
   state.internal = {
     interne_notater: (internal && internal.interne_notater) || "",
@@ -2947,13 +3156,19 @@ async function lastReise(id){
     id:a.id, clientKey:a.id, name:a.name || "", description:a.description || "",
     price: a.price != null ? Number(a.price) : null, currency:a.currency || "NOK",
     requires_min: !!a.requires_min_participants, sort_order:a.sort_order, endret:false,
+    images:(a.images || []).map(u=>({ clientKey:newClientKey(), url:u, alt:null, bank_id:null })),
   }));
   originalIds.addons = new Set(state.addons.map(a=>a.id));
   state.flights = (rFly.data||[]).map(f=>({
     id:f.id, clientKey:f.id, leg_group:f.leg_group || "utreise", date_label:f.date_label || "",
+    dato_iso:isoFraEtikett(f.date_label, trip.start_date, trip.end_date),
     route:f.route || "", departure_time:f.departure_time || "", arrival_time:f.arrival_time || "",
     airline:f.airline || "", sort_order:f.sort_order, endret:false,
   }));
+  state.flights.forEach(f=>{
+    const std = f.leg_group === "utreise" ? (trip.start_date || "") : f.leg_group === "hjemreise" ? (trip.end_date || "") : null;
+    f.foelger = std !== null && (f.date_label ? f.dato_iso === std : true);
+  });
   originalIds.flights = new Set(state.flights.map(f=>f.id));
   // Hoteller-modulen er kun til plukking (som personregisteret): feiler den,
   // er editoren fortsatt trygg å bruke, men plukking og bildebank sperres.
@@ -2970,8 +3185,15 @@ async function lastReise(id){
     stars: h.stars != null ? Number(h.stars) : null,
     date_range_text:h.date_range_text || "", nights: h.nights != null ? Number(h.nights) : null,
     images:(h.images || []).map(u=>({ clientKey:newClientKey(), url:u, alt:null, bank_id:null })),
-    inn:"", ut:"", sort_order:h.sort_order, endret:false,
+    inn:"", ut:"", innFoelger:false, utFoelger:false, sort_order:h.sort_order, endret:false,
   }));
+  state.hotels.forEach((h, i)=>{
+    const d = parseDatospenn(h.date_range_text, trip.start_date, trip.end_date, h.nights);
+    if(!d) return;
+    h.inn = d.inn; h.ut = d.ut;
+    h.innFoelger = i === 0 && d.inn === trip.start_date;
+    h.utFoelger = i === state.hotels.length - 1 && d.ut === trip.end_date;
+  });
   originalIds.hotels = new Set(state.hotels.map(h=>h.id));
   personRegisterFeilet = !!(rRegister.error || rRegisterBilder.error);
   personRegister = (rRegister.data||[]).map(p=>({

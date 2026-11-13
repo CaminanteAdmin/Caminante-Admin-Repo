@@ -130,7 +130,7 @@
     <option value="">Alle statuser</option>
     <option value="kladd">Under arbeid</option>
     <option value="publisert">Publisert</option>
-    <option value="utsolgt">Utsolgt</option>
+    <option value="utsolgt">Fulltegnet</option>
     <option value="kommer_snart">Kommer snart</option>
   </select>
   <button class="action primary" id="btnNy">+ Ny påmeldingstur</button>
@@ -202,7 +202,7 @@ function escapeHtml(str){
 }
 
 const TYPE_LABEL = { reise:"Påmeldingstur", bibelcamp:"Bibelcamp" };
-const STATUS_LABEL = { kladd:"Under arbeid", publisert:"Publisert", utsolgt:"Utsolgt", kommer_snart:"Kommer snart" };
+const STATUS_LABEL = { kladd:"Under arbeid", publisert:"Publisert", utsolgt:"Fulltegnet", kommer_snart:"Kommer snart" };
 
 function fmtDato(d){
   if(!d) return "";
