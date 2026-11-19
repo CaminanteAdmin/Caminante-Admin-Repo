@@ -31,6 +31,16 @@
     font-size:13px; background:var(--surface-1); color:var(--ink-primary); max-width:320px;
   }
   .count-pill{ font-size:12.5px; color:var(--ink-muted); margin-left:auto; padding-left:8px; }
+  .tilbake{ font-size:13px; color:var(--blue); text-decoration:none; white-space:nowrap; }
+  .tilbake:hover{ text-decoration:underline; }
+  .reise-overskrift{ font-size:15px; font-weight:650; color:var(--ink-primary); margin-right:8px; }
+  .reise-overskrift .sub{ font-weight:400; margin-left:6px; }
+  thead.statisk th{ cursor:default; }
+  .ny-merke{
+    display:inline-block; font-size:11.5px; padding:2.5px 9px; border-radius:20px; font-weight:650;
+    background:var(--blue); color:#fff;
+  }
+  .dempet{ color:var(--ink-muted); }
   .main{ padding:20px 24px 32px; }
 
   .kapasitet{
@@ -151,8 +161,48 @@
   </div>
 </div>
 
+<!-- Visning 1: liste over reiser (forsiden) -->
+<div id="reiseVisning" style="display:none;">
+  <div class="main">
+    <div class="list-panel">
+      <h2>Kommende reiser</h2>
+      <table>
+        <thead class="statisk">
+          <tr>
+            <th>Reise</th>
+            <th>Datoer</th>
+            <th>Påmeldte reisende</th>
+            <th>Ledige plasser</th>
+            <th>Nye påmeldinger</th>
+          </tr>
+        </thead>
+        <tbody id="reiseTbody"></tbody>
+      </table>
+      <div class="empty-msg" id="reiseTom" style="display:none;">Ingen kommende reiser.</div>
+    </div>
+    <div class="list-panel" id="tidligerePanel" style="margin-top:20px; display:none;">
+      <h2>Gjennomførte reiser</h2>
+      <table>
+        <thead class="statisk">
+          <tr>
+            <th>Reise</th>
+            <th>Datoer</th>
+            <th>Påmeldte reisende</th>
+            <th></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tidligereTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Visning 2: påmeldingene til én reise -->
+<div id="paameldingVisning" style="display:none;">
 <div class="toolbar">
-  <select id="filterReise"><option value="">Alle reiser</option></select>
+  <a class="tilbake" href="paameldinger.html" id="tilbake">← Alle reiser</a>
+  <span class="reise-overskrift" id="reiseOverskrift"></span>
   <select id="filterStatus">
     <option value="">Alle statuser</option>
     <option value="ny">Ny</option>
@@ -169,11 +219,10 @@
   <div class="list-panel">
     <h2>Påmeldinger</h2>
     <table>
-      <thead>
+      <thead id="paamHead">
         <tr>
           <th data-key="created_at">Mottatt <span class="arrow"></span></th>
           <th data-key="hovednavn">Hovedkontakt <span class="arrow"></span></th>
-          <th data-key="reise">Reise <span class="arrow"></span></th>
           <th data-key="antall">Reisende <span class="arrow"></span></th>
           <th data-key="status">Status <span class="arrow"></span></th>
         </tr>
@@ -182,6 +231,7 @@
     </table>
     <div class="empty-msg" id="emptyMsg" style="display:none;">Ingen påmeldinger matcher filteret.</div>
   </div>
+</div>
 </div>
 
 <div class="panel-bg" id="panelBg">
@@ -199,6 +249,7 @@ let hoteller = {};      // trip_hotel_id -> navn
 let paameldinger = [];  // bookings med travelers
 let sortKey = "created_at";
 let sortAsc = false;
+let aktivReise = null;  // trip_id når én reise er åpnet
 
 const STATUS_LABEL = { ny:"Ny", bekreftet:"Bekreftet", venteliste:"Venteliste", kansellert:"Kansellert" };
 const ROM_LABEL = {
@@ -272,28 +323,64 @@ async function lastData(){
     };
   });
 
-  fyllReiseFilter();
-  render();
+  const params = new URLSearchParams(location.search);
+  const aapne = params.get("id");
+  const aapneP = aapne ? paameldinger.find(p=>p.id === aapne) : null;
+  aktivReise = aapneP ? aapneP.trip_id : params.get("reise");
+  if(!aktivReise || !reiser[aktivReise]) aktivReise = null;
 
-  const aapne = new URLSearchParams(location.search).get("id");
-  if(aapne && paameldinger.some(p=>p.id === aapne)) visDetaljer(aapne);
+  if(aktivReise){
+    el("reiseVisning").style.display = "none";
+    el("paameldingVisning").style.display = "";
+    const t = reiser[aktivReise];
+    el("reiseOverskrift").innerHTML = `${escapeHtml(t.title)}<span class="sub">${fmtPeriode(t)}</span>`;
+    document.title = t.title + " – Påmeldinger – Caminante Admin";
+    render();
+    if(aapneP) visDetaljer(aapneP.id);
+  } else {
+    el("paameldingVisning").style.display = "none";
+    el("reiseVisning").style.display = "";
+    renderReiser();
+  }
 }
 
-function fyllReiseFilter(){
-  const valgt = el("filterReise").value || new URLSearchParams(location.search).get("reise") || "";
+/* ---------- Forsiden: liste over reiser ---------- */
+
+function renderReiser(){
+  const iDag = new Date().toISOString().slice(0,10);
   const medPaamelding = new Set(paameldinger.map(p=>p.trip_id));
-  const liste = Object.values(reiser)
-    .filter(t=> medPaamelding.has(t.id) || t.status !== "kladd")
+  const aktuelle = Object.values(reiser).filter(t=> medPaamelding.has(t.id) || t.status !== "kladd");
+  const erTidligere = t => (t.end_date || t.start_date) && (t.end_date || t.start_date) < iDag;
+  const kommende = aktuelle.filter(t=>!erTidligere(t))
     .sort((a,b)=> (a.start_date||"9999").localeCompare(b.start_date||"9999"));
-  el("filterReise").innerHTML = `<option value="">Alle reiser</option>` + liste.map(t=>{
-    const n = paameldinger.filter(p=>p.trip_id === t.id && p.status === "ny").length;
-    return `<option value="${t.id}">${escapeHtml(t.title)}${t.start_date ? " (" + fmtDato(t.start_date) + ")" : ""}${n ? " – " + n + " ny" + (n>1?"e":"") : ""}</option>`;
-  }).join("");
-  if(valgt && reiser[valgt]) el("filterReise").value = valgt;
+  const tidligere = aktuelle.filter(erTidligere)
+    .sort((a,b)=> (b.start_date||"").localeCompare(a.start_date||""));
+
+  const rad = (t, visLedige) => {
+    const ps = paameldinger.filter(p=>p.trip_id === t.id);
+    const paameldte = ps.filter(tellerPlass).reduce((s,p)=>s+p.antall, 0);
+    const nye = ps.filter(p=>p.status === "ny").length;
+    const ledige = t.capacity != null ? t.capacity - paameldte : null;
+    return `
+    <tr data-reise="${t.id}">
+      <td><span class="navn">${escapeHtml(t.title)}</span>${t.status === "kladd" ? '<br><span class="sub">Under arbeid</span>' : ""}</td>
+      <td>${fmtPeriode(t) || '<span class="dempet">Ingen dato</span>'}</td>
+      <td class="num">${paameldte}${t.capacity != null ? ' <span class="dempet">av ' + t.capacity + '</span>' : ""}</td>
+      <td class="num">${visLedige ? (ledige ?? '<span class="dempet">–</span>') : ""}</td>
+      <td>${visLedige && nye ? `<span class="ny-merke">${nye} ny${nye>1?"e":""}</span>` : ""}</td>
+    </tr>`;
+  };
+  el("reiseTbody").innerHTML = kommende.map(t=>rad(t, true)).join("");
+  el("reiseTom").style.display = kommende.length ? "none" : "block";
+  el("tidligereTbody").innerHTML = tidligere.map(t=>rad(t, false)).join("");
+  el("tidligerePanel").style.display = tidligere.length ? "" : "none";
+  document.querySelectorAll("tr[data-reise]").forEach(tr=>{
+    tr.addEventListener("click", ()=>{ location.href = "paameldinger.html?reise=" + encodeURIComponent(tr.dataset.reise); });
+  });
 }
 
 function filtrert(){
-  const reise = el("filterReise").value;
+  const reise = aktivReise;
   const st = el("filterStatus").value;
   const q = el("sok").value.trim().toLowerCase();
   return paameldinger.filter(p=>{
@@ -308,7 +395,7 @@ function filtrert(){
 }
 
 function renderKapasitet(){
-  const reise = el("filterReise").value;
+  const reise = aktivReise;
   const boks = el("kapasitet");
   if(!reise){ boks.classList.remove("vis"); boks.innerHTML = ""; return; }
   const t = reiser[reise];
@@ -345,18 +432,18 @@ function render(){
     <tr data-id="${p.id}" class="${p.status === "ny" ? "er-ny" : ""}">
       <td>${fmtTid(p.created_at)}</td>
       <td><span class="navn">${escapeHtml(p.hovednavn || "(uten navn)")}</span><br><span class="sub">${escapeHtml([h?.email, h?.mobile].filter(Boolean).join(" · "))}</span></td>
-      <td>${escapeHtml(t?.title || "Ukjent reise")}<br><span class="sub">${fmtPeriode(t)}</span></td>
       <td class="num">${p.antall}</td>
       <td><span class="status-chip ${escapeHtml(p.status)}">${STATUS_LABEL[p.status] || escapeHtml(p.status)}</span></td>
     </tr>`;
   }).join("");
   el("emptyMsg").style.display = rows.length ? "none" : "block";
-  el("emptyMsg").textContent = paameldinger.length ? "Ingen påmeldinger matcher filteret." : "Ingen påmeldinger ennå. De dukker opp her når noen melder seg på via nettsiden.";
+  const harNoen = paameldinger.some(p=>p.trip_id === aktivReise);
+  el("emptyMsg").textContent = harNoen ? "Ingen påmeldinger matcher filteret." : "Ingen påmeldinger på denne reisen ennå. De dukker opp her når noen melder seg på via nettsiden.";
   el("antall").textContent = `${rows.length} påmelding${rows.length === 1 ? "" : "er"} · ${rows.reduce((s,p)=>s+p.antall,0)} reisende`;
   el("tbody").querySelectorAll("tr").forEach(tr=>{
     tr.addEventListener("click", ()=> visDetaljer(tr.dataset.id));
   });
-  document.querySelectorAll("thead th").forEach(th=>{
+  document.querySelectorAll("#paamHead th").forEach(th=>{
     th.querySelector(".arrow").textContent = th.dataset.key === sortKey ? (sortAsc ? "▲" : "▼") : "";
   });
 }
@@ -475,29 +562,22 @@ function visDetaljer(id){
     p.status = ny;
     el("lagret").classList.add("vis");
     setTimeout(()=> el("lagret") && el("lagret").classList.remove("vis"), 1500);
-    fyllReiseFilter();
     render();
   });
 }
 
 function lukkDetaljer(){
   el("panelBg").classList.remove("open");
-  const reise = el("filterReise").value;
-  history.replaceState(null, "", reise ? "?reise=" + encodeURIComponent(reise) : location.pathname);
+  history.replaceState(null, "", "?reise=" + encodeURIComponent(aktivReise));
 }
 
 /* ---------- Wiring ---------- */
 
-el("filterReise").addEventListener("change", ()=>{
-  const reise = el("filterReise").value;
-  history.replaceState(null, "", reise ? "?reise=" + encodeURIComponent(reise) : location.pathname);
-  render();
-});
 el("filterStatus").addEventListener("change", render);
 el("sok").addEventListener("input", render);
 el("panelBg").addEventListener("click", (e)=>{ if(e.target === el("panelBg")) lukkDetaljer(); });
 document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && el("panelBg").classList.contains("open")) lukkDetaljer(); });
-document.querySelectorAll("thead th").forEach(th=>{
+document.querySelectorAll("#paamHead th").forEach(th=>{
   th.addEventListener("click", ()=>{
     const key = th.dataset.key;
     if(sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = key !== "created_at"; }
