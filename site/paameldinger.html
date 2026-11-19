@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Påmeldinger – Caminante Admin</title>
+<link rel="stylesheet" href="shared/style.css">
+<style>
+  /* Påmeldinger: alle påmeldinger fra nettsidens påmeldingsskjema
+     (bookings + booking_travelers). Samme designspråk som reiser.html. */
+  :root{
+    --blue:#2a78d6;
+    --blue-dark:#184f95;
+    --card-bg:#eaf2fb;
+    --card-border:#a9c9ec;
+  }
+  body{ background:var(--surface-1); }
+  .toolbar{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    padding:14px 24px; background:var(--surface-1);
+    border-bottom:1px solid var(--hairline);
+    position:sticky; top:0; z-index:5;
+  }
+  .toolbar input[type="search"]{
+    flex:1 1 220px; min-width:160px; padding:7px 10px;
+    border:1px solid var(--hairline); border-radius:8px; font-size:13px;
+    background:var(--surface-1); color:var(--ink-primary);
+  }
+  .toolbar select{
+    padding:7px 8px; border:1px solid var(--hairline); border-radius:8px;
+    font-size:13px; background:var(--surface-1); color:var(--ink-primary); max-width:320px;
+  }
+  .count-pill{ font-size:12.5px; color:var(--ink-muted); margin-left:auto; padding-left:8px; }
+  .main{ padding:20px 24px 32px; }
+
+  .kapasitet{
+    display:none; gap:14px; flex-wrap:wrap; margin-bottom:16px;
+  }
+  .kapasitet.vis{ display:flex; }
+  .kap-boks{
+    background:var(--card-bg); border:1px solid var(--card-border); border-radius:10px;
+    padding:10px 16px; min-width:120px;
+  }
+  .kap-boks .tall{ font-size:22px; font-weight:650; color:var(--blue-dark); font-variant-numeric:tabular-nums; }
+  .kap-boks .etikett{ font-size:11.5px; color:var(--ink-muted); text-transform:uppercase; letter-spacing:0.03em; }
+
+  .list-panel{
+    background:var(--surface-1); border:1px solid var(--card-border);
+    border-radius:10px; padding:16px; overflow-x:auto;
+  }
+  .list-panel h2{
+    font-size:13px; font-weight:650; margin:0 0 12px; color:var(--ink-secondary);
+    text-transform:uppercase; letter-spacing:0.03em;
+  }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  thead th{
+    text-align:left; font-weight:600; color:var(--ink-secondary);
+    padding:10px 10px; background:var(--card-bg);
+    border-bottom:1px solid var(--card-border);
+    cursor:pointer; white-space:nowrap; user-select:none;
+  }
+  thead th:first-child{ border-top-left-radius:6px; }
+  thead th:last-child{ border-top-right-radius:6px; }
+  thead th:hover{ color:var(--ink-primary); }
+  thead th .arrow{ font-size:10px; color:var(--ink-muted); margin-left:3px; }
+  tbody td{ padding:11px 10px; border-bottom:1px solid var(--hairline); vertical-align:middle; white-space:nowrap; }
+  tbody tr{ cursor:pointer; }
+  tbody tr:hover{ background:var(--card-bg); }
+  tbody tr.er-ny td:first-child{ box-shadow:inset 3px 0 0 var(--blue); }
+  .navn{ font-weight:600; }
+  .sub{ font-size:11.5px; color:var(--ink-muted); }
+  .num{ font-variant-numeric:tabular-nums; }
+  .empty-msg{ padding:24px 10px; color:var(--ink-muted); font-size:13px; }
+
+  .status-chip{
+    display:inline-block; font-size:11.5px; padding:2.5px 9px; border-radius:20px;
+    border:1px solid var(--hairline); color:var(--ink-secondary); background:var(--surface-1);
+  }
+  .status-chip.ny{ background:var(--card-bg); border-color:var(--card-border); color:var(--blue-dark); font-weight:650; }
+  .status-chip.bekreftet{ background:#e7f5e7; border-color:#bfe3bf; color:#0a7a0a; }
+  .status-chip.venteliste{ background:#fdf4e3; border-color:#eddaaf; color:#8a6a1d; }
+  .status-chip.kansellert{ background:#fbeaea; border-color:#eec3c3; color:#a03030; }
+
+  /* Detaljpanel (høyre side) */
+  .panel-bg{
+    display:none; position:fixed; inset:0; background:rgba(11,11,11,0.30); z-index:20;
+  }
+  .panel-bg.open{ display:block; }
+  .panel{
+    position:fixed; top:0; right:0; bottom:0; width:min(620px, 96vw);
+    background:var(--surface-1); box-shadow:-8px 0 30px rgba(0,0,0,0.15);
+    overflow-y:auto; padding:22px 26px 40px; z-index:21;
+  }
+  .panel-topp{ display:flex; align-items:flex-start; gap:12px; }
+  .panel-topp h3{ margin:0; font-size:17px; }
+  .panel-topp .sub{ margin-top:3px; font-size:12.5px; }
+  .lukk{
+    margin-left:auto; border:none; background:none; font-size:22px; line-height:1;
+    color:var(--ink-muted); cursor:pointer; padding:2px 6px;
+  }
+  .lukk:hover{ color:var(--ink-primary); }
+  .handlinger{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    margin:16px 0 6px; padding:12px; background:var(--card-bg);
+    border:1px solid var(--card-border); border-radius:10px;
+  }
+  .handlinger label{ font-size:12.5px; color:var(--ink-secondary); }
+  .handlinger select{
+    padding:6px 8px; border:1px solid var(--hairline); border-radius:8px; font-size:13px;
+  }
+  .knapp{
+    padding:7px 12px; border:1px solid var(--hairline); border-radius:8px;
+    font-size:13px; background:var(--surface-1); color:var(--ink-secondary); cursor:pointer;
+    text-decoration:none; display:inline-block;
+  }
+  .knapp.primary{ background:var(--blue); color:#fff; border-color:var(--blue); }
+  .knapp:hover{ filter:brightness(0.97); }
+  .lagret{ font-size:12px; color:#0a7a0a; opacity:0; transition:opacity .2s; }
+  .lagret.vis{ opacity:1; }
+  .seksjon{ margin-top:20px; }
+  .seksjon h4{
+    font-size:12px; font-weight:650; margin:0 0 8px; color:var(--ink-secondary);
+    text-transform:uppercase; letter-spacing:0.03em;
+  }
+  dl.felt{ display:grid; grid-template-columns:150px 1fr; gap:5px 12px; margin:0; font-size:13px; }
+  dl.felt dt{ color:var(--ink-muted); }
+  dl.felt dd{ margin:0; white-space:pre-line; }
+  .reisende-kort{
+    border:1px solid var(--hairline); border-radius:10px; padding:12px 14px; margin-bottom:10px;
+  }
+  .reisende-kort .navn{ font-size:14px; }
+  .reisende-kort .merke{
+    font-size:11px; padding:1.5px 7px; border-radius:20px; margin-left:6px;
+    background:var(--card-bg); color:var(--blue-dark); border:1px solid var(--card-border); font-weight:500;
+  }
+  .reisende-kort dl.felt{ margin-top:8px; }
+  .viktig{ color:#a03030; }
+  .hint{ font-size:11.5px; color:var(--ink-muted); margin-top:6px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html">
+    <span class="company">Caminante</span>
+    <span class="tool-name">Påmeldinger</span>
+  </a>
+  <div class="user-area">
+    <span id="userName"></span>
+    <button class="logout-btn" id="logoutBtn">Logg ut</button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <select id="filterReise"><option value="">Alle reiser</option></select>
+  <select id="filterStatus">
+    <option value="">Alle statuser</option>
+    <option value="ny">Ny</option>
+    <option value="bekreftet">Bekreftet</option>
+    <option value="venteliste">Venteliste</option>
+    <option value="kansellert">Kansellert</option>
+  </select>
+  <input type="search" id="sok" placeholder="Søk i navn, e-post eller mobil…">
+  <span class="count-pill" id="antall"></span>
+</div>
+
+<div class="main">
+  <div class="kapasitet" id="kapasitet"></div>
+  <div class="list-panel">
+    <h2>Påmeldinger</h2>
+    <table>
+      <thead>
+        <tr>
+          <th data-key="created_at">Mottatt <span class="arrow"></span></th>
+          <th data-key="hovednavn">Hovedkontakt <span class="arrow"></span></th>
+          <th data-key="reise">Reise <span class="arrow"></span></th>
+          <th data-key="antall">Reisende <span class="arrow"></span></th>
+          <th data-key="status">Status <span class="arrow"></span></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty-msg" id="emptyMsg" style="display:none;">Ingen påmeldinger matcher filteret.</div>
+  </div>
+</div>
+
+<div class="panel-bg" id="panelBg">
+  <div class="panel" id="panel"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+let reiser = {};        // trip_id -> trip
+let tilvalg = {};       // addon_id -> navn
+let hoteller = {};      // trip_hotel_id -> navn
+let paameldinger = [];  // bookings med travelers
+let sortKey = "created_at";
+let sortAsc = false;
+
+const STATUS_LABEL = { ny:"Ny", bekreftet:"Bekreftet", venteliste:"Venteliste", kansellert:"Kansellert" };
+const ROM_LABEL = {
+  enerom:"Enerom",
+  dele_med_annen:"Dele rom med en annen",
+  dobbeltrom:"Dobbeltrom",
+  hver_sitt_enkeltrom:"Hver sitt enkeltrom",
+  enkeltrom:"Enkeltrom",
+  tremannsrom:"Tremannsrom",
+  firemannsrom:"Firemannsrom",
+  uavklart_romfordeling:"Romfordeling avklares med kunden",
+};
+
+function el(id){ return document.getElementById(id); }
+function escapeHtml(str){
+  return (str ?? "").toString().replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+function fmtDato(d){
+  if(!d) return "";
+  const [y,m,day] = d.slice(0,10).split("-");
+  return `${day}.${m}.${y}`;
+}
+function fmtTid(ts){
+  if(!ts) return "";
+  return new Date(ts).toLocaleString("nb-NO", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
+}
+function fmtPeriode(t){
+  if(!t) return "";
+  if(t.start_date && t.end_date) return `${fmtDato(t.start_date)} – ${fmtDato(t.end_date)}`;
+  return fmtDato(t.start_date || t.end_date);
+}
+function alder(fodt, paaDato){
+  if(!fodt) return null;
+  const f = new Date(fodt + "T12:00:00"), d = paaDato ? new Date(paaDato + "T12:00:00") : new Date();
+  let a = d.getFullYear() - f.getFullYear();
+  if(d.getMonth() < f.getMonth() || (d.getMonth() === f.getMonth() && d.getDate() < f.getDate())) a--;
+  return a;
+}
+function hovedkontakt(b){
+  return (b.reisende || []).find(r=>r.is_main_contact) || (b.reisende || [])[0] || null;
+}
+// Plasser som teller: samme regel som get_trip_availability i databasen.
+function tellerPlass(b){ return b.status !== "kansellert" && b.status !== "venteliste"; }
+
+async function lastData(){
+  const [rTrips, rBook, rTrav, rAdd, rHot] = await Promise.all([
+    window.sb.from("trips").select("id,title,trip_type,status,start_date,end_date,capacity,terms_payment,currency").order("start_date",{ascending:true}),
+    window.sb.from("bookings").select("*").order("created_at",{ascending:false}),
+    window.sb.from("booking_travelers").select("*").order("sort_order",{ascending:true}),
+    window.sb.from("trip_addons").select("id,name"),
+    window.sb.from("trip_hotels").select("id,name"),
+  ]);
+  const feil = [rTrips, rBook, rTrav, rAdd, rHot].find(r=>r.error);
+  if(feil){ alert("Kunne ikke hente påmeldinger: " + feil.error.message); return; }
+
+  reiser = {}; (rTrips.data||[]).forEach(t=>{ reiser[t.id] = t; });
+  tilvalg = {}; (rAdd.data||[]).forEach(a=>{ tilvalg[a.id] = a.name; });
+  hoteller = {}; (rHot.data||[]).forEach(h=>{ hoteller[h.id] = h.name; });
+  const perBooking = {};
+  (rTrav.data||[]).forEach(r=>{ (perBooking[r.booking_id] = perBooking[r.booking_id] || []).push(r); });
+
+  paameldinger = (rBook.data||[]).map(b=>{
+    const reisende = perBooking[b.id] || [];
+    const h = reisende.find(r=>r.is_main_contact) || reisende[0];
+    return {
+      ...b,
+      reisende,
+      antall: reisende.length,
+      hovednavn: h ? `${h.first_name} ${h.last_name}` : "",
+      reise: reiser[b.trip_id]?.title || "",
+    };
+  });
+
+  fyllReiseFilter();
+  render();
+
+  const aapne = new URLSearchParams(location.search).get("id");
+  if(aapne && paameldinger.some(p=>p.id === aapne)) visDetaljer(aapne);
+}
+
+function fyllReiseFilter(){
+  const valgt = el("filterReise").value || new URLSearchParams(location.search).get("reise") || "";
+  const medPaamelding = new Set(paameldinger.map(p=>p.trip_id));
+  const liste = Object.values(reiser)
+    .filter(t=> medPaamelding.has(t.id) || t.status !== "kladd")
+    .sort((a,b)=> (a.start_date||"9999").localeCompare(b.start_date||"9999"));
+  el("filterReise").innerHTML = `<option value="">Alle reiser</option>` + liste.map(t=>{
+    const n = paameldinger.filter(p=>p.trip_id === t.id && p.status === "ny").length;
+    return `<option value="${t.id}">${escapeHtml(t.title)}${t.start_date ? " (" + fmtDato(t.start_date) + ")" : ""}${n ? " – " + n + " ny" + (n>1?"e":"") : ""}</option>`;
+  }).join("");
+  if(valgt && reiser[valgt]) el("filterReise").value = valgt;
+}
+
+function filtrert(){
+  const reise = el("filterReise").value;
+  const st = el("filterStatus").value;
+  const q = el("sok").value.trim().toLowerCase();
+  return paameldinger.filter(p=>{
+    if(reise && p.trip_id !== reise) return false;
+    if(st && p.status !== st) return false;
+    if(q){
+      const tekst = p.reisende.map(r=>[r.first_name, r.last_name, r.email, r.mobile].join(" ")).join(" ").toLowerCase();
+      if(!tekst.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderKapasitet(){
+  const reise = el("filterReise").value;
+  const boks = el("kapasitet");
+  if(!reise){ boks.classList.remove("vis"); boks.innerHTML = ""; return; }
+  const t = reiser[reise];
+  const ps = paameldinger.filter(p=>p.trip_id === reise);
+  const paameldte = ps.filter(tellerPlass).reduce((s,p)=>s+p.antall, 0);
+  const vente = ps.filter(p=>p.status === "venteliste").reduce((s,p)=>s+p.antall, 0);
+  const nye = ps.filter(p=>p.status === "ny").length;
+  const ledige = t?.capacity != null ? t.capacity - paameldte : null;
+  const kort = (tall, etikett)=>`<div class="kap-boks"><div class="tall">${tall}</div><div class="etikett">${etikett}</div></div>`;
+  boks.innerHTML =
+    kort(paameldte, "Påmeldte reisende") +
+    kort(t?.capacity ?? "–", "Plasser totalt") +
+    kort(ledige ?? "–", "Ledige plasser") +
+    (vente ? kort(vente, "På venteliste") : "") +
+    kort(nye, "Nye, ikke behandlet");
+  boks.classList.add("vis");
+}
+
+function render(){
+  renderKapasitet();
+  const rows = filtrert().slice().sort((a,b)=>{
+    let va = a[sortKey], vb = b[sortKey];
+    if(va == null) va = ""; if(vb == null) vb = "";
+    if(typeof va === "string") va = va.toLowerCase();
+    if(typeof vb === "string") vb = vb.toLowerCase();
+    if(va < vb) return sortAsc ? -1 : 1;
+    if(va > vb) return sortAsc ? 1 : -1;
+    return 0;
+  });
+  el("tbody").innerHTML = rows.map(p=>{
+    const h = hovedkontakt(p);
+    const t = reiser[p.trip_id];
+    return `
+    <tr data-id="${p.id}" class="${p.status === "ny" ? "er-ny" : ""}">
+      <td>${fmtTid(p.created_at)}</td>
+      <td><span class="navn">${escapeHtml(p.hovednavn || "(uten navn)")}</span><br><span class="sub">${escapeHtml([h?.email, h?.mobile].filter(Boolean).join(" · "))}</span></td>
+      <td>${escapeHtml(t?.title || "Ukjent reise")}<br><span class="sub">${fmtPeriode(t)}</span></td>
+      <td class="num">${p.antall}</td>
+      <td><span class="status-chip ${escapeHtml(p.status)}">${STATUS_LABEL[p.status] || escapeHtml(p.status)}</span></td>
+    </tr>`;
+  }).join("");
+  el("emptyMsg").style.display = rows.length ? "none" : "block";
+  el("emptyMsg").textContent = paameldinger.length ? "Ingen påmeldinger matcher filteret." : "Ingen påmeldinger ennå. De dukker opp her når noen melder seg på via nettsiden.";
+  el("antall").textContent = `${rows.length} påmelding${rows.length === 1 ? "" : "er"} · ${rows.reduce((s,p)=>s+p.antall,0)} reisende`;
+  el("tbody").querySelectorAll("tr").forEach(tr=>{
+    tr.addEventListener("click", ()=> visDetaljer(tr.dataset.id));
+  });
+  document.querySelectorAll("thead th").forEach(th=>{
+    th.querySelector(".arrow").textContent = th.dataset.key === sortKey ? (sortAsc ? "▲" : "▼") : "";
+  });
+}
+
+/* ---------- Detaljer ---------- */
+
+function felt(navn, verdi, klasse){
+  if(verdi == null || verdi === "" || verdi === false) return "";
+  return `<dt>${escapeHtml(navn)}</dt><dd class="${klasse||""}">${escapeHtml(verdi)}</dd>`;
+}
+
+function bekreftelseMailto(p){
+  const h = hovedkontakt(p);
+  const t = reiser[p.trip_id] || {};
+  if(!h || !h.email) return null;
+  const navn = p.reisende.map(r=>`- ${r.first_name} ${r.last_name}`).join("\n");
+  const linjer = [
+    `Hei ${h.first_name},`,
+    ``,
+    `Takk for påmeldingen til ${t.title || "reisen"}${t.start_date ? " (" + fmtPeriode(t) + ")" : ""}. Vi bekrefter med dette plass for:`,
+    navn,
+    ``,
+  ];
+  if(t.terms_payment) linjer.push(t.terms_payment, ``);
+  linjer.push(
+    `Ta gjerne kontakt hvis du har spørsmål.`,
+    ``,
+    `Vennlig hilsen`,
+    `Caminante Travel`,
+  );
+  const emne = `Bekreftelse på påmelding – ${t.title || "reise"}`;
+  return `mailto:${encodeURIComponent(h.email)}?subject=${encodeURIComponent(emne)}&body=${encodeURIComponent(linjer.join("\n"))}`;
+}
+
+function visDetaljer(id){
+  const p = paameldinger.find(x=>x.id === id);
+  if(!p) return;
+  const t = reiser[p.trip_id] || {};
+  const h = hovedkontakt(p);
+  const mailto = bekreftelseMailto(p);
+
+  const tilvalgTekst = (Array.isArray(p.addons) ? p.addons : [])
+    .map(a=>`${tilvalg[a.addonId] || "Ukjent tilvalg"} (${(a.participantIds||[]).length} pers.)`).join("\n");
+
+  const reisendeHtml = p.reisende.map((r,i)=>{
+    const a = alder(r.birth_date, t.start_date);
+    const nod = [r.emergency_contact_name, r.emergency_contact_relation, r.emergency_contact_mobile].filter(Boolean).join(", ");
+    const adr = [r.address, [r.postal_code, r.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+    return `
+    <div class="reisende-kort">
+      <span class="navn">${i+1}. ${escapeHtml(r.first_name)} ${escapeHtml(r.last_name)}</span>${r.is_main_contact ? '<span class="merke">Hovedkontakt</span>' : ""}
+      <dl class="felt">
+        ${felt("Fødselsdato", r.birth_date ? fmtDato(r.birth_date) + (a != null ? ` (${a} år ved avreise)` : "") : "")}
+        ${felt("Mobil", r.mobile)}
+        ${felt("E-post", r.email)}
+        ${felt("Adresse", adr)}
+        ${felt("Enkeltrom", r.wants_single_room ? "Ja" : "")}
+        ${felt("Allergier", r.allergies, "viktig")}
+        ${felt("Behov for assistanse", r.assistance, "viktig")}
+        ${felt("Annet", r.other_info)}
+        ${felt("Student", r.is_student ? "Ja" : "")}
+        ${felt("Rabatt", r.age_discount_applied)}
+        ${felt("Nødkontakt", nod)}
+      </dl>
+    </div>`;
+  }).join("");
+
+  el("panel").innerHTML = `
+    <div class="panel-topp">
+      <div>
+        <h3>${escapeHtml(p.hovednavn || "(uten navn)")}${p.antall > 1 ? " + " + (p.antall-1) : ""}</h3>
+        <div class="sub">${escapeHtml(t.title || "Ukjent reise")} · ${fmtPeriode(t)} · mottatt ${fmtTid(p.created_at)}</div>
+      </div>
+      <button class="lukk" id="lukkPanel" title="Lukk">×</button>
+    </div>
+
+    <div class="handlinger">
+      <label for="statusValg">Status</label>
+      <select id="statusValg">
+        ${Object.entries(STATUS_LABEL).map(([k,v])=>`<option value="${k}" ${p.status===k?"selected":""}>${v}</option>`).join("")}
+      </select>
+      <span class="lagret" id="lagret">Lagret</span>
+      <span style="flex:1"></span>
+      ${mailto ? `<a class="knapp primary" href="${mailto}" id="skrivBekreftelse">Skriv bekreftelse</a>` : `<span class="hint">Hovedkontakten har ingen e-post</span>`}
+    </div>
+    <div class="hint">«Skriv bekreftelse» åpner en ferdig utfylt e-post i e-postprogrammet ditt. Sett status til Bekreftet når den er sendt.</div>
+
+    <div class="seksjon">
+      <h4>Påmeldingen</h4>
+      <dl class="felt">
+        ${felt("Antall reisende", String(p.antall))}
+        ${felt("Romønske", ROM_LABEL[p.room_wish_type] || p.room_wish_type)}
+        ${felt("Kommentar til rom", p.room_wish_comment)}
+        ${felt("Hotell", hoteller[p.selected_trip_hotel_id])}
+        ${felt("Ordner overnatting selv", p.own_accommodation ? "Ja" : "")}
+        ${felt("Tilvalg", tilvalgTekst)}
+        ${felt("Kommentar", p.general_comment)}
+        ${felt("Vilkår godtatt", p.terms_accepted ? "Ja" : "Nei")}
+        ${felt("Varsel sendt", p.varsel_sendt_at ? fmtTid(p.varsel_sendt_at) : "")}
+      </dl>
+    </div>
+
+    <div class="seksjon">
+      <h4>Reisende</h4>
+      ${reisendeHtml || '<div class="hint">Ingen reisende er lagret på denne påmeldingen.</div>'}
+    </div>
+  `;
+  el("panelBg").classList.add("open");
+  history.replaceState(null, "", "?id=" + encodeURIComponent(p.id));
+
+  el("lukkPanel").addEventListener("click", lukkDetaljer);
+  el("statusValg").addEventListener("change", async (e)=>{
+    const ny = e.target.value;
+    const { error } = await window.sb.from("bookings").update({ status: ny }).eq("id", p.id);
+    if(error){ alert("Kunne ikke lagre status: " + error.message); e.target.value = p.status; return; }
+    p.status = ny;
+    el("lagret").classList.add("vis");
+    setTimeout(()=> el("lagret") && el("lagret").classList.remove("vis"), 1500);
+    fyllReiseFilter();
+    render();
+  });
+}
+
+function lukkDetaljer(){
+  el("panelBg").classList.remove("open");
+  const reise = el("filterReise").value;
+  history.replaceState(null, "", reise ? "?reise=" + encodeURIComponent(reise) : location.pathname);
+}
+
+/* ---------- Wiring ---------- */
+
+el("filterReise").addEventListener("change", ()=>{
+  const reise = el("filterReise").value;
+  history.replaceState(null, "", reise ? "?reise=" + encodeURIComponent(reise) : location.pathname);
+  render();
+});
+el("filterStatus").addEventListener("change", render);
+el("sok").addEventListener("input", render);
+el("panelBg").addEventListener("click", (e)=>{ if(e.target === el("panelBg")) lukkDetaljer(); });
+document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && el("panelBg").classList.contains("open")) lukkDetaljer(); });
+document.querySelectorAll("thead th").forEach(th=>{
+  th.addEventListener("click", ()=>{
+    const key = th.dataset.key;
+    if(sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = key !== "created_at"; }
+    render();
+  });
+});
+
+(async ()=>{
+  const session = await requireLogin();
+  if(!session) return;
+  await lastData();
+})();
+</script>
+</body>
+</html>

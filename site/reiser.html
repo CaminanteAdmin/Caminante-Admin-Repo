@@ -77,6 +77,7 @@
   }
   .pm-count{ font-variant-numeric:tabular-nums; }
   .pm-count.har{ font-weight:650; color:var(--blue-dark); }
+  a.pm-lenke{ text-decoration:underline; text-underline-offset:2px; }
   .empty-msg{ padding:24px 10px; color:var(--ink-muted); font-size:13px; }
 
   /* Ny reise-modal */
@@ -261,13 +262,15 @@ function render(){
       <td><span class="reise-tittel">${escapeHtml(r.title)}</span><br><span class="reise-sub">${escapeHtml(r.destination||"")}</span></td>
       <td><span class="status-chip ${escapeHtml(r.status||"")}">${STATUS_LABEL[r.status] || escapeHtml(r.status||"")}</span></td>
       <td>${fmtPeriode(r)}</td>
-      <td><span class="pm-count ${r.paameldinger>0?"har":""}" ${r.paameldinger===null?'title="Tellingen feilet - antallet er ukjent"':""}>${r.paameldinger===null?"?":r.paameldinger}</span></td>
+      <td>${r.paameldinger>0
+        ? `<a class="pm-count har pm-lenke" href="paameldinger.html?reise=${encodeURIComponent(r.id)}" title="Vis påmeldingene">${r.paameldinger}</a>`
+        : `<span class="pm-count" ${r.paameldinger===null?'title="Tellingen feilet - antallet er ukjent"':""}>${r.paameldinger===null?"?":r.paameldinger}</span>`}</td>
       <td>${r.updated_at ? new Date(r.updated_at).toLocaleDateString("nb-NO") : ""}</td>
     </tr>`).join("");
   el("emptyMsg").style.display = rows.length ? "none" : "block";
   el("antall").textContent = `${rows.length} av ${reiser.filter(r=>r.trip_type === sideType).length}`;
   el("tbody").querySelectorAll("tr").forEach(tr=>{
-    tr.addEventListener("click", ()=>{ window.location.href = `reise-editor.html?id=${encodeURIComponent(tr.dataset.id)}`; });
+    tr.addEventListener("click", (e)=>{ if(e.target.closest(".pm-lenke")) return; window.location.href = `reise-editor.html?id=${encodeURIComponent(tr.dataset.id)}`; });
   });
 }
 

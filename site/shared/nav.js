@@ -26,7 +26,7 @@
     { label: "Påmeldingsturer", href: "reiser.html" },
     { label: "Bibelcamper",     href: "reiser.html?type=bibelcamp" },
     { label: "Gruppetilbud",    href: "forslag.html" },
-    { label: "Påmeldinger",    disabled: true },
+    { label: "Påmeldinger",    href: "paameldinger.html" },
     { label: "Reisemål",       href: "reisemaal.html" },
     { label: "Hoteller",       href: "hoteller.html" },
     { label: "Personer",       href: "personer.html" },
